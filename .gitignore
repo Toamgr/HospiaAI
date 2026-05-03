@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/*.sqlite
+data/*.sqlite-*
+*.log
+.env
+node_modules
+dist
+.env
+server.err
+server.out
