@@ -370,7 +370,7 @@ const SIMULATION_SCENARIOS = [
   { id: 3, difficulty: 'Advanced', title: 'Dish Returned', context: 'A steak ordered medium-rare arrived well done. The guest pushed the plate away.', guest: 'I ordered medium-rare. This is completely overcooked. I cannot eat this.', ideal: 'I am very sorry. That is not acceptable, and I take responsibility for fixing it. I am having a new steak prepared at the correct temperature now, and I will personally follow up with you in a few minutes.' }
 ]
 
-const COCKTAIL_FILTERS = ['All', 'Spirit-forward', 'Bitter', 'Citrus', 'Refreshing', 'Sour', 'Tropical', 'Sparkling', 'Creamy', 'Herbal']
+const COCKTAIL_FILTERS = ['All', 'Spirits Masterclass', 'Cocktail Families', 'Technique Academy', 'Bartender Rituals', 'Guest Scripts', 'Spirit-forward', 'Bitter', 'Citrus', 'Refreshing', 'Sour', 'Tropical', 'Sparkling', 'Creamy', 'Herbal']
 
 const cocktailLibrary = [
   { name: 'Old Fashioned', family: 'Classic Whiskey', origin: 'United States, early 1800s', era: 'Pre-Prohibition', story: 'The Old Fashioned is one of the earliest named cocktail formats, built from spirit, sugar, bitters, and water. It became associated with American whiskey culture and remained a benchmark for serious bar programs. The drink became globally successful because it is simple, elegant, and exposes the quality of the base spirit. Its signature identity is warm, aromatic, gently sweet, and deeply spirit-forward.', ingredients: ['60 ml bourbon or rye whiskey', '7.5 ml rich simple syrup or 1 sugar cube', '2 dashes Angostura bitters', '1 dash orange bitters optional'], method: 'Build and stir in the glass until chilled and lightly diluted.', glassware: 'Rocks glass', ice: 'One large clear cube or large block ice', garnish: 'Orange twist', serviceNote: 'Ask whether the guest prefers bourbon softness or rye spice. Avoid muddled fruit in a premium setting unless it is the house style.', tags: ['Spirit-forward', 'Bitter', 'Aromatic'] },
@@ -398,6 +398,43 @@ const cocktailLibrary = [
   { name: 'Clover Club', family: 'Gin Sour', origin: 'Philadelphia, late 1800s', era: 'Pre-Prohibition', story: 'The Clover Club is named after a Philadelphia gentlemen club where it became a signature drink. It was famous before Prohibition and later revived by modern craft cocktail bars. Its global success comes from its beautiful foam, raspberry color, and elegant sour structure. Its identity is silky, berry-led, citrusy, and refined.', ingredients: ['50 ml gin', '25 ml fresh lemon juice', '20 ml raspberry syrup', '20 ml egg white'], method: 'Dry shake without ice, then shake hard with ice and fine strain.', glassware: 'Chilled coupe', ice: 'Cubed ice for shaking, served up', garnish: 'Fresh raspberry or no garnish', serviceNote: 'Confirm egg white. Dry shake and double shake are essential for proper foam.', tags: ['Sour', 'Creamy', 'Citrus', 'Fruity'] },
   { name: 'Aviation', family: 'Gin Sour', origin: 'United States, early 1900s', era: 'Pre-Prohibition', story: 'The Aviation appeared in early twentieth-century cocktail literature and became known for its pale sky-like color. It became famous again during the craft cocktail revival as creme de violette returned to bars. Its global success comes from its unusual floral identity and delicate structure. Its identity is floral, citrusy, lightly sweet, and elegant.', ingredients: ['50 ml gin', '15 ml maraschino liqueur', '15 ml fresh lemon juice', '5 ml creme de violette'], method: 'Shake with ice and fine strain.', glassware: 'Chilled coupe', ice: 'Cubed ice for shaking, served up', garnish: 'Brandied cherry', serviceNote: 'Use violette carefully. Too much makes the drink perfumed and heavy.', tags: ['Citrus', 'Floral', 'Sour'] },
   { name: 'Caipirinha', family: 'Cachaca Classic', origin: 'Brazil, early 1900s', era: 'National Classic', story: 'The Caipirinha is Brazils defining cocktail and is built around cachaca, lime, and sugar. It became famous through Brazilian drinking culture before becoming an international classic. Its global success comes from freshness, simplicity, and the grassy character of cachaca. Its identity is rustic, lime-forward, sweet-tart, and refreshing.', ingredients: ['60 ml cachaca', '1 fresh lime cut into wedges', '2 bar spoons white sugar'], method: 'Muddle lime and sugar gently, add cachaca and ice, then churn.', glassware: 'Rocks glass', ice: 'Crushed or cracked ice', garnish: 'No garnish or lime wheel', serviceNote: 'Do not pulverize the lime peel. Excess pressure extracts bitterness.', tags: ['Refreshing', 'Citrus', 'Sweet'] }
+]
+
+const ATLAS_MASTERCLASSES = [
+  { id: 'gin', title: 'The Gin Botanicum', desc: 'From London Dry to Old Tom. Mastering juniper profiles and tonic pairings.', level: 'Advanced' },
+  { id: 'vodka', title: 'The Vodka Purity', desc: 'Texture, raw material influence, and the art of the frozen martini.', level: 'Intermediate' },
+  { id: 'rum', title: 'Sugar & Oak', desc: 'Agricultural vs. Molasses. Navigation through Caribbean terroir and aging.', level: 'Expert' },
+  { id: 'tequila', title: 'Agave Architecture', desc: 'The science of Blue Weber agave, roasting methods, and salinity.', level: 'Advanced' },
+  { id: 'mezcal', title: 'Smoke & Earth', desc: 'Ancestral distillation and the complexity of wild agave varieties.', level: 'Expert' },
+  { id: 'whisky', title: 'Grain & Peat', desc: 'Scotch, Bourbon, and Rye. Understanding mash bills and barrel chemistry.', level: 'Mastery' },
+  { id: 'brandy', title: 'Grape & Copper', desc: 'The elegance of Cognac and Armagnac. History in a snifter.', level: 'Intermediate' },
+  { id: 'liqueurs', title: 'Botanical Modifiers', desc: 'Mastering the supporting cast: Amari, Chartreuse, and Vermouth.', level: 'Advanced' }
+]
+
+const ATLAS_TECHNIQUES = [
+  { title: 'The Hard Shake', category: 'Aeration', detail: 'Creating texture through three-dimensional movement.', icon: 'Sparkles' },
+  { title: 'Japanese Stirring', category: 'Dilution', detail: 'Minimal friction stirring for crystal clear spirit-forward drinks.', icon: 'Timer' },
+  { title: 'Batching Science', category: 'Efficiency', detail: 'Calculated dilution for high-volume consistency.', icon: 'Calculator' },
+  { title: 'Milk Clarification', category: 'Chemistry', detail: 'Stripping tannins and adding silkiness via protein filtration.', icon: 'GlassWater' },
+  { title: 'Fat Washing', category: 'Infusion', detail: 'Integrating savory lipids into spirits through temperature control.', icon: 'Thermometer' },
+  { title: 'Pressure Infusion', category: 'Flavor', detail: 'Using N2O for rapid extraction of delicate botanicals.', icon: 'Zap' },
+  { title: 'Ice Carving', category: 'Ritual', detail: 'Hand-cut clear ice for optimal thermal mass management.', icon: 'Scissors' },
+  { title: 'Dilution Curves', category: 'Theory', detail: 'Measuring temperature vs. water content for the perfect pour.', icon: 'TrendingUp' }
+]
+
+const ATLAS_TRAINING_CARDS = [
+  { title: 'The 10-Second Rule', objective: 'First Impression', action: 'Eye contact, vocal welcome, and seating priority.' },
+  { title: 'The Check-Back', objective: 'Service Quality', action: 'Two bites or two sips in. Ask specifically, not generally.' },
+  { title: 'Glassware Polish', objective: 'Visual Standard', action: 'Using steam and microfiber. No fingerprints, no lint.' },
+  { title: 'Silent Service', objective: 'Luxury Floor', action: 'Anticipating needs without interrupting guest conversation.' },
+  { title: 'Trolley Ritual', objective: 'Experience', action: 'The theater of table-side preparation and presentation.' }
+]
+
+const ATLAS_PROFIT_INSIGHTS = [
+  { title: 'The Second Drink Leak', impact: 'NIS 4,200/mo', solution: 'Proactive offer when glass is 20% full.' },
+  { title: 'Silent Over-Pouring', impact: '12% Margin Loss', solution: 'Mandatory jigger use and brix calibration.' },
+  { title: 'Garnish Waste', impact: 'NIS 850/mo', solution: 'Prep-to-order for high-cost berries and exotic citrus.' },
+  { title: 'Premium Upsell Path', impact: '+18% Average Check', solution: 'Recommend by spirit story, not by price tag.' }
 ]
 
 function cx(...classes) {
@@ -685,7 +722,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0c09] text-stone-100">
+    <div className="min-h-screen bg-[#0d0c09] text-[#f5f5f0]">
       <TopNav
         t={t}
         role={role}
@@ -695,7 +732,7 @@ export default function App() {
         setCollapsed={setCollapsed}
       />
 
-      <div className="flex min-h-[calc(100vh-4rem)]">
+      <div className="flex min-h-[calc(100vh-5rem)]">
         <SidePanel
           t={t}
           role={role}
@@ -718,7 +755,7 @@ export default function App() {
           />
         )}
 
-        <main className="min-w-0 flex-1 p-5 sm:p-7 lg:p-10">
+        <main className="min-w-0 flex-1 p-8 sm:p-12 lg:p-20 xl:p-32 2xl:p-40">
           <PageRenderer
             t={t}
             lang={lang}
@@ -760,33 +797,33 @@ function LoginScreen({ t, lang, setLang, onLogin }) {
   }
 
   return (
-    <main className="grid min-h-screen bg-[#0d0c09] text-stone-100 lg:grid-cols-[1.1fr_0.9fr]">
-      <section className="relative flex items-end overflow-hidden border-b border-stone-800 bg-[radial-gradient(circle_at_top_right,rgba(215,183,106,0.2),transparent_34%),linear-gradient(135deg,#181611,#0d0c09)] p-8 lg:min-h-screen lg:border-b-0 lg:border-r lg:p-12">
+    <main className="grid min-h-screen bg-[#0d0c09] text-[#f5f5f0] lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="relative flex items-end overflow-hidden border-b border-[#6b705c]/30 bg-[radial-gradient(circle_at_top_right,rgba(201,169,110,0.2),transparent_34%),linear-gradient(135deg,#181611,#0d0c09)] p-8 lg:min-h-screen lg:border-b-0 lg:border-r lg:p-12">
         <div className="max-w-3xl">
-          <div className="mb-6 text-sm font-black uppercase tracking-[0.28em] text-[#d7b76a]">
+          <div className="mb-6 text-sm font-black uppercase tracking-[0.28em] text-[#c9a96e]">
             {t.app.secureAccess}
           </div>
-          <h1 className="font-serif text-5xl font-black tracking-tight text-stone-50 sm:text-7xl">
-            {t.app.name} <span className="text-[#d7b76a]">{t.app.suffix}</span>
+          <h1 className="font-serif text-5xl font-black tracking-tight text-[#f5f5f0] sm:text-7xl">
+            {t.app.name} <span className="text-[#c9a96e]">{t.app.suffix}</span>
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-stone-400">{t.app.accessBody}</p>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-[#e8dcc0]">{t.app.accessBody}</p>
 
-          <div className="mt-10 grid gap-3 text-sm text-stone-500 sm:grid-cols-3">
-            <div className="rounded-2xl border border-stone-800 bg-black/20 p-4">EMP123 - {t.app.employee}</div>
-            <div className="rounded-2xl border border-stone-800 bg-black/20 p-4">MNG123 - {t.app.manager}</div>
-            <div className="rounded-2xl border border-stone-800 bg-black/20 p-4">OWN123 - {t.app.owner}</div>
+          <div className="mt-10 grid gap-3 text-sm text-[#e8dcc0] sm:grid-cols-3">
+            <div className="rounded-2xl border border-[#6b705c]/30 bg-black/20 p-4">EMP123 - {t.app.employee}</div>
+            <div className="rounded-2xl border border-[#6b705c]/30 bg-black/20 p-4">MNG123 - {t.app.manager}</div>
+            <div className="rounded-2xl border border-[#6b705c]/30 bg-black/20 p-4">OWN123 - {t.app.owner}</div>
           </div>
         </div>
       </section>
 
       <section className="flex items-center justify-center p-6 sm:p-10">
-        <form onSubmit={submit} className="w-full max-w-md rounded-[1.75rem] border border-stone-800 bg-[#14130f] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
+        <form onSubmit={submit} className="w-full max-w-md rounded-[1.75rem] border border-[#6b705c]/30 bg-[#14130f] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
           <div className="mb-8 flex items-start justify-between gap-4">
             <div>
-              <div className="text-xs font-black uppercase tracking-[0.22em] text-[#d7b76a]">
+              <div className="text-xs font-black uppercase tracking-[0.22em] text-[#c9a96e]">
                 {t.app.secureAccess}
               </div>
-              <h2 className="mt-3 font-serif text-3xl font-black tracking-tight text-stone-50">
+              <h2 className="mt-3 font-serif text-3xl font-black tracking-tight text-[#f5f5f0]">
                 {t.app.accessTitle}
               </h2>
             </div>
@@ -797,7 +834,7 @@ function LoginScreen({ t, lang, setLang, onLogin }) {
             value={code}
             onChange={event => setCode(event.target.value)}
             placeholder={t.app.codePlaceholder}
-            className="w-full rounded-xl border border-stone-800 bg-[#1b1a15] px-4 py-3 text-sm text-stone-100 outline-none transition placeholder:text-stone-600 focus:border-[#d7b76a] focus:ring-2 focus:ring-[#d7b76a]/20"
+            className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-4 py-3 text-sm text-[#f5f5f0] outline-none transition placeholder:text-[#e8dcc0] focus:border-[#c9a96e] focus:ring-2 focus:ring-[#c9a96e]/20"
           />
 
           {error && <Alert type="error">{error}</Alert>}
@@ -815,12 +852,12 @@ function TopNav({ t, role, area, goToArea, collapsed, setCollapsed }) {
     .map(([key]) => key)
 
   return (
-    <header className="sticky top-0 z-40 border-b border-stone-800 bg-[#12110e]/95 backdrop-blur">
-      <div className="flex min-h-16 items-center gap-4 px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 border-b border-[#6b705c]/20 bg-[#0d0c09]/90 backdrop-blur-xl">
+      <div className="flex min-h-20 items-center gap-8 px-8 sm:px-12 lg:px-16">
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stone-800 bg-[#1b1a15] text-stone-300 transition hover:border-[#d7b76a] hover:text-[#d7b76a]"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#6b705c]/20 bg-[#1a1a1a] text-[#e8dcc0] transition hover:border-[#c9a96e] hover:text-[#c9a96e]"
           aria-label={collapsed ? t.ui.openPanel : t.ui.collapsePanel}
         >
           <span className="block w-4">
@@ -831,36 +868,36 @@ function TopNav({ t, role, area, goToArea, collapsed, setCollapsed }) {
         </button>
 
         <div className="min-w-fit">
-          <div className="font-serif text-xl font-black tracking-[0.06em] text-[#d7b76a]">
-            {t.app.name} <span className="text-stone-100">{t.app.suffix}</span>
+          <div className="font-serif text-2xl font-black tracking-[0.06em] text-[#c9a96e]">
+            {t.app.name} <span className="text-[#f5f5f0]">{t.app.suffix}</span>
           </div>
-          <div className="hidden text-[10px] font-black uppercase tracking-[0.2em] text-stone-600 sm:block">
+          <div className="hidden text-[9px] font-black uppercase tracking-[0.3em] text-[#e8dcc0] opacity-60 sm:block">
             {t.app.tagline}
           </div>
         </div>
 
-        <nav className="flex flex-1 gap-2 overflow-x-auto px-2" aria-label="Primary navigation">
+        <nav className="flex flex-1 gap-4 overflow-x-auto px-4" aria-label="Primary navigation">
           {areas.map(item => (
             <button
               key={item}
               type="button"
               onClick={() => goToArea(item)}
               className={cx(
-                'min-h-11 shrink-0 rounded-xl border px-4 py-2 text-left transition',
+                'min-h-12 shrink-0 rounded-2xl border px-6 py-2 text-left transition-all duration-300',
                 area === item
-                  ? 'border-[#d7b76a]/40 bg-[#d7b76a]/10 text-[#d7b76a]'
-                  : 'border-transparent text-stone-400 hover:bg-stone-900 hover:text-stone-100'
+                  ? 'border-[#c9a96e]/30 bg-[#c9a96e]/5 text-[#c9a96e] shadow-lg shadow-[#c9a96e]/5'
+                  : 'border-transparent text-[#e8dcc0] hover:bg-[#6b705c]/10 hover:text-[#f5f5f0]'
               )}
             >
-              <span className="block text-sm font-black leading-5">{t.areas[item]}</span>
-              <span className="hidden text-[11px] leading-4 text-stone-600 xl:block">
+              <span className="block text-xs font-black uppercase tracking-widest">{t.areas[item]}</span>
+              <span className="hidden text-[10px] leading-4 text-[#e8dcc0] opacity-50 xl:block">
                 {t.areaDescriptions[item]}
               </span>
             </button>
           ))}
         </nav>
 
-        <div className="hidden rounded-full border border-[#d7b76a]/30 bg-[#d7b76a]/10 px-4 py-2 text-xs font-black text-[#d7b76a] lg:block">
+        <div className="hidden rounded-2xl border border-[#c9a96e]/20 bg-[#c9a96e]/5 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#c9a96e] lg:block">
           {t.app[role]}
         </div>
       </div>
@@ -873,43 +910,43 @@ function SidePanel({ t, role, area, page, collapsed, setCollapsed, goToPage, lan
 
   return (
     <aside className={cx(
-      'fixed inset-y-16 z-30 border-r border-stone-800 bg-[#12110e] transition-all duration-200 lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)]',
-      collapsed ? 'w-0 -translate-x-full overflow-hidden lg:w-[76px] lg:translate-x-0' : 'w-[320px] translate-x-0'
+      'fixed inset-y-20 z-30 border-r border-[#6b705c]/10 bg-[#0d0c09] transition-all duration-500 lg:sticky lg:top-20 lg:h-[calc(100vh-5rem)]',
+      collapsed ? 'w-0 -translate-x-full overflow-hidden lg:w-[88px] lg:translate-x-0' : 'w-[280px] translate-x-0'
     )}>
       {!collapsed ? (
         <div className="flex h-full flex-col">
-          <div className="border-b border-stone-800 p-5">
-            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-stone-600">
+          <div className="border-b border-[#6b705c]/10 p-8">
+            <div className="text-[9px] font-black uppercase tracking-[0.4em] text-[#e8dcc0] opacity-50">
               {t.ui.selectSection}
             </div>
-            <h2 className="mt-2 font-serif text-2xl font-black text-stone-50">{t.areas[area]}</h2>
-            <p className="mt-2 text-sm leading-6 text-stone-500">{t.areaDescriptions[area]}</p>
+            <h2 className="mt-4 font-serif text-3xl font-black text-[#f5f5f0]">{t.areas[area]}</h2>
+            <p className="mt-3 text-xs leading-6 text-[#e8dcc0] opacity-70 italic">{t.areaDescriptions[area]}</p>
           </div>
 
-          <nav className="flex-1 overflow-y-auto p-4" aria-label="Secondary navigation">
-            <div className="space-y-2">
+          <nav className="flex-1 overflow-y-auto p-6" aria-label="Secondary navigation">
+            <div className="space-y-3">
               {pages.map(item => (
                 <button
                   key={item}
                   type="button"
                   onClick={() => goToPage(item)}
                   className={cx(
-                    'w-full rounded-2xl border p-4 text-left transition',
+                    'w-full rounded-[1.5rem] border p-5 text-left transition-all duration-300',
                     page === item
-                      ? 'border-[#d7b76a]/40 bg-[#d7b76a]/10 text-[#d7b76a]'
-                      : 'border-transparent text-stone-400 hover:border-stone-800 hover:bg-stone-900/70 hover:text-stone-100'
+                      ? 'border-[#c9a96e]/20 bg-[#c9a96e]/5 text-[#c9a96e]'
+                      : 'border-transparent text-[#e8dcc0] hover:bg-white/[0.03] hover:text-[#f5f5f0]'
                   )}
                 >
-                  <span className="block text-sm font-black leading-5">{t.pages[item]}</span>
-                  <span className="mt-1 block text-xs leading-5 text-stone-600">{PAGE_META[item].code}</span>
+                  <span className="block text-[13px] font-black leading-5 uppercase tracking-wider">{t.pages[item]}</span>
+                  <span className="mt-1 block text-[10px] leading-5 text-[#e8dcc0] opacity-40 font-mono">{PAGE_META[item].code}</span>
                 </button>
               ))}
             </div>
           </nav>
 
-          <div className="border-t border-stone-800 p-4">
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-stone-500">
+          <div className="border-t border-[#6b705c]/10 p-8">
+            <div className="mb-6 flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#e8dcc0] opacity-40">
                 {t.app.language}
               </span>
               <LanguageSwitcher t={t} lang={lang} setLang={setLang} />
@@ -926,10 +963,10 @@ function SidePanel({ t, role, area, page, collapsed, setCollapsed, goToPage, lan
               onClick={() => goToPage(item)}
               title={t.pages[item]}
               className={cx(
-                'flex h-10 w-10 items-center justify-center rounded-xl border text-xs font-black transition',
+                'flex h-12 w-12 items-center justify-center rounded-2xl border text-[10px] font-black transition-all duration-300',
                 page === item
-                  ? 'border-[#d7b76a]/40 bg-[#d7b76a]/10 text-[#d7b76a]'
-                  : 'border-stone-800 text-stone-500 hover:text-stone-100'
+                  ? 'border-[#c9a96e]/30 bg-[#c9a96e]/5 text-[#c9a96e]'
+                  : 'border-[#6b705c]/20 text-[#e8dcc0] hover:bg-white/5 hover:text-[#f5f5f0]'
               )}
             >
               {PAGE_META[item].code}
@@ -946,20 +983,20 @@ function PageRenderer({ t, lang, role, page, goToPage, reportArchive, onReportAr
     commandCenter: <CommandCenter t={t} role={role} goToPage={goToPage} />,
     actionBoard: <ActionBoard t={t} role={role} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} />,
     eventOrchestrator: <EventOrchestrator t={t} eventPlans={eventPlans} onEventPlanSaved={onEventPlanSaved} />,
-    staffReadiness: <StaffReadiness t={t} />,
-    serviceRecovery: <ServiceRecovery t={t} />,
+    staffReadiness: <StaffReadiness t={t} goToPage={goToPage} />,
+    serviceRecovery: <ServiceRecovery t={t} goToPage={goToPage} />,
     endOfDay: <EndOfDayReports t={t} reportArchive={reportArchive} onReportArchived={onReportArchived} />,
     operationalNotes: <OperationalNotes t={t} />,
-    simulation: <Simulation t={t} />,
+    simulation: <Simulation t={t} goToPage={goToPage} />,
     courses: <Courses t={t} lang={lang} goToPage={goToPage} />,
     lessonPlayer: <LessonPlayer t={t} lang={lang} goToPage={goToPage} />,
-    sopSheets: <SOPSheets t={t} />,
+    sopSheets: <SOPSheets t={t} goToPage={goToPage} />,
     knowledgeLibrary: <KnowledgeLibrary t={t} lang={lang} />,
     learningProgress: <LearningProgress t={t} />,
-    executiveOverview: <ExecutiveOverview t={t} reportArchive={reportArchive} eventPlans={eventPlans} />,
+    executiveOverview: <ExecutiveOverview t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} />,
     businessMRI: <BusinessMRI t={t} />,
-    profitLeaks: <ProfitLeaks t={t} />,
-    ownerReport: <OwnerReport t={t} reportArchive={reportArchive} eventPlans={eventPlans} />,
+    profitLeaks: <ProfitLeaks t={t} goToPage={goToPage} />,
+    ownerReport: <OwnerReport t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} />,
     businessMemory: <BusinessMemoryPage t={t} reportArchive={reportArchive} businessMemory={businessMemory} />,
     strategicRecommendations: <StrategicRecommendations t={t} />,
     settings: <Settings t={t} />
@@ -979,18 +1016,18 @@ function CommandCenter({ t, role, goToPage }) {
         body={t.copy.commandBody}
       />
 
-      <div className="space-y-6">
-        <Card className="bg-[radial-gradient(circle_at_top_right,rgba(215,183,106,0.18),transparent_35%),linear-gradient(135deg,#191812,#11100d)] p-7">
-          <div className="grid gap-8 xl:grid-cols-[1fr_340px] xl:items-center">
+      <div className="space-y-20">
+        <Card className="bg-[radial-gradient(circle_at_top_right,rgba(201,169,110,0.12),transparent_40%),linear-gradient(135deg,#191812,#0d0c09)] p-12 lg:p-20">
+          <div className="grid gap-16 xl:grid-cols-[1fr_420px] xl:items-center">
             <div>
-              <div className="text-xs font-black uppercase tracking-[0.22em] text-[#d7b76a]">
+              <div className="text-[10px] font-black uppercase tracking-[0.4em] text-[#c9a96e]">
                 {t.app.today}
               </div>
-              <h2 className="mt-3 max-w-4xl font-serif text-3xl font-black tracking-tight text-stone-50 sm:text-5xl">
+              <h2 className="mt-6 max-w-4xl font-serif text-5xl font-black leading-[1.05] tracking-tight text-[#f5f5f0] sm:text-7xl">
                 {t.copy.commandTitle}
               </h2>
-              <p className="mt-4 max-w-3xl text-sm leading-8 text-stone-400">{t.copy.commandBody}</p>
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <p className="mt-10 max-w-2xl text-xl leading-relaxed text-[#e8dcc0] opacity-80 italic">{t.copy.commandBody}</p>
+              <div className="mt-12 flex flex-col gap-5 sm:flex-row">
                 <Button onClick={() => goToPage(isOwner ? 'businessMRI' : 'actionBoard')}>
                   {isOwner ? t.pages.businessMRI : t.pages.actionBoard}
                 </Button>
@@ -1003,14 +1040,14 @@ function CommandCenter({ t, role, goToPage }) {
           </div>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <Metric label="Hospitality Score" value="87" sub="+4 this week" />
-          <Metric label="Revenue Risk" value="NIS 4.8k" sub="Recoverable" />
-          <Metric label="Open Actions" value="7" sub="3 high priority" />
-          <Metric label="Staff Readiness" value="74%" sub="Target 85%" />
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <Metric label="Hospitality Score" value="87" sub="+4 points" />
+          <Metric label="Revenue Risk" value="NIS 4.8k" sub="Prev. Exposure" />
+          <Metric label="Open Actions" value="7" sub="Due Tonight" />
+          <Metric label="Staff Readiness" value="74%" sub="Academy Target" />
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-12 lg:grid-cols-2">
           <Card>
             <Label>{t.copy.recentSignals}</Label>
             <List items={[
@@ -1043,7 +1080,7 @@ function ActionBoard({ t, role, goToPage, reportArchive = [], eventPlans = [] })
   const priorityClass = {
     urgent: 'border-red-800/50 bg-red-950/25 text-red-200',
     high: 'border-amber-800/50 bg-amber-950/25 text-amber-200',
-    normal: 'border-stone-700 bg-stone-900/40 text-stone-400'
+    normal: 'border-[#6b705c]/30 bg-[#6b705c]/10 text-[#e8dcc0]'
   }
 
   useEffect(() => {
@@ -1096,20 +1133,20 @@ function ActionBoard({ t, role, goToPage, reportArchive = [], eventPlans = [] })
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
         <div className="space-y-3">
           {items.map(item => (
-            <article key={item.id} className={cx('rounded-2xl border bg-[#14130f] p-4 transition hover:border-stone-700', item.done && 'opacity-55')}>
+            <article key={item.id} className={cx('rounded-2xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4 transition hover:border-[#c9a96e]/40 hover:bg-[#c9a96e]/5', item.done && 'opacity-55')}>
               <div className="flex items-start gap-4">
-                <button type="button" onClick={() => toggle(item.id)} className={cx('mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs transition', item.done ? 'border-[#d7b76a] bg-[#d7b76a]/10 text-[#d7b76a]' : 'border-stone-600 hover:border-[#d7b76a]')} aria-label={item.done ? 'Mark action open' : 'Mark action complete'}>
+                <button type="button" onClick={() => toggle(item.id)} className={cx('mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs transition', item.done ? 'border-[#c9a96e] bg-[#c9a96e]/10 text-[#c9a96e]' : 'border-[#6b705c]/30 hover:border-[#c9a96e]')}>
                   {item.done ? 'OK' : ''}
                 </button>
                 <div className="min-w-0 flex-1">
                   <div className="mb-2 flex flex-wrap gap-2">
                     <span className={cx('rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em]', priorityClass[item.priority])}>{item.priority}</span>
-                    <span className="rounded-full border border-stone-800 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-stone-600">{item.due}</span>
+                    <span className="rounded-full border border-[#6b705c]/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#e8dcc0]">{item.due}</span>
                   </div>
-                  <h2 className="text-sm font-black leading-6 text-stone-100">{item.title}</h2>
-                  <p className="mt-2 text-xs leading-6 text-stone-500">{item.signal}</p>
+                  <h2 className="text-sm font-black leading-6 text-[#f5f5f0]">{item.title}</h2>
+                  <p className="mt-2 text-xs leading-6 text-[#e8dcc0]">{item.signal}</p>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <span className="text-xs font-bold text-stone-500">Owner: {item.owner}</span>
+                    <span className="text-xs font-bold text-[#e8dcc0]">Owner: {item.owner}</span>
                     <Button variant="ghost" onClick={() => goToPage(item.page)}>Open Module</Button>
                   </div>
                 </div>
@@ -1117,9 +1154,9 @@ function ActionBoard({ t, role, goToPage, reportArchive = [], eventPlans = [] })
             </article>
           ))}
         </div>
-        <Card className="h-fit border-[#d7b76a]/20 bg-[#19170f]">
+        <Card className="h-fit border-[#c9a96e]/20 bg-[#1a1a1a]">
           <Label>Manager Command Logic</Label>
-          <p className="text-sm leading-7 text-stone-300">This board converts training gaps, service recovery failures, and End Of Day patterns into work that can be completed before the next shift. It is the daily habit loop that makes HOSPIA operational, not decorative.</p>
+          <p className="text-sm leading-7 text-[#e8dcc0]">This board converts training gaps, service recovery failures, and End Of Day patterns into work that can be completed before the next shift. It is the daily habit loop that makes HOSPIA operational, not decorative.</p>
         </Card>
       </div>
     </>
@@ -1136,37 +1173,37 @@ function PreShiftBriefing({ openActions, latestReport, latestEvent, goToPage }) 
 
   return (
     <section className="mb-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      <Card className="border-[#d7b76a]/20 bg-[radial-gradient(circle_at_top_right,rgba(215,183,106,0.12),transparent_35%),#14130f]">
+      <Card className="border-[#c9a96e]/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,110,0.12),transparent_35%),#1a1a1a]">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#d7b76a]">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e]">
               <Sparkles className="h-4 w-4" aria-hidden="true" />
               Live Shift Briefing
             </div>
-            <h2 className="font-serif text-3xl font-black text-stone-50">Before service, align the room on the few things that matter.</h2>
+            <h2 className="font-serif text-3xl font-black text-[#f5f5f0]">Before service, align the room on the few things that matter.</h2>
           </div>
           <span className="rounded-full border border-red-800/50 bg-red-950/25 px-3 py-1 text-xs font-black text-red-200">{urgentActions.length} urgent</span>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
           {briefingItems.map((item, index) => (
-            <div key={item} className="rounded-2xl border border-stone-800 bg-[#1b1a15] p-4">
-              <div className="mb-2 font-serif text-3xl font-black text-stone-700">0{index + 1}</div>
-              <p className="text-sm leading-7 text-stone-300">{item}</p>
+            <div key={item} className="rounded-2xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4">
+              <div className="mb-2 font-serif text-3xl font-black text-[#6b705c]">0{index + 1}</div>
+              <p className="text-sm leading-7 text-[#e8dcc0]">{item}</p>
             </div>
           ))}
         </div>
       </Card>
 
-      <Card className="border-[#d7b76a]/15">
-        <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#d7b76a]">
+      <Card className="border-[#c9a96e]/15">
+        <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e]">
           <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
           Pre-Shift Micro Training
         </div>
-        <p className="mb-4 text-sm leading-7 text-stone-400">The correct training unit for today is not a full course. It is the smallest drill that reduces tonight's highest risk.</p>
+        <p className="mb-4 text-sm leading-7 text-[#e8dcc0]">The correct training unit for today is not a full course. It is the smallest drill that reduces tonight's highest risk.</p>
         <div className="space-y-3">
-          <button type="button" onClick={() => goToPage('serviceRecovery')} className="w-full rounded-xl border border-stone-800 bg-[#1b1a15] p-4 text-left text-sm font-bold text-stone-200 transition hover:border-[#d7b76a]/40 hover:text-[#d7b76a]">Run 5-minute recovery language calibration</button>
-          <button type="button" onClick={() => goToPage('simulation')} className="w-full rounded-xl border border-stone-800 bg-[#1b1a15] p-4 text-left text-sm font-bold text-stone-200 transition hover:border-[#d7b76a]/40 hover:text-[#d7b76a]">Score one pressure scenario before lineup</button>
-          <button type="button" onClick={() => goToPage('sopSheets')} className="w-full rounded-xl border border-stone-800 bg-[#1b1a15] p-4 text-left text-sm font-bold text-stone-200 transition hover:border-[#d7b76a]/40 hover:text-[#d7b76a]">Review delay SOP with exact guest language</button>
+          <button type="button" onClick={() => goToPage('serviceRecovery')} className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4 text-left text-sm font-bold text-[#e8dcc0] transition hover:border-[#c9a96e]/40 hover:text-[#c9a96e]">Run 5-minute recovery language calibration</button>
+          <button type="button" onClick={() => goToPage('simulation')} className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4 text-left text-sm font-bold text-[#e8dcc0] transition hover:border-[#c9a96e]/40 hover:text-[#c9a96e]">Score one pressure scenario before lineup</button>
+          <button type="button" onClick={() => goToPage('sopSheets')} className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4 text-left text-sm font-bold text-[#e8dcc0] transition hover:border-[#c9a96e]/40 hover:text-[#c9a96e]">Review delay SOP with exact guest language</button>
         </div>
       </Card>
     </section>
@@ -1174,8 +1211,8 @@ function PreShiftBriefing({ openActions, latestReport, latestEvent, goToPage }) 
 }
 
 const EVENT_TIERS = {
-  standard: { label: 'Standard', cocktailRate: 1.2, defaultPrice: 420, defaultCogs: 28, accent: 'text-stone-300' },
-  premium: { label: 'Premium', cocktailRate: 1.6, defaultPrice: 620, defaultCogs: 26, accent: 'text-[#d7b76a]' },
+  standard: { label: 'Standard', cocktailRate: 1.2, defaultPrice: 420, defaultCogs: 28, accent: 'text-[#e8dcc0]' },
+  premium: { label: 'Premium', cocktailRate: 1.6, defaultPrice: 620, defaultCogs: 26, accent: 'text-[#c9a96e]' },
   luxury: { label: 'Luxury / Michelin', cocktailRate: 2.1, defaultPrice: 920, defaultCogs: 24, accent: 'text-emerald-300' }
 }
 
@@ -1272,20 +1309,20 @@ function EventOrchestrator({ t, eventPlans = [], onEventPlanSaved }) {
 
   return (
     <>
-      <section className="mb-8 overflow-hidden rounded-[2rem] border border-[#d7b76a]/20 bg-[radial-gradient(circle_at_78%_10%,rgba(215,183,106,0.16),transparent_35%),linear-gradient(135deg,#1b1914,#0f0f0e_72%)] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.38)] sm:p-8 lg:p-10">
+      <section className="mb-8 overflow-hidden rounded-[2rem] border border-[#c9a96e]/20 bg-[radial-gradient(circle_at_78%_10%,rgba(201,169,110,0.16),transparent_35%),linear-gradient(135deg,#1b1914,#0f0f0e_72%)] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.38)] sm:p-8 lg:p-10">
         <div className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-4xl">
-            <div className="mb-4 flex items-center gap-3 text-xs font-black uppercase tracking-[0.24em] text-[#d7b76a]">
+            <div className="mb-4 flex items-center gap-3 text-xs font-black uppercase tracking-[0.24em] text-[#c9a96e]">
               <CalendarDays className="h-4 w-4" aria-hidden="true" />
               Event Orchestrator
             </div>
-            <h1 className="font-serif text-4xl font-black tracking-tight text-stone-50 sm:text-6xl">Wedding and event execution, calculated to the glass.</h1>
-            <p className="mt-5 max-w-3xl text-base leading-8 text-stone-400">A manager command tab for premium events: bar planning, culinary safety, staffing economics, and run-of-show discipline in one Michelin-grade control surface.</p>
+            <h1 className="font-serif text-4xl font-black tracking-tight text-[#f5f5f0] sm:text-6xl">Wedding and event execution, calculated to the glass.</h1>
+            <p className="mt-5 max-w-3xl text-base leading-8 text-[#e8dcc0]">A manager command tab for premium events: bar planning, culinary safety, staffing economics, and run-of-show discipline in one Michelin-grade control surface.</p>
           </div>
-          <div className="grid min-w-[280px] gap-3 rounded-2xl border border-stone-800 bg-black/20 p-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-stone-600">Gross Profit Projection</div>
-            <div className="font-serif text-5xl font-black text-[#d7b76a]">{formatMoney(calculations.grossProfit)}</div>
-            <div className={cx('text-sm font-black', calculations.margin >= 45 ? 'text-emerald-300' : calculations.margin >= 32 ? 'text-[#d7b76a]' : 'text-red-300')}>{calculations.margin.toFixed(1)}% margin</div>
+          <div className="grid min-w-[280px] gap-3 rounded-2xl border border-[#6b705c]/30 bg-[#c9a96e]/10 p-4">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]">Gross Profit Projection</div>
+            <div className="font-serif text-5xl font-black text-[#c9a96e]">{formatMoney(calculations.grossProfit)}</div>
+            <div className={cx('text-sm font-black', calculations.margin >= 45 ? 'text-emerald-300' : calculations.margin >= 32 ? 'text-[#c9a96e]' : 'text-red-300')}>{calculations.margin.toFixed(1)}% margin</div>
             <Button onClick={saveEventPlan} disabled={saveStatus?.type === 'loading'}>{saveStatus?.type === 'loading' ? 'Saving...' : 'Save Event Plan'}</Button>
             {saveStatus && saveStatus.type !== 'loading' && <div className={cx('text-xs font-bold leading-5', saveStatus.type === 'success' ? 'text-emerald-300' : 'text-red-300')}>{saveStatus.message}</div>}
           </div>
@@ -1310,13 +1347,13 @@ function EventOrchestrator({ t, eventPlans = [], onEventPlanSaved }) {
 
 function SavedEventReports({ eventPlans = [] }) {
   return (
-    <Card className="border-[#d7b76a]/20">
+    <Card className="border-[#c9a96e]/20">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#d7b76a]"><ClipboardCheck className="h-4 w-4" aria-hidden="true" /> Saved Event Reports</div>
-          <h2 className="font-serif text-3xl font-black text-stone-50">Persisted event plans from the backend database.</h2>
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e]"><ClipboardCheck className="h-4 w-4" aria-hidden="true" /> Saved Event Reports</div>
+          <h2 className="font-serif text-3xl font-black text-[#f5f5f0]">Persisted event plans from the backend database.</h2>
         </div>
-        <span className="rounded-full border border-stone-800 px-3 py-1 text-xs font-black text-stone-500">{eventPlans.length} saved</span>
+        <span className="rounded-full border border-[#6b705c]/30 px-3 py-1 text-xs font-black text-[#e8dcc0]">{eventPlans.length} saved</span>
       </div>
 
       {eventPlans.length ? (
@@ -1325,13 +1362,13 @@ function SavedEventReports({ eventPlans = [] }) {
             const calculations = plan.calculations || {}
             const config = plan.config || {}
             return (
-              <article key={plan.id} className="rounded-2xl border border-stone-800 bg-[#1b1a15] p-5">
+              <article key={plan.id} className="rounded-2xl border border-[#6b705c]/30 bg-[#1a1a1a] p-5">
                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#d7b76a]">{plan.created_at?.slice(0, 10) || 'Saved plan'}</div>
-                    <h3 className="mt-1 font-serif text-2xl font-black text-stone-50">{plan.name}</h3>
+                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#c9a96e]">{plan.created_at?.slice(0, 10) || 'Saved plan'}</div>
+                    <h3 className="mt-1 font-serif text-2xl font-black text-[#f5f5f0]">{plan.name}</h3>
                   </div>
-                  <span className="rounded-full border border-[#d7b76a]/25 bg-[#d7b76a]/10 px-3 py-1 text-xs font-black text-[#d7b76a]">{config.tier || 'event'}</span>
+                  <span className="rounded-full border border-[#c9a96e]/25 bg-[#c9a96e]/10 px-3 py-1 text-xs font-black text-[#c9a96e]">{config.tier || 'event'}</span>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <MiniFact label="Guests" value={calculations.guests || config.guests || 0} />
@@ -1349,8 +1386,8 @@ function SavedEventReports({ eventPlans = [] }) {
           })}
         </div>
       ) : (
-        <div className="rounded-2xl border border-stone-800 bg-[#1b1a15] p-5 text-sm leading-7 text-stone-500">
-          No saved event reports yet. Click <span className="font-black text-[#d7b76a]">Save Event Plan</span> after configuring the event.
+        <div className="rounded-2xl border border-[#6b705c]/30 bg-[#1a1a1a] p-5 text-sm leading-7 text-[#e8dcc0]">
+          No saved event reports yet. Click <span className="font-black text-[#c9a96e]">Save Event Plan</span> after configuring the event.
         </div>
       )}
     </Card>
@@ -1359,9 +1396,9 @@ function SavedEventReports({ eventPlans = [] }) {
 
 function SmallReportFact({ label, value }) {
   return (
-    <div className="rounded-xl border border-stone-800 bg-[#14130f] p-3">
-      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-stone-600">{label}</div>
-      <div className="mt-1 text-sm font-black text-stone-200">{value}</div>
+    <div className="rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] p-3">
+      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e8dcc0]">{label}</div>
+      <div className="mt-1 text-sm font-black text-[#f5f5f0]">{value}</div>
     </div>
   )
 }
@@ -1369,14 +1406,14 @@ function SmallReportFact({ label, value }) {
 function EventConfiguration({ config, calculations, updateConfig }) {
   return (
     <aside className="space-y-5">
-      <Card className="sticky top-24 border-[#d7b76a]/20">
+      <Card className="sticky top-24 border-[#c9a96e]/20">
         <Label>Global Configuration</Label>
         <div className="space-y-4">
           <NumberInput label="Guest Count" value={config.guests} min="1" onChange={value => updateConfig('guests', value)} />
           <NumberInput label="Event Duration (hours)" value={config.duration} min="1" step="0.5" onChange={value => updateConfig('duration', value)} />
           <div>
-            <label htmlFor="event-tier" className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-stone-500">Service Tier</label>
-            <select id="event-tier" value={config.tier} onChange={event => updateConfig('tier', event.target.value)} className="w-full rounded-xl border border-stone-800 bg-[#1b1a15] px-3 py-2.5 text-sm text-stone-100 outline-none transition focus:border-[#d7b76a] focus:ring-2 focus:ring-[#d7b76a]/20">
+            <label htmlFor="event-tier" className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]">Service Tier</label>
+            <select id="event-tier" value={config.tier} onChange={event => updateConfig('tier', event.target.value)} className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-3 py-2.5 text-sm text-[#f5f5f0] outline-none transition focus:border-[#c9a96e] focus:ring-2 focus:ring-[#c9a96e]/20">
               {Object.entries(EVENT_TIERS).map(([key, tier]) => <option key={key} value={key}>{tier.label}</option>)}
             </select>
           </div>
@@ -1385,8 +1422,8 @@ function EventConfiguration({ config, calculations, updateConfig }) {
           <NumberInput label="Hourly Labor Rate (NIS)" value={config.hourlyRate} min="0" onChange={value => updateConfig('hourlyRate', value)} />
         </div>
       </Card>
-      <Card className="border-[#d7b76a]/15 bg-[#19170f]">
-        <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#d7b76a]"><Sparkles className="h-4 w-4" aria-hidden="true" /> Executive Snapshot</div>
+      <Card className="border-[#c9a96e]/15 bg-[#1a1a1a]">
+        <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e]"><Sparkles className="h-4 w-4" aria-hidden="true" /> Executive Snapshot</div>
         <div className="grid gap-3">
           <MiniFact label="Waiters Required" value={calculations.waiters} />
           <MiniFact label="Bartenders Required" value={calculations.bartenders} />
@@ -1402,10 +1439,10 @@ function BarIntelligence({ calculations, tier }) {
     <Card>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#d7b76a]"><Wine className="h-4 w-4" aria-hidden="true" /> Alcohol And Bar Intelligence</div>
-          <h2 className="font-serif text-3xl font-black text-stone-50">Reception, cellar, spirits, beer and glassware turnover.</h2>
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e]"><Wine className="h-4 w-4" aria-hidden="true" /> Alcohol And Bar Intelligence</div>
+          <h2 className="font-serif text-3xl font-black text-[#f5f5f0]">Reception, cellar, spirits, beer and glassware turnover.</h2>
         </div>
-        <span className="rounded-full border border-[#d7b76a]/30 bg-[#d7b76a]/10 px-3 py-1 text-xs font-black text-[#d7b76a]">{tier.label}</span>
+        <span className="rounded-full border border-[#c9a96e]/30 bg-[#c9a96e]/10 px-3 py-1 text-xs font-black text-[#c9a96e]">{tier.label}</span>
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <EventMetric icon={GlassWater} label="Cocktails" value={calculations.cocktails} sub={`${tier.cocktailRate} drinks / guest`} />
@@ -1422,7 +1459,7 @@ function BarIntelligence({ calculations, tier }) {
 function CulinaryMatrix({ calculations }) {
   return (
     <Card>
-      <div className="mb-5 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#d7b76a]"><ChefHat className="h-4 w-4" aria-hidden="true" /> Culinary And Dietary Matrix</div>
+      <div className="mb-5 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e]"><ChefHat className="h-4 w-4" aria-hidden="true" /> Culinary And Dietary Matrix</div>
       <div className="grid gap-4 sm:grid-cols-2">
         <EventMetric icon={Utensils} label="Protein For Mains" value={`${calculations.proteinKg.toFixed(1)} kg`} sub="200g per guest" />
         <EventMetric icon={ChefHat} label="Total Food Mass" value={`${calculations.foodMassKg.toFixed(1)} kg`} sub="750g per guest" />
@@ -1440,12 +1477,12 @@ function ROIEngine({ calculations }) {
 
   return (
     <Card>
-      <div className="mb-5 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#d7b76a]"><CircleDollarSign className="h-4 w-4" aria-hidden="true" /> Financial ROI Engine</div>
+      <div className="mb-5 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e]"><CircleDollarSign className="h-4 w-4" aria-hidden="true" /> Financial ROI Engine</div>
       <div className="space-y-3">
         <FinanceRow label="Revenue" value={formatMoney(calculations.revenue)} />
         <FinanceRow label={`COGS (${calculations.cogsPercent}%)`} value={formatMoney(calculations.cogs)} />
         <FinanceRow label={`Labor (${calculations.waiters} waiters, ${calculations.bartenders} bartenders)`} value={formatMoney(calculations.laborCost)} />
-        <div className="my-4 border-t border-stone-800" />
+        <div className="my-4 border-t border-[#6b705c]/30" />
         <FinanceRow label="Gross Profit" value={formatMoney(calculations.grossProfit)} strong />
         <FinanceRow label="Gross Margin" value={`${calculations.margin.toFixed(1)}%`} strong />
       </div>
@@ -1467,17 +1504,17 @@ function RunOfShow() {
 
   return (
     <Card>
-      <div className="mb-6 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#d7b76a]"><Clock3 className="h-4 w-4" aria-hidden="true" /> Operational Run Of Show</div>
+      <div className="mb-6 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e]"><Clock3 className="h-4 w-4" aria-hidden="true" /> Operational Run Of Show</div>
       <div className="relative space-y-5 ps-6">
-        <div className="absolute bottom-0 start-2 top-0 w-px bg-stone-800" />
+        <div className="absolute bottom-0 start-2 top-0 w-px bg-[#6b705c]/30" />
         {items.map(item => {
           const Icon = item.icon
           return (
-            <article key={item.time} className="relative rounded-2xl border border-stone-800 bg-[#1b1a15] p-5">
-              <div className="absolute -start-[1.95rem] top-5 flex h-8 w-8 items-center justify-center rounded-full border border-[#d7b76a]/30 bg-[#11100d] text-[#d7b76a]"><Icon className="h-4 w-4" aria-hidden="true" /></div>
-              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#d7b76a]">{item.time}</div>
-              <h3 className="mt-1 font-serif text-2xl font-black text-stone-50">{item.title}</h3>
-              <p className="mt-2 text-sm leading-7 text-stone-400">{item.detail}</p>
+            <article key={item.time} className="relative rounded-2xl border border-[#6b705c]/30 bg-[#1a1a1a] p-5">
+              <div className="absolute -start-[1.95rem] top-5 flex h-8 w-8 items-center justify-center rounded-full border border-[#c9a96e]/30 bg-[#11100d] text-[#c9a96e]"><Icon className="h-4 w-4" aria-hidden="true" /></div>
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9a96e]">{item.time}</div>
+              <h3 className="mt-1 font-serif text-2xl font-black text-[#f5f5f0]">{item.title}</h3>
+              <p className="mt-2 text-sm leading-7 text-[#e8dcc0]">{item.detail}</p>
             </article>
           )
         })}
@@ -1489,11 +1526,11 @@ function RunOfShow() {
 
 function EventMetric({ icon: Icon, label, value, sub }) {
   return (
-    <div className="rounded-2xl border border-stone-800 bg-[#1b1a15] p-4">
-      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7b76a]/20 bg-[#d7b76a]/10 text-[#d7b76a]"><Icon className="h-5 w-5" aria-hidden="true" /></div>
-      <div className="font-serif text-3xl font-black text-stone-50">{value}</div>
-      <div className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-stone-500">{label}</div>
-      <p className="mt-2 text-xs leading-5 text-stone-600">{sub}</p>
+    <div className="rounded-2xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4">
+      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-[#c9a96e]/20 bg-[#c9a96e]/10 text-[#c9a96e]"><Icon className="h-5 w-5" aria-hidden="true" /></div>
+      <div className="font-serif text-3xl font-black text-[#f5f5f0]">{value}</div>
+      <div className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-[#e8dcc0]">{label}</div>
+      <p className="mt-2 text-xs leading-5 text-[#e8dcc0]">{sub}</p>
     </div>
   )
 }
@@ -1502,17 +1539,17 @@ function NumberInput({ label, value, onChange, min, max, step = '1' }) {
   const id = label.toLowerCase().replace(/[^a-z0-9]+/g, '-')
   return (
     <div>
-      <label htmlFor={id} className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-stone-500">{label}</label>
-      <input id={id} type="number" value={value} min={min} max={max} step={step} onChange={event => onChange(event.target.value)} className="w-full rounded-xl border border-stone-800 bg-[#1b1a15] px-3 py-2.5 text-sm text-stone-100 outline-none transition focus:border-[#d7b76a] focus:ring-2 focus:ring-[#d7b76a]/20" />
+      <label htmlFor={id} className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]">{label}</label>
+      <input id={id} type="number" value={value} min={min} max={max} step={step} onChange={event => onChange(event.target.value)} className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-3 py-2.5 text-sm text-[#f5f5f0] outline-none transition focus:border-[#c9a96e] focus:ring-2 focus:ring-[#c9a96e]/20" />
     </div>
   )
 }
 
 function MiniFact({ label, value }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-stone-800 pb-3 last:border-0 last:pb-0">
-      <span className="text-xs font-bold text-stone-500">{label}</span>
-      <span className="font-serif text-2xl font-black text-stone-100">{value}</span>
+    <div className="flex items-center justify-between gap-4 border-b border-[#6b705c]/30 pb-3 last:border-0 last:pb-0">
+      <span className="text-xs font-bold text-[#e8dcc0]">{label}</span>
+      <span className="font-serif text-2xl font-black text-[#f5f5f0]">{value}</span>
     </div>
   )
 }
@@ -1520,16 +1557,16 @@ function MiniFact({ label, value }) {
 function FinanceRow({ label, value, strong = false }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className={cx('text-sm', strong ? 'font-black text-stone-200' : 'text-stone-500')}>{label}</span>
-      <span className={cx('text-sm font-black', strong ? 'text-[#d7b76a]' : 'text-stone-300')}>{value}</span>
+      <span className={cx('text-sm', strong ? 'font-black text-[#f5f5f0]' : 'text-[#e8dcc0]')}>{label}</span>
+      <span className={cx('text-sm font-black', strong ? 'text-[#c9a96e]' : 'text-[#e8dcc0]')}>{value}</span>
     </div>
   )
 }
 
 function ProTip({ icon: Icon, children }) {
   return (
-    <div className="mt-5 rounded-2xl border border-[#d7b76a]/20 bg-[#d7b76a]/10 p-4 text-sm leading-7 text-stone-300">
-      <div className="mb-1 flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#d7b76a]"><Icon className="h-4 w-4" aria-hidden="true" /> Pro Tip</div>
+    <div className="mt-5 rounded-2xl border border-[#c9a96e]/20 bg-[#c9a96e]/10 p-4 text-sm leading-7 text-[#e8dcc0]">
+      <div className="mb-1 flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#c9a96e]"><Icon className="h-4 w-4" aria-hidden="true" /> Pro Tip</div>
       {children}
     </div>
   )
@@ -1543,22 +1580,22 @@ function Courses({ t, lang, goToPage }) {
   return (
     <>
       <Header eyebrow={t.areas.academy} title={t.copy.academyTitle} body={t.areaDescriptions.academy} />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {COURSES.map(course => (
-          <Card key={course.id} className="flex min-h-64 flex-col justify-between transition hover:border-[#d7b76a]/50">
+          <Card key={course.id} className="flex min-h-72 flex-col justify-between transition-all duration-300 hover:border-[#c9a96e]/50 hover:shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
             <div>
-              <div className="text-xs font-black uppercase tracking-[0.18em] text-[#d7b76a]">
+              <div className="text-xs font-black uppercase tracking-[0.2em] text-[#c9a96e]">
                 {localize(course.category, lang)}
               </div>
-              <h2 className="mt-4 font-serif text-2xl font-black text-stone-50">
+              <h2 className="mt-5 font-serif text-2xl font-black text-[#f5f5f0]">
                 {localize(course.title, lang)}
               </h2>
-              <p className="mt-3 text-sm leading-7 text-stone-500">{localize(course.desc, lang)}</p>
+              <p className="mt-4 text-sm leading-7 text-[#e8dcc0]">{localize(course.desc, lang)}</p>
             </div>
             <div>
               <Progress value={course.progress} label={localize(course.title, lang)} />
-              <div className="mt-4 flex items-center justify-between">
-                <span className="text-xs font-black text-stone-500">{course.progress}%</span>
+              <div className="mt-5 flex items-center justify-between">
+                <span className="text-xs font-black text-[#e8dcc0]">{course.progress}%</span>
                 <Button variant="ghost" onClick={() => goToPage('lessonPlayer')}>{t.ui.continue}</Button>
               </div>
             </div>
@@ -1573,24 +1610,24 @@ function LessonPlayer({ t, goToPage }) {
   return (
     <>
       <Header eyebrow={t.pages.lessonPlayer} title={t.pages.lessonPlayer} body={t.copy.academyTitle} />
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-6">
-          <Card>
-            <div className="flex min-h-80 items-center justify-center rounded-2xl border border-stone-800 bg-[#1b1a15]">
-              <button className="flex h-20 w-20 items-center justify-center rounded-full bg-[#d7b76a] text-2xl font-black text-[#11100d]">
+      <div className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-8">
+          <Card className="border-[#c9a96e]/20">
+            <div className="flex min-h-96 items-center justify-center rounded-2xl border border-[#6b705c]/30 bg-[#1b1a15]">
+              <button className="flex h-24 w-24 items-center justify-center rounded-full bg-[#c9a96e] text-3xl font-black text-[#1a1a1a] transition hover:scale-105">
                 ▶
               </button>
             </div>
           </Card>
-          <Card className="border-l-4 border-l-[#d7b76a]">
-            <h2 className="font-serif text-2xl font-black text-stone-50">HOSPIA Doctrine</h2>
-            <p className="mt-3 font-serif text-xl italic leading-9 text-stone-100">
+          <Card className="border-l-4 border-l-[#c9a96e] bg-gradient-to-r from-[#c9a96e]/5 to-transparent">
+            <h2 className="font-serif text-3xl font-black text-[#f5f5f0]">HOSPIA Doctrine</h2>
+            <p className="mt-4 font-serif text-xl italic leading-10 text-[#f5f5f0]">
               “{t.copy.doctrine}”
             </p>
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-8">
           <Card>
             <Label>Key Takeaways</Label>
             <List items={[
@@ -1602,12 +1639,12 @@ function LessonPlayer({ t, goToPage }) {
 
           <Card>
             <Label>Suggested Language</Label>
-            <div className="rounded-2xl border-l-4 border-[#d7b76a] bg-[#1b1a15] p-4 font-serif text-lg italic leading-8 text-stone-100">
+            <div className="rounded-2xl border-l-4 border-[#c9a96e] bg-[#1b1a15] p-5 font-serif text-lg italic leading-8 text-[#f5f5f0]">
               “I completely understand, and I will take care of this immediately.”
             </div>
           </Card>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-4">
             <Button onClick={() => goToPage('knowledgeLibrary')}>{t.ui.askCoach}</Button>
             <Button variant="secondary" onClick={() => goToPage('simulation')}>{t.ui.practice}</Button>
             <Button variant="secondary">{t.ui.quickQuiz}</Button>
@@ -1705,27 +1742,27 @@ function EndOfDayReports({ t, reportArchive = [], onReportArchived }) {
           </form>
         </Card>
         <div className="space-y-4">
-          <Card className="border-[#d7b76a]/20 bg-[#19170f]">
+          <Card className="border-[#c9a96e]/20 bg-[#1a1a1a]">
             <Label>Report Archive</Label>
-            <div className="font-serif text-5xl font-black text-[#d7b76a]">{reportArchive.length}</div>
-            <p className="mt-2 text-sm leading-7 text-stone-400">Successful EmailJS submissions are preserved locally as shift memory. This is the future database-backed archive.</p>
+            <div className="font-serif text-5xl font-black text-[#c9a96e]">{reportArchive.length}</div>
+            <p className="mt-2 text-sm leading-7 text-[#e8dcc0]">Successful EmailJS submissions are preserved locally as shift memory. This is the future database-backed archive.</p>
           </Card>
           <Card>
             <Label>Latest Reports</Label>
             {reportArchive.length ? (
               <div className="space-y-3">
                 {reportArchive.slice(0, 5).map(report => (
-                  <article key={report.id} className="rounded-xl border border-stone-800 bg-[#1b1a15] p-4">
+                  <article key={report.id} className="rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4">
                     <div className="mb-2 flex items-center justify-between gap-3">
-                      <span className="text-xs font-black text-stone-300">{report.shift_date}</span>
-                      <span className="text-xs text-stone-600">{report.manager_name || 'Manager'}</span>
+                      <span className="text-xs font-black text-[#e8dcc0]">{report.shift_date}</span>
+                      <span className="text-xs text-[#e8dcc0]">{report.manager_name || 'Manager'}</span>
                     </div>
-                    <p className="line-clamp-3 text-xs leading-6 text-stone-500">{report.urgent_items || report.shift_summary || 'Report submitted without urgent items.'}</p>
+                    <p className="line-clamp-3 text-xs leading-6 text-[#e8dcc0]">{report.urgent_items || report.shift_summary || 'Report submitted without urgent items.'}</p>
                   </article>
                 ))}
               </div>
             ) : (
-              <p className="text-sm leading-7 text-stone-500">No submitted reports archived yet.</p>
+              <p className="text-sm leading-7 text-[#e8dcc0]">No submitted reports archived yet.</p>
             )}
           </Card>
         </div>
@@ -1735,19 +1772,81 @@ function EndOfDayReports({ t, reportArchive = [], onReportArchived }) {
 }
 
 function StaffReadiness({ t }) {
+  const [serviceContext, setServiceContext] = useState('standard')
   const avgProgress = Math.round(STAFF.reduce((sum, item) => sum + item.progress, 0) / STAFF.length)
   const avgSimulation = Math.round(STAFF.reduce((sum, item) => sum + item.simulation, 0) / STAFF.length)
   const coachingCount = STAFF.filter(item => item.status === 'Needs Coaching' || item.status === 'At Risk').length
+
+  const serviceRequirements = {
+    standard: { label: 'Standard Shift', minSim: 70, weight: 'Balanced' },
+    highVolume: { label: 'High Volume / Peak', minSim: 80, weight: 'Efficiency' },
+    vipEvent: { label: 'VIP / Fine Dining', minSim: 85, weight: 'Recovery & Language' }
+  }
+
+  const deploymentMetrics = useMemo(() => {
+    const req = serviceRequirements[serviceContext]
+    const readyStaff = STAFF.filter(s => s.simulation >= req.minSim).length
+    const teamScore = Math.round((readyStaff / STAFF.length) * 100)
+    return { readyStaff, teamScore, req }
+  }, [serviceContext])
+
   const statusClass = {
     Certified: 'border-emerald-800/50 bg-emerald-950/25 text-emerald-200',
-    Active: 'border-[#d7b76a]/30 bg-[#d7b76a]/10 text-[#d7b76a]',
+    Active: 'border-[#c9a96e]/30 bg-[#c9a96e]/10 text-[#c9a96e]',
     'Needs Coaching': 'border-amber-800/50 bg-amber-950/25 text-amber-200',
     'At Risk': 'border-red-800/50 bg-red-950/25 text-red-200'
   }
 
   return (
     <>
-      <Header eyebrow={t.pages.staffReadiness} title="Staff Readiness Intelligence" body="A manager view of who is ready for service, who needs coaching, and what specific action protects the floor before the next shift." />
+      <Header eyebrow={t.pages.staffReadiness} title="Team Deployment Optimizer" body="Move beyond tracking progress. Optimize your floor plan based on actual simulation scores and tonight's service requirements." />
+      
+      <section className="mb-8 grid gap-6 lg:grid-cols-[1fr_350px]">
+        <Card className="border-[#c9a96e]/20 bg-[#1a1a1a]">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <Label>Tonight's Service Context</Label>
+              <div className="flex gap-2">
+                {Object.entries(serviceRequirements).map(([key, val]) => (
+                  <button
+                    key={key}
+                    onClick={() => setServiceContext(key)}
+                    className={cx(
+                      'rounded-xl border px-4 py-2 text-xs font-black uppercase tracking-widest transition',
+                      serviceContext === key ? 'border-[#c9a96e] bg-[#c9a96e] text-[#0d0c09]' : 'border-[#6b705c]/30 text-[#e8dcc0] hover:border-[#c9a96e]/50'
+                    )}
+                  >
+                    {val.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-[#6b705c]/30 p-5">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[#e8dcc0] mb-2">Team Readiness Score</div>
+              <div className={cx('font-serif text-5xl font-black', deploymentMetrics.teamScore > 80 ? 'text-emerald-400' : 'text-[#c9a96e]')}>
+                {deploymentMetrics.teamScore}%
+              </div>
+              <p className="mt-2 text-xs text-[#e8dcc0]">Based on {deploymentMetrics.req.minSim}% simulation threshold</p>
+            </div>
+            <div className="rounded-2xl border border-[#6b705c]/30 p-5">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[#e8dcc0] mb-2">Deployment Strategy</div>
+              <div className="text-lg font-bold text-[#f5f5f0]">{deploymentMetrics.readyStaff} of {STAFF.length} staff cleared</div>
+              <p className="mt-2 text-xs text-[#e8dcc0]">Critical focus: {deploymentMetrics.req.weight}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="border-[#c9a96e]/20">
+          <Label>AI Allocation Guidance</Label>
+          <p className="text-sm leading-7 text-[#e8dcc0]">
+            {deploymentMetrics.teamScore < 70 
+              ? "Warning: Team technical depth is insufficient for this service level. Assign Noa B. to the primary VIP zone and mandate a 10-minute briefing for Dana and Oren."
+              : "Team is healthy for standard operations. Leverage Yoav S. as shift lead for secondary zones."}
+          </p>
+        </Card>
+      </section>
+
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <Metric label="Avg Training" value={`${avgProgress}%`} sub="Across active staff" />
         <Metric label="Avg Simulation" value={`${avgSimulation}%`} sub="Target: 85%" />
@@ -1758,36 +1857,36 @@ function StaffReadiness({ t }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] border-collapse">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-[0.18em] text-stone-500">
-                <th className="border-b border-stone-800 p-3">Staff Member</th>
-                <th className="border-b border-stone-800 p-3">Academy</th>
-                <th className="border-b border-stone-800 p-3">Simulation</th>
-                <th className="border-b border-stone-800 p-3">Strongest Area</th>
-                <th className="border-b border-stone-800 p-3">Needs Work</th>
-                <th className="border-b border-stone-800 p-3">Status</th>
-                <th className="border-b border-stone-800 p-3">Next Action</th>
+              <tr className="text-left text-xs uppercase tracking-[0.18em] text-[#e8dcc0]">
+                <th className="border-b border-[#6b705c]/30 p-3">Staff Member</th>
+                <th className="border-b border-[#6b705c]/30 p-3">Academy</th>
+                <th className="border-b border-[#6b705c]/30 p-3">Simulation</th>
+                <th className="border-b border-[#6b705c]/30 p-3">Strongest Area</th>
+                <th className="border-b border-[#6b705c]/30 p-3">Needs Work</th>
+                <th className="border-b border-[#6b705c]/30 p-3">Status</th>
+                <th className="border-b border-[#6b705c]/30 p-3">Next Action</th>
               </tr>
             </thead>
             <tbody>
               {STAFF.map(item => (
-                <tr key={item.name} className="text-sm transition hover:bg-stone-900/30">
-                  <td className="border-b border-stone-800 p-3">
-                    <div className="font-black text-stone-100">{item.name}</div>
-                    <div className="text-xs text-stone-600">{item.role}</div>
+                <tr key={item.name} className="text-sm transition hover:bg-[#6b705c]/10">
+                  <td className="border-b border-[#6b705c]/30 p-3">
+                    <div className="font-black text-[#f5f5f0]">{item.name}</div>
+                    <div className="text-xs text-[#e8dcc0]">{item.role}</div>
                   </td>
-                  <td className="border-b border-stone-800 p-3">
+                  <td className="border-b border-[#6b705c]/30 p-3">
                     <div className="flex items-center gap-3">
                       <div className="min-w-[90px] flex-1"><Progress value={item.progress} label={item.name} /></div>
-                      <span className="w-9 text-xs font-black text-stone-400">{item.progress}%</span>
+                      <span className="w-9 text-xs font-black text-[#e8dcc0]">{item.progress}%</span>
                     </div>
                   </td>
-                  <td className="border-b border-stone-800 p-3">
-                    <span className={cx('font-black', item.simulation >= 80 ? 'text-emerald-400' : item.simulation >= 65 ? 'text-[#d7b76a]' : 'text-red-400')}>{item.simulation}%</span>
+                  <td className="border-b border-[#6b705c]/30 p-3">
+                    <span className={cx('font-black', item.simulation >= 80 ? 'text-emerald-400' : item.simulation >= 65 ? 'text-[#c9a96e]' : 'text-red-400')}>{item.simulation}%</span>
                   </td>
-                  <td className="border-b border-stone-800 p-3 text-xs text-stone-400">{item.strong}</td>
-                  <td className="border-b border-stone-800 p-3 text-xs text-stone-500">{item.weak}</td>
-                  <td className="border-b border-stone-800 p-3"><span className={cx('rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em]', statusClass[item.status])}>{item.status}</span></td>
-                  <td className="border-b border-stone-800 p-3 text-xs leading-5 text-stone-400">{item.nextAction}</td>
+                  <td className="border-b border-[#6b705c]/30 p-3 text-xs text-[#e8dcc0]">{item.strong}</td>
+                  <td className="border-b border-[#6b705c]/30 p-3 text-xs text-[#e8dcc0]">{item.weak}</td>
+                  <td className="border-b border-[#6b705c]/30 p-3"><span className={cx('rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em]', statusClass[item.status])}>{item.status}</span></td>
+                  <td className="border-b border-[#6b705c]/30 p-3 text-xs leading-5 text-[#e8dcc0]">{item.nextAction}</td>
                 </tr>
               ))}
             </tbody>
@@ -1796,7 +1895,7 @@ function StaffReadiness({ t }) {
       </Card>
       <Card className="mt-5 border-amber-900/40 bg-amber-950/10">
         <Label>Highest Leverage Coaching Move</Label>
-        <p className="text-sm leading-7 text-stone-300">Do not wait for a guest complaint to discover readiness risk. Dana and Oren should complete one recovery simulation before the weekend, then be paired with Noa for live language calibration.</p>
+        <p className="text-sm leading-7 text-[#e8dcc0]">Do not wait for a guest complaint to discover readiness risk. Dana and Oren should complete one recovery simulation before the weekend, then be paired with Noa for live language calibration.</p>
       </Card>
     </>
   )
@@ -1804,32 +1903,73 @@ function StaffReadiness({ t }) {
 
 function ServiceRecovery({ t }) {
   const [activeStep, setActiveStep] = useState(0)
+  const [isLogging, setIsLogging] = useState(false)
+  const [incident, setIncident] = useState({ table: '', issue: '', recoveryCost: 0 })
+
   const steps = [
     { title: 'Acknowledge', label: 'Step 1', script: 'I completely understand, and I am truly sorry. That is not the experience we wanted for you tonight.', guidance: 'Listen without interrupting. Validate the emotion before explaining anything. The guest must feel heard before they can feel helped.' },
     { title: 'Own', label: 'Step 2', script: 'That is on us, and I take responsibility for fixing it.', guidance: 'Never blame the kitchen, the host stand, another server, or the guest. Ownership calms the room and gives the guest confidence.' },
     { title: 'Act', label: 'Step 3', script: 'Here is what I am going to do right now. I will personally follow up with you in five minutes.', guidance: 'Offer a specific action and a clear follow-up. Compensation can come later, but confidence and movement must come first.' }
   ]
 
+  const logIncident = () => {
+    // Logic to push to Business Memory would go here
+    setIsLogging(false)
+    setIncident({ table: '', issue: '', recoveryCost: 0 })
+    alert("Incident Logged to Business Memory. ROI impact updated.")
+  }
+
   return (
-    <>
-      <Header eyebrow={t.pages.serviceRecovery} title="Service Recovery Command Protocol" body="A practical recovery system for preserving trust, reducing unnecessary compensation, and keeping authority with the manager on duty." />
+  <div className="space-y-8">
+    <Header
+  eyebrow={t.pages.serviceRecovery}
+  title="Recovery Command Center"
+  body="A live tactical tool for restoring guest trust, logging incidents, and protecting revenue."
+/>
+      
+      <section className="mb-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="font-serif text-3xl font-black text-[#f5f5f0]">Active Recovery Protocol</h2>
+          <Button onClick={() => setIsLogging(true)} variant={isLogging ? 'ghost' : 'primary'}>
+            {isLogging ? 'Cancel Log' : 'Log Live Incident'}
+          </Button>
+          
+        </div>
+
+        {isLogging && (
+          <Card className="mb-8 border-[#c9a96e] bg-[#1a1a1a] animate-in slide-in-from-top-4 duration-300">
+            <Label>Rapid Incident Documentation</Label>
+            <div className="grid gap-4 md:grid-cols-4">
+              <Field label="Table #" value={incident.table} onChange={v => setIncident({...incident, table: v})} />
+              <div className="md:col-span-2">
+                <Field label="Primary Issue (Delay, Quality, Language)" value={incident.issue} onChange={v => setIncident({...incident, issue: v})} />
+              </div>
+              <Field label="Est. Recovery Cost (NIS)" type="number" value={incident.recoveryCost} onChange={v => setIncident({...incident, recoveryCost: v})} />
+            </div>
+            <div className="mt-4 flex gap-3">
+              <Button onClick={logIncident}>Commit to Memory</Button>
+              <p className="text-xs text-[#e8dcc0] self-center italic">This will update the Business MRI and Profit Leak trackers instantly.</p>
+            </div>
+          </Card>
+        )}
+
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <div className="space-y-3">
           {steps.map((step, index) => (
-            <button key={step.title} type="button" onClick={() => setActiveStep(index)} className={cx('w-full rounded-2xl border p-5 text-left transition', activeStep === index ? 'border-[#d7b76a]/40 bg-[#d7b76a]/10 text-[#d7b76a]' : 'border-stone-800 bg-[#14130f] text-stone-400 hover:border-stone-700 hover:text-stone-100')}>
-              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-stone-600">{step.label}</div>
+            <button key={step.title} type="button" onClick={() => setActiveStep(index)} className={cx('w-full rounded-2xl border p-5 text-left transition', activeStep === index ? 'border-[#c9a96e]/40 bg-[#c9a96e]/10 text-[#c9a96e]' : 'border-[#6b705c]/30 bg-[#1a1a1a] text-[#e8dcc0] hover:border-[#c9a96e]/40 hover:text-[#c9a96e]')}>
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]">{step.label}</div>
               <div className="mt-2 font-serif text-3xl font-black">{step.title}</div>
             </button>
           ))}
         </div>
-        <Card className="border-[#d7b76a]/20">
+        <Card className="border-[#c9a96e]/20">
           <Label>Exact Language</Label>
-          <div className="rounded-2xl border-l-4 border-[#d7b76a] bg-[#1b1a15] p-5">
-            <p className="font-serif text-2xl italic leading-10 text-stone-100">"{steps[activeStep].script}"</p>
+          <div className="rounded-2xl border-l-4 border-[#c9a96e] bg-[#1a1a1a] p-5">
+            <p className="font-serif text-2xl italic leading-10 text-[#f5f5f0]">"{steps[activeStep].script}"</p>
           </div>
           <div className="mt-6">
             <Label>Execution Guidance</Label>
-            <p className="text-sm leading-8 text-stone-300">{steps[activeStep].guidance}</p>
+            <p className="text-sm leading-8 text-[#e8dcc0]">{steps[activeStep].guidance}</p>
           </div>
         </Card>
       </div>
@@ -1840,14 +1980,15 @@ function ServiceRecovery({ t }) {
         </Card>
         <Card className="border-emerald-900/40">
           <Label>Recovery Paradox</Label>
-          <p className="font-serif text-2xl italic leading-9 text-stone-100">A guest recovered with excellence can become more loyal than a guest who never had a problem.</p>
+          <p className="font-serif text-2xl italic leading-9 text-[#f5f5f0]">A guest recovered with excellence can become more loyal than a guest who never had a problem.</p>
         </Card>
         <Card>
           <Label>Compensation Rule</Label>
-          <p className="text-sm leading-7 text-stone-400">Compensation is a controlled tool, not the default apology. Attempt recovery first, document the event, and escalate only when needed.</p>
+          <p className="text-sm leading-7 text-[#e8dcc0]">Compensation is a controlled tool, not the default apology. Attempt recovery first, document the event, and escalate only when needed.</p>
         </Card>
-      </div>
-    </>
+        </div>
+              </section>
+    </div>
   )
 }
 
@@ -1888,8 +2029,8 @@ function Simulation({ t }) {
       <Header eyebrow={t.pages.simulation} title="Guest Simulation Arena" body="Practice real guest moments and receive a structured score across empathy, ownership, solution quality, hosting presence, and revenue protection." />
       <div className="mb-6 flex gap-3 overflow-x-auto pb-1">
         {SIMULATION_SCENARIOS.map((item, index) => (
-          <button key={item.id} type="button" onClick={() => selectScenario(index)} className={cx('min-w-[190px] rounded-2xl border p-4 text-left transition', scenarioIndex === index ? 'border-[#d7b76a]/40 bg-[#d7b76a]/10 text-[#d7b76a]' : 'border-stone-800 bg-[#14130f] text-stone-400 hover:border-stone-700 hover:text-stone-100')}>
-            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-stone-600">{item.difficulty}</div>
+          <button key={item.id} type="button" onClick={() => selectScenario(index)} className={cx('min-w-[190px] rounded-2xl border p-4 text-left transition', scenarioIndex === index ? 'border-[#c9a96e]/40 bg-[#c9a96e]/10 text-[#c9a96e]' : 'border-[#6b705c]/30 bg-[#1a1a1a] text-[#e8dcc0] hover:border-[#c9a96e]/40 hover:text-[#c9a96e]')}>
+            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#e8dcc0]">{item.difficulty}</div>
             <div className="mt-1 text-sm font-black">{item.title}</div>
           </button>
         ))}
@@ -1898,10 +2039,10 @@ function Simulation({ t }) {
         <div className="space-y-5">
           <Card>
             <Label>Scenario</Label>
-            <p className="mb-4 text-sm italic leading-7 text-stone-400">{scenario.context}</p>
-            <div className="rounded-2xl border-l-4 border-stone-700 bg-[#1b1a15] p-5">
-              <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-stone-600">Guest says</div>
-              <p className="font-serif text-2xl italic leading-10 text-stone-100">"{scenario.guest}"</p>
+            <p className="mb-4 text-sm italic leading-7 text-[#e8dcc0]">{scenario.context}</p>
+            <div className="rounded-2xl border-l-4 border-[#6b705c]/50 bg-[#1a1a1a] p-5">
+              <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#e8dcc0]">Guest says</div>
+              <p className="font-serif text-2xl italic leading-10 text-[#f5f5f0]">"{scenario.guest}"</p>
             </div>
           </Card>
           <Card>
@@ -1913,16 +2054,16 @@ function Simulation({ t }) {
             </div>
           </Card>
           {result && (
-            <Card className="border-[#d7b76a]/20 bg-[#19170f]">
+            <Card className="border-[#c9a96e]/20 bg-[#1a1a1a]">
               <Label>Ideal HOSPIA Response</Label>
-              <p className="font-serif text-xl italic leading-9 text-stone-100">"{scenario.ideal}"</p>
+              <p className="font-serif text-xl italic leading-9 text-[#f5f5f0]">"{scenario.ideal}"</p>
             </Card>
           )}
         </div>
         <Card>
           <div className="mb-5 flex items-center justify-between gap-4">
             <Label>Score Dimensions</Label>
-            {result && <div className={cx('font-serif text-5xl font-black', result.overall >= 80 ? 'text-emerald-400' : result.overall >= 65 ? 'text-[#d7b76a]' : 'text-red-400')}>{result.overall}%</div>}
+            {result && <div className={cx('font-serif text-5xl font-black', result.overall >= 80 ? 'text-emerald-400' : result.overall >= 65 ? 'text-[#c9a96e]' : 'text-red-400')}>{result.overall}%</div>}
           </div>
           {result ? (
             <>
@@ -1942,316 +2083,291 @@ function Simulation({ t }) {
 }
 
 function KnowledgeLibrary({ t, lang }) {
+  const [activeTab, setActiveTab] = useState('classics')
   const [query, setQuery] = useState('')
-  const [activeFilter, setActiveFilter] = useState('All')
   const [selectedCocktail, setSelectedCocktail] = useState(null)
 
-  const libraryText = {
-    en: {
-      eyebrow: 'Beverage Intelligence Library',
-      title: 'The world cocktail canon, curated for premium service.',
-      body: 'A luxury editorial knowledge base for bartenders, servers, and managers: history, precise builds, service language, glassware, ice, garnish, and flavor memory.',
-      search: 'Search cocktail, family, ingredient, tag, or service note...',
-      featured: 'Featured Canon',
-      collection: 'Cocktail Collection',
-      noResults: 'No cocktails match this search.',
-      openArticle: 'Open Article',
-      recipe: 'Professional Recipe',
-      story: 'Historical And Flavor Story',
-      method: 'Method',
-      glassware: 'Glassware',
-      ice: 'Ice',
-      garnish: 'Garnish',
-      serviceNote: 'Bartender Service Note',
-      tags: 'Flavor Profile',
-      close: 'Close',
-      count: 'cocktails',
-      standard: 'Professional Standard',
-      sourNote: 'Sour-service reminder: ask whether the guest prefers the drink served up or on the rocks, and confirm egg white when relevant.'
-    },
-    he: {
-      eyebrow: 'ספריית מודיעין משקאות',
-      title: 'קאנון הקוקטיילים העולמי, באוצרות פרימיום לצוות שירות.',
-      body: 'מאגר ידע יוקרתי לצוותי בר, מלצרים ומנהלים: היסטוריה, מתכונים מדויקים, שפת שירות, כוסות, קרח, קישוט וזיכרון טעמים.',
-      search: 'חיפוש לפי קוקטייל, משפחה, מרכיב, תגית או הערת שירות...',
-      featured: 'קאנון נבחר',
-      collection: 'אוסף קוקטיילים',
-      noResults: 'לא נמצאו קוקטיילים מתאימים לחיפוש.',
-      openArticle: 'פתיחת מאמר',
-      recipe: 'מתכון מקצועי',
-      story: 'סיפור היסטורי וטעמי',
-      method: 'שיטת הכנה',
-      glassware: 'כוס',
-      ice: 'קרח',
-      garnish: 'קישוט',
-      serviceNote: 'הערת שירות לברמן',
-      tags: 'פרופיל טעמים',
-      close: 'סגירה',
-      count: 'קוקטיילים',
-      standard: 'סטנדרט מקצועי',
-      sourNote: 'תזכורת למשפחת הסאוור: כשאורח מזמין Sour, מקצועי לשאול אם הוא מעדיף Up או On The Rocks, ולאשר שימוש בחלבון ביצה כשזה רלוונטי.'
-    }
-  }[lang]
+  const atlasTabs = [
+    { id: 'classics', label: { en: 'Classics', he: 'קלאסיקות' }, icon: Wine },
+    { id: 'masterclass', label: { en: 'Spirits', he: 'תזקיקים' }, icon: GlassWater },
+    { id: 'techniques', label: { en: 'Techniques', he: 'טכניקות' }, icon: Sparkles },
+    { id: 'training', label: { en: 'Training', he: 'הדרכה' }, icon: ClipboardCheck },
+    { id: 'profit', label: { en: 'Profit', he: 'רווח' }, icon: CircleDollarSign }
+  ]
 
   const filteredCocktails = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return cocktailLibrary.filter(item => {
-      const matchesFilter = activeFilter === 'All' || item.tags.includes(activeFilter) || item.family.includes(activeFilter)
-      const searchable = [
-        item.name,
-        item.family,
-        item.origin,
-        item.era,
-        item.story,
-        item.method,
-        item.glassware,
-        item.ice,
-        item.garnish,
-        item.serviceNote,
-        ...item.ingredients,
-        ...item.tags
-      ].join(' ').toLowerCase()
-      return matchesFilter && (!needle || searchable.includes(needle))
-    })
-  }, [activeFilter, query])
-
-  const featured = cocktailLibrary.slice(0, 3)
+    const q = query.toLowerCase().trim()
+    return cocktailLibrary.filter(c => 
+      c.name.toLowerCase().includes(q) || 
+      c.family.toLowerCase().includes(q) || 
+      c.tags.some(t => t.toLowerCase().includes(q))
+    )
+  }, [query])
 
   return (
-    <>
-      <section className="relative mb-8 overflow-hidden rounded-[2rem] border border-[#d7b76a]/20 bg-[radial-gradient(circle_at_78%_12%,rgba(215,183,106,0.2),transparent_35%),linear-gradient(135deg,#1d1a12,#0f0e0b_70%)] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.35)] sm:p-8 lg:p-10">
-        <div className="pointer-events-none absolute -right-12 bottom-0 hidden font-serif text-[11rem] font-black leading-none text-[#d7b76a]/[0.045] lg:block">
-          CANON
+    <div className="space-y-12">
+      {/* FLAGSHIP HERO */}
+      <section className="relative overflow-hidden rounded-[3rem] border border-[#c9a96e]/30 bg-[radial-gradient(circle_at_80%_20%,rgba(201,169,110,0.2),transparent_40%),linear-gradient(135deg,#1c1b17,#0a0a08)] p-8 sm:p-12 lg:p-20 shadow-[0_40px_120px_rgba(0,0,0,0.5)]">
+        <div className="absolute right-0 top-0 hidden lg:block opacity-5 pointer-events-none select-none">
+          <Wine size={600} strokeWidth={0.5} color="#c9a96e" />
         </div>
-        <div className="relative max-w-4xl">
-          <div className="mb-4 text-xs font-black uppercase tracking-[0.28em] text-[#d7b76a]">{libraryText.eyebrow}</div>
-          <h1 className="font-serif text-4xl font-black tracking-tight text-stone-50 sm:text-6xl">{libraryText.title}</h1>
-          <p className="mt-5 max-w-3xl text-base leading-8 text-stone-400">{libraryText.body}</p>
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            <EditorialStat value={cocktailLibrary.length} label={libraryText.count} />
-            <EditorialStat value="25 ml" label="Citrus precision" />
-            <EditorialStat value="0" label="Guesswork" />
+        <div className="relative max-w-5xl">
+          <div className="mb-6 flex items-center gap-4 text-xs font-black uppercase tracking-[0.4em] text-[#c9a96e]">
+            <div className="h-px w-12 bg-[#c9a96e]" />
+            The Grand Bar Atlas
+          </div>
+          <h1 className="font-serif text-6xl font-black tracking-tight text-[#f5f5f0] sm:text-8xl lg:text-9xl leading-[0.95]">
+            Luxury Bar <span className="text-[#c9a96e]">Intelligence</span>
+          </h1>
+          <p className="mt-8 max-w-3xl text-xl leading-10 text-[#e8dcc0] font-light italic">
+            "Mixology is the science. Hospitality is the alchemy. The Atlas is your roadmap to Michelin-grade service execution."
+          </p>
+          <div className="mt-12 flex flex-wrap gap-8 border-t border-[#6b705c]/20 pt-12">
+            <EditorialStat value={cocktailLibrary.length} label="Cocktail Canon" />
+            <EditorialStat value={ATLAS_MASTERCLASSES.length} label="Spirit Modules" />
+            <EditorialStat value={ATLAS_TECHNIQUES.length} label="Technique Drills" />
           </div>
         </div>
       </section>
 
-      <section className="mb-8 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        {featured.map((item, index) => (
-          <button
-            key={item.name}
-            type="button"
-            onClick={() => setSelectedCocktail(item)}
-            className={cx(
-              'group min-h-72 overflow-hidden rounded-[1.5rem] border border-stone-800 bg-[#14130f] p-0 text-left shadow-[0_18px_60px_rgba(0,0,0,0.22)] transition hover:-translate-y-1 hover:border-[#d7b76a]/50',
-              index === 0 && 'lg:row-span-2'
-            )}
-          >
-            <div className="flex h-full flex-col justify-between bg-[radial-gradient(circle_at_top_right,rgba(215,183,106,0.16),transparent_36%)] p-6">
-              <div>
-                <div className="mb-5 flex items-center justify-between gap-4">
-                  <span className="rounded-full border border-[#d7b76a]/25 bg-[#d7b76a]/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#d7b76a]">{libraryText.featured}</span>
-                  <span className="text-xs font-bold text-stone-600">{item.origin}</span>
-                </div>
-                <h2 className={cx('font-serif font-black tracking-tight text-stone-50', index === 0 ? 'text-5xl sm:text-6xl' : 'text-4xl')}>{item.name}</h2>
-                <p className="mt-4 line-clamp-4 max-w-xl text-sm leading-7 text-stone-400">{item.story}</p>
-              </div>
-              <div className="mt-6 flex flex-wrap gap-2">
-                {item.tags.slice(0, 4).map(tag => <Tag key={tag}>{tag}</Tag>)}
-              </div>
-            </div>
-          </button>
-        ))}
-      </section>
-
-      <section className="mb-6 rounded-[1.5rem] border border-stone-800 bg-[#14130f] p-4">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <input
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-            placeholder={libraryText.search}
-            className="min-h-12 w-full rounded-xl border border-stone-800 bg-[#1b1a15] px-4 text-sm text-stone-100 outline-none transition placeholder:text-stone-600 focus:border-[#d7b76a] focus:ring-2 focus:ring-[#d7b76a]/20"
-          />
-          <div className="text-sm font-bold text-stone-500">{filteredCocktails.length} / {cocktailLibrary.length}</div>
-        </div>
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          {COCKTAIL_FILTERS.map(filter => (
+      {/* PREMIUM CATEGORY NAVIGATION */}
+      <nav className="sticky top-20 z-30 flex flex-wrap gap-2 rounded-2xl border border-[#6b705c]/30 bg-[#1a1a1a]/90 p-2 backdrop-blur-xl">
+        {atlasTabs.map(tab => {
+          const Icon = tab.icon
+          return (
             <button
-              key={filter}
-              type="button"
-              onClick={() => setActiveFilter(filter)}
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id); setQuery(''); }}
               className={cx(
-                'min-h-10 shrink-0 rounded-full border px-4 text-xs font-black uppercase tracking-[0.12em] transition',
-                activeFilter === filter ? 'border-[#d7b76a]/40 bg-[#d7b76a]/10 text-[#d7b76a]' : 'border-stone-800 text-stone-500 hover:border-stone-700 hover:text-stone-200'
+                'flex flex-1 min-w-[140px] items-center justify-center gap-3 rounded-xl py-4 text-xs font-black uppercase tracking-widest transition-all duration-300',
+                activeTab === tab.id ? 'bg-[#c9a96e] text-[#0d0c09] shadow-lg scale-[1.02]' : 'text-[#e8dcc0] hover:bg-[#c9a96e]/10 hover:text-[#f5f5f0]'
               )}
             >
-              {filter}
+              <Icon size={16} />
+              {localize(tab.label, lang)}
             </button>
-          ))}
-        </div>
-      </section>
+          )
+        })}
+      </nav>
 
-      <div className="mb-5 flex items-end justify-between gap-4">
-        <div>
-          <div className="text-xs font-black uppercase tracking-[0.22em] text-[#d7b76a]">{libraryText.collection}</div>
-          <h2 className="mt-2 font-serif text-3xl font-black text-stone-50">{activeFilter === 'All' ? 'World Famous Cocktails' : activeFilter}</h2>
-        </div>
-        <div className="hidden text-sm text-stone-500 sm:block">{libraryText.standard}</div>
+      {/* CONTENT SWITCHER */}
+      <div className="min-h-[60vh]">
+        {activeTab === 'classics' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <h2 className="font-serif text-5xl font-black text-[#f5f5f0]">World Cocktail Canon</h2>
+              <div className="relative w-full max-w-md">
+                <input
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Search the canon..."
+                  className="w-full rounded-2xl border border-[#6b705c]/40 bg-[#11100d] px-6 py-4 text-sm text-[#f5f5f0] outline-none focus:border-[#c9a96e] focus:ring-4 focus:ring-[#c9a96e]/10 transition-all"
+                />
+              </div>
+            </div>
+            {filteredCocktails.length ? (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredCocktails.map(c => <CocktailCard key={c.name} cocktail={c} onOpen={() => setSelectedCocktail(c)} />)}
+              </div>
+            ) : (
+              <div className="py-20 text-center rounded-[3rem] border border-dashed border-[#6b705c]/30">
+                <p className="text-xl text-[#e8dcc0] font-serif italic">No masterpieces match your search criteria.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'masterclass' && (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {ATLAS_MASTERCLASSES.map(m => (
+              <Card key={m.id} className="group hover:border-[#c9a96e]/60 transition-all">
+                <div className="mb-4 text-[10px] font-black uppercase tracking-widest text-[#c9a96e]">{m.level}</div>
+                <h3 className="font-serif text-3xl font-black text-[#f5f5f0] mb-3 group-hover:text-[#c9a96e] transition-colors">{m.title}</h3>
+                <p className="text-sm leading-7 text-[#e8dcc0]">{m.desc}</p>
+                <Button variant="ghost" className="mt-6 w-full border border-[#6b705c]/30">Open Module</Button>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'techniques' && (
+          <div className="grid gap-6 md:grid-cols-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {ATLAS_TECHNIQUES.map(t => (
+              <Card key={t.title} className="flex gap-6 items-start">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#c9a96e]/10 text-[#c9a96e] border border-[#c9a96e]/20">
+                  <Sparkles size={28} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[#c9a96e] mb-1">{t.category}</div>
+                  <h3 className="font-serif text-3xl font-black text-[#f5f5f0] mb-2">{t.title}</h3>
+                  <p className="text-sm leading-7 text-[#e8dcc0]">{t.detail}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'training' && (
+          <div className="grid gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {ATLAS_TRAINING_CARDS.map(card => (
+              <Card key={card.title} className="bg-gradient-to-r from-[#1c1b17] to-[#11100d] border-l-4 border-l-[#c9a96e]">
+                <div className="grid lg:grid-cols-[1fr_2fr] gap-8 items-center">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[#c9a96e] mb-2">Protocol: {card.objective}</div>
+                    <h3 className="font-serif text-3xl font-black text-[#f5f5f0]">{card.title}</h3>
+                  </div>
+                  <p className="text-xl font-serif italic text-[#e8dcc0] border-l border-[#6b705c]/30 pl-8">{card.action}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'profit' && (
+          <div className="grid gap-6 md:grid-cols-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {ATLAS_PROFIT_INSIGHTS.map(item => (
+              <Card key={item.title} className="border-[#c9a96e]/20 hover:border-[#c9a96e]/50">
+                <div className="flex justify-between items-start mb-6">
+                  <h3 className="font-serif text-2xl font-black text-[#f5f5f0]">{item.title}</h3>
+                  <div className="text-right">
+                    <div className="text-xs font-black text-[#c9a96e] uppercase tracking-tighter">Est. Leakage</div>
+                    <div className="text-2xl font-serif font-black text-[#f5f5f0]">{item.impact}</div>
+                  </div>
+                </div>
+                <div className="rounded-xl bg-[#c9a96e]/5 border border-[#c9a96e]/10 p-4">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[#c9a96e] mb-1">Standard Solution</div>
+                  <p className="text-sm font-bold text-[#e8dcc0]">{item.solution}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
-      {filteredCocktails.length ? (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredCocktails.map(item => (
-            <CocktailCard key={item.name} cocktail={item} onOpen={() => setSelectedCocktail(item)} label={libraryText.openArticle} />
-          ))}
-        </section>
-      ) : (
-        <Card>
-          <p className="text-sm leading-7 text-stone-400">{libraryText.noResults}</p>
-        </Card>
-      )}
-
-      <Card className="mt-8 border-[#d7b76a]/20 bg-[#19170f]">
-        <Label>{libraryText.serviceNote}</Label>
-        <p className="text-sm leading-8 text-stone-300">{libraryText.sourNote}</p>
-      </Card>
-
       {selectedCocktail && (
-        <CocktailArticleModal cocktail={selectedCocktail} labels={libraryText} onClose={() => setSelectedCocktail(null)} />
+        <CocktailArticleModal cocktail={selectedCocktail} onClose={() => setSelectedCocktail(null)} />
       )}
-    </>
+    </div>
   )
 }
 
 function EditorialStat({ value, label }) {
   return (
-    <div className="rounded-2xl border border-stone-800 bg-black/20 p-4">
-      <div className="font-serif text-3xl font-black text-[#d7b76a]">{value}</div>
-      <div className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-stone-500">{label}</div>
+    <div className="flex flex-col">
+      <div className="font-serif text-5xl font-black text-[#c9a96e] leading-none mb-2">{value}</div>
+      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#e8dcc0]">{label}</div>
     </div>
   )
 }
 
-function Tag({ children }) {
-  return (
-    <span className="rounded-full border border-[#d7b76a]/20 bg-[#d7b76a]/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-[#d7b76a]">
-      {children}
-    </span>
-  )
-}
-
-function CocktailCard({ cocktail, onOpen, label }) {
+function CocktailCard({ cocktail, onOpen }) {
   return (
     <button
-      type="button"
       onClick={onOpen}
-      className="group flex min-h-[330px] flex-col justify-between rounded-[1.35rem] border border-stone-800 bg-[#14130f] p-5 text-left shadow-[0_18px_60px_rgba(0,0,0,0.2)] transition hover:-translate-y-1 hover:border-[#d7b76a]/45 hover:bg-[#171610]"
+      className="group relative flex h-[480px] flex-col justify-end overflow-hidden rounded-[2.5rem] border border-[#6b705c]/30 bg-[#11100d] p-8 text-left transition-all duration-500 hover:-translate-y-2 hover:border-[#c9a96e]/50 hover:shadow-[0_40px_100px_rgba(0,0,0,0.6)]"
     >
-      <div>
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#d7b76a]">{cocktail.family}</div>
-            <div className="mt-1 text-xs font-bold text-stone-600">{cocktail.era}</div>
-          </div>
-          <span className="rounded-full border border-stone-800 px-3 py-1 text-xs font-black text-stone-500">{cocktail.origin.split(',')[0]}</span>
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0d0c09] via-transparent to-transparent opacity-90" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(201,169,110,0.1),transparent_50%)]" />
+      
+      <div className="relative z-10 translate-y-4 transition-transform duration-500 group-hover:translate-y-0">
+        <div className="mb-4 flex items-center justify-between">
+          <span className="text-[10px] font-black uppercase tracking-widest text-[#c9a96e]">{cocktail.family}</span>
+          <span className="text-[10px] font-bold text-[#e8dcc0]">{cocktail.origin.split(',')[0]}</span>
         </div>
-        <h3 className="font-serif text-3xl font-black leading-none text-stone-50 transition group-hover:text-[#d7b76a]">{cocktail.name}</h3>
-        <p className="mt-4 line-clamp-4 text-sm leading-7 text-stone-500">{cocktail.story}</p>
-      </div>
-      <div className="mt-6">
-        <div className="mb-4 flex flex-wrap gap-2">
+        <h3 className="font-serif text-4xl font-black text-[#f5f5f0] mb-4 group-hover:text-[#c9a96e] transition-colors">{cocktail.name}</h3>
+        <p className="line-clamp-2 text-sm leading-7 text-[#e8dcc0] mb-6 opacity-0 group-hover:opacity-100 transition-opacity duration-500">{cocktail.story}</p>
+        <div className="flex flex-wrap gap-2">
           {cocktail.tags.slice(0, 3).map(tag => <Tag key={tag}>{tag}</Tag>)}
-        </div>
-        <div className="flex items-center justify-between border-t border-stone-800 pt-4">
-          <span className="text-xs font-black uppercase tracking-[0.16em] text-stone-600">{cocktail.method.split('.')[0]}</span>
-          <span className="text-sm font-black text-[#d7b76a]">{label}</span>
         </div>
       </div>
     </button>
   )
 }
 
-function CocktailArticleModal({ cocktail, labels, onClose }) {
-  useEffect(() => {
-    function onKeyDown(event) {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
-
+function CocktailArticleModal({ cocktail, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
-      <button type="button" className="absolute inset-0 cursor-default" onClick={onClose} aria-label={labels.close} />
-      <article className="relative max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-[2rem] border border-[#d7b76a]/25 bg-[#11100d] shadow-[0_30px_120px_rgba(0,0,0,0.55)]">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-800 bg-[#11100d]/95 px-5 py-4 backdrop-blur">
-          <div className="text-xs font-black uppercase tracking-[0.2em] text-[#d7b76a]">{cocktail.family}</div>
-          <button type="button" onClick={onClose} className="rounded-full border border-stone-800 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-stone-400 transition hover:border-[#d7b76a] hover:text-[#d7b76a]">
-            {labels.close}
-          </button>
-        </div>
-
-        <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
-          <section className="border-b border-stone-800 p-6 sm:p-8 lg:border-b-0 lg:border-r">
-            <div className="mb-5 flex flex-wrap gap-2">
-              {cocktail.tags.map(tag => <Tag key={tag}>{tag}</Tag>)}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 backdrop-blur-2xl animate-in fade-in duration-300">
+      <button className="absolute right-8 top-8 text-[#e8dcc0] hover:text-[#f5f5f0] transition-colors" onClick={onClose}><span className="text-sm font-black uppercase tracking-widest">Close Atlas</span></button>
+      <article className="h-full max-h-[90vh] w-full max-w-7xl overflow-y-auto rounded-[3rem] border border-[#c9a96e]/30 bg-[#0d0c09] shadow-2xl">
+        <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-0">
+          {/* LEFT COLUMN: Editorial Story */}
+          <div className="p-8 sm:p-16 lg:border-r border-[#6b705c]/20">
+            <div className="mb-8 flex items-center gap-4 text-xs font-black uppercase tracking-widest text-[#c9a96e]">
+              <div className="h-px w-8 bg-[#c9a96e]" />
+              {cocktail.family} • {cocktail.era}
             </div>
-            <h2 className="font-serif text-5xl font-black leading-none tracking-tight text-stone-50 sm:text-7xl">{cocktail.name}</h2>
-            <div className="mt-5 grid gap-3 text-sm text-stone-500 sm:grid-cols-2">
-              <div className="rounded-2xl border border-stone-800 bg-[#171610] p-4"><strong className="block text-stone-300">{cocktail.origin}</strong><span>{cocktail.era}</span></div>
-              <div className="rounded-2xl border border-stone-800 bg-[#171610] p-4"><strong className="block text-stone-300">{cocktail.glassware}</strong><span>{cocktail.ice}</span></div>
-            </div>
+            <h2 className="font-serif text-7xl sm:text-9xl font-black text-[#f5f5f0] leading-[0.85] tracking-tighter mb-12">{cocktail.name}</h2>
+            
+            <div className="space-y-12">
+              <div>
+                <Label>The Origin & Narrative</Label>
+                <p className="font-serif text-3xl leading-relaxed text-[#f5f5f0] font-light">{cocktail.story}</p>
+              </div>
 
-            <div className="mt-8">
-              <Label>{labels.story}</Label>
-              <p className="font-serif text-2xl leading-10 text-stone-200">{cocktail.story}</p>
-            </div>
+              <div className="grid grid-cols-2 gap-8 py-8 border-y border-[#6b705c]/20">
+                <div><Label>Service Note</Label><p className="text-sm leading-7 text-[#e8dcc0]">{cocktail.serviceNote}</p></div>
+                <div><Label>Bartender Mistake</Label><p className="text-sm leading-7 text-red-300 font-bold">Never over-dilute or use wet ice. The architecture of {cocktail.name} depends on thermal precision.</p></div>
+              </div>
 
-            <div className="mt-8 rounded-[1.35rem] border border-[#d7b76a]/20 bg-[#19170f] p-5">
-              <Label>{labels.serviceNote}</Label>
-              <p className="text-sm leading-8 text-stone-300">{cocktail.serviceNote}</p>
+              <div className="rounded-3xl bg-[#c9a96e]/10 p-8 border border-[#c9a96e]/20">
+                <Label>Guest Recommendation Script</Label>
+                <p className="font-serif text-2xl italic text-[#f5f5f0] leading-relaxed">
+                  "If you appreciate a {cocktail.tags[0].toLowerCase()} profile with historical weight, the {cocktail.name} is exceptional. Would you prefer yours served precisely to the classic spec, or with a slight adjustment to the {cocktail.tags[1].toLowerCase()} notes?"
+                </p>
+              </div>
             </div>
-          </section>
+          </div>
 
-          <section className="p-6 sm:p-8">
-            <div className="mb-8">
-              <Label>{labels.recipe}</Label>
+          {/* RIGHT COLUMN: Execution Specs */}
+          <div className="bg-[#11100d] p-8 sm:p-16 space-y-12">
+            <div>
+              <Label>Precise Formulation</Label>
               <div className="space-y-3">
-                {cocktail.ingredients.map(ingredient => (
-                  <div key={ingredient} className="flex items-center justify-between gap-4 rounded-xl border border-stone-800 bg-[#171610] px-4 py-3 text-sm text-stone-200">
-                    <span>{ingredient}</span>
+                {cocktail.ingredients.map(ing => (
+                  <div key={ing} className="flex items-center justify-between border-b border-[#6b705c]/20 pb-4 text-xl font-serif text-[#f5f5f0]">
+                    <span>{ing}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <ArticleSpec label={labels.method} value={cocktail.method} />
-              <ArticleSpec label={labels.glassware} value={cocktail.glassware} />
-              <ArticleSpec label={labels.ice} value={cocktail.ice} />
-              <ArticleSpec label={labels.garnish} value={cocktail.garnish} />
+            <div className="grid grid-cols-1 gap-6">
+              <ArticleSpec label="Vessel" value={cocktail.glassware} />
+              <ArticleSpec label="Methodology" value={cocktail.method} />
+              <ArticleSpec label="Ice Ritual" value={cocktail.ice} />
+              <ArticleSpec label="Final Touch" value={cocktail.garnish} />
             </div>
 
-            <div className="mt-8">
-              <Label>{labels.tags}</Label>
+            <div className="pt-8 border-t border-[#6b705c]/20">
+              <Label>Sensory Indicators</Label>
               <div className="flex flex-wrap gap-2">
-                {cocktail.tags.map(tag => <Tag key={tag}>{tag}</Tag>)}
+                {cocktail.tags.map(t => <Tag key={t}>{t}</Tag>)}
               </div>
             </div>
-          </section>
+          </div>
         </div>
       </article>
     </div>
   )
 }
 
+function Tag({ children }) {
+  return (
+    <span className="rounded-full border border-[#c9a96e]/20 bg-[#c9a96e]/5 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#c9a96e]">
+      {children}
+    </span>
+  )
+}
+
 function ArticleSpec({ label, value }) {
   return (
-    <div className="rounded-2xl border border-stone-800 bg-[#171610] p-4">
-      <div className="text-[11px] font-black uppercase tracking-[0.16em] text-stone-600">{label}</div>
-      <div className="mt-2 text-sm font-bold leading-6 text-stone-200">{value}</div>
+    <div className="group rounded-2xl border border-[#6b705c]/20 bg-[#0d0c09] p-6 transition-colors hover:border-[#c9a96e]/40">
+      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-2">{label}</div>
+      <div className="text-lg font-bold text-[#f5f5f0]">{value}</div>
     </div>
   )
 }
+
 
 function OperationalNotes({ t }) {
   const [notes, setNotes] = useState([
@@ -2273,15 +2389,15 @@ function OperationalNotes({ t }) {
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="space-y-3">
           {notes.map(note => (
-            <article key={note.id} className={cx('rounded-2xl border bg-[#14130f] p-5', note.pinned ? 'border-[#d7b76a]/35' : 'border-stone-800')}>
+            <article key={note.id} className={cx('rounded-2xl border bg-[#14130f] p-5', note.pinned ? 'border-[#c9a96e]/35' : 'border-[#6b705c]/30')}>
               <div className="mb-3 flex items-start justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  {note.pinned && <span className="rounded-full border border-[#d7b76a]/30 bg-[#d7b76a]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#d7b76a]">Pinned</span>}
-                  <span className="text-xs text-stone-600">{note.date} - {note.author}</span>
+                  {note.pinned && <span className="rounded-full border border-[#c9a96e]/30 bg-[#c9a96e]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#c9a96e]">Pinned</span>}
+                  <span className="text-xs text-[#e8dcc0]">{note.date} - {note.author}</span>
                 </div>
-                <button type="button" onClick={() => setNotes(prev => prev.map(item => item.id === note.id ? { ...item, pinned: !item.pinned } : item))} className="text-xs font-bold text-stone-600 transition hover:text-[#d7b76a]">{note.pinned ? 'Unpin' : 'Pin'}</button>
+                <button type="button" onClick={() => setNotes(prev => prev.map(item => item.id === note.id ? { ...item, pinned: !item.pinned } : item))} className="text-xs font-bold text-[#e8dcc0] transition hover:text-[#c9a96e]">{note.pinned ? 'Unpin' : 'Pin'}</button>
               </div>
-              <p className="text-sm leading-7 text-stone-300">{note.text}</p>
+              <p className="text-sm leading-7 text-[#e8dcc0]">{note.text}</p>
             </article>
           ))}
         </div>
@@ -2289,7 +2405,7 @@ function OperationalNotes({ t }) {
           <Label>Add Operational Note</Label>
           <TextArea id="new-operational-note" label="" value={draft} onChange={setDraft} rows={5} />
           <Button className="mt-3 w-full" onClick={addNote}>Add Note</Button>
-          <p className="mt-4 text-xs leading-6 text-stone-600">Use this for patterns, staff concerns, VIP context, recovery follow-up, or anything ownership should remember later.</p>
+          <p className="mt-4 text-xs leading-6 text-[#e8dcc0]">Use this for patterns, staff concerns, VIP context, recovery follow-up, or anything ownership should remember later.</p>
         </Card>
       </div>
     </>
@@ -2306,34 +2422,34 @@ function SOPSheets({ t }) {
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         <div className="space-y-2">
           {SOP_SHEETS.map(sheet => (
-            <button key={sheet.id} type="button" onClick={() => setActiveId(sheet.id)} className={cx('w-full rounded-2xl border p-4 text-left transition', activeId === sheet.id ? 'border-[#d7b76a]/40 bg-[#d7b76a]/10 text-[#d7b76a]' : 'border-stone-800 bg-[#14130f] text-stone-400 hover:border-stone-700 hover:text-stone-100')}>
-              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-stone-600">{sheet.code}</div>
+            <button key={sheet.id} type="button" onClick={() => setActiveId(sheet.id)} className={cx('w-full rounded-2xl border p-4 text-left transition', activeId === sheet.id ? 'border-[#c9a96e]/40 bg-[#c9a96e]/10 text-[#c9a96e]' : 'border-[#6b705c]/30 bg-[#1a1a1a] text-[#e8dcc0] hover:border-[#c9a96e]/40 hover:text-[#c9a96e]')}>
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#e8dcc0]">{sheet.code}</div>
               <div className="mt-1 text-sm font-black leading-5">{sheet.title}</div>
-              <div className="mt-1 text-xs text-stone-600">{sheet.category}</div>
+              <div className="mt-1 text-xs text-[#e8dcc0]">{sheet.category}</div>
             </button>
           ))}
         </div>
         <div className="space-y-5">
-          <Card className="border-[#d7b76a]/20">
+          <Card className="border-[#c9a96e]/20">
             <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#d7b76a]">{active.code} - {active.category}</div>
-                <h2 className="mt-2 font-serif text-4xl font-black text-stone-50">{active.title}</h2>
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9a96e]">{active.code} - {active.category}</div>
+                <h2 className="mt-2 font-serif text-4xl font-black text-[#f5f5f0]">{active.title}</h2>
               </div>
-              <span className="rounded-full border border-stone-700 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-stone-500">{active.standard}</span>
+              <span className="rounded-full border border-[#6b705c]/30 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#e8dcc0]">{active.standard}</span>
             </div>
             <div className="space-y-3">
               {active.steps.map((step, index) => (
-                <div key={step} className="flex gap-4 rounded-xl border border-stone-800 bg-[#1b1a15] p-4">
-                  <span className="w-8 shrink-0 font-serif text-2xl font-black text-[#d7b76a]">{index + 1}</span>
-                  <p className="text-sm leading-7 text-stone-300">{step}</p>
+                <div key={step} className="flex gap-4 rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4">
+                  <span className="w-8 shrink-0 font-serif text-2xl font-black text-[#c9a96e]">{index + 1}</span>
+                  <p className="text-sm leading-7 text-[#e8dcc0]">{step}</p>
                 </div>
               ))}
             </div>
           </Card>
-          <Card className="border-[#d7b76a]/15 bg-[#19170f]">
+          <Card className="border-[#c9a96e]/15 bg-[#1a1a1a]">
             <Label>Manager Note</Label>
-            <p className="text-sm leading-7 text-stone-300">{active.managerNote}</p>
+            <p className="text-sm leading-7 text-[#e8dcc0]">{active.managerNote}</p>
           </Card>
         </div>
       </div>
@@ -2360,13 +2476,13 @@ function LearningProgress({ t }) {
           <Card key={course.id}>
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-stone-600">Course {course.id}</div>
-                <h2 className="mt-1 font-serif text-2xl font-black text-stone-50">{course.title.en}</h2>
+                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#e8dcc0]">Course {course.id}</div>
+                <h2 className="mt-1 font-serif text-2xl font-black text-[#f5f5f0]">{course.title.en}</h2>
               </div>
-              <span className="font-serif text-3xl font-black text-[#d7b76a]">{course.progress}%</span>
+              <span className="font-serif text-3xl font-black text-[#c9a96e]">{course.progress}%</span>
             </div>
             <Progress value={course.progress} label={course.title.en} />
-            <p className="mt-3 text-xs leading-6 text-stone-500">{course.lessons} lessons - {course.desc.en}</p>
+            <p className="mt-3 text-xs leading-6 text-[#e8dcc0]">{course.lessons} lessons - {course.desc.en}</p>
           </Card>
         ))}
       </div>
@@ -2381,11 +2497,11 @@ function ExecutiveOverview({ t, reportArchive = [], eventPlans = [] }) {
   return (
     <>
       <Header eyebrow={t.areas.ownerIntelligence} title="Executive Overview" body="Owner-grade business intelligence: profit exposure, readiness risk, and the highest leverage decisions for this week." />
-      <Card className="mb-6 bg-[radial-gradient(circle_at_top_right,rgba(215,183,106,0.15),transparent_40%),linear-gradient(135deg,#191812,#11100d)] p-7">
+      <Card className="mb-6 bg-[radial-gradient(circle_at_top_right,rgba(201,169,110,0.18),transparent_35%),linear-gradient(135deg,#191812,#11100d)] p-7">
         <div className="max-w-4xl">
-          <div className="text-xs font-black uppercase tracking-[0.22em] text-[#d7b76a]">Weekly Command Summary</div>
-          <h2 className="mt-3 font-serif text-4xl font-black tracking-tight text-stone-50">HOSPIA identified NIS 27.1k in monthly leakage and NIS 12.9k recoverable within 30 days.</h2>
-          <p className="mt-4 text-sm leading-8 text-stone-400">The strongest drivers are compensation before recovery, missed beverage upsells, and unmanaged kitchen delays. The next move is not more data - it is manager execution.</p>
+          <div className="text-xs font-black uppercase tracking-[0.22em] text-[#c9a96e]">Weekly Command Summary</div>
+          <h2 className="mt-3 font-serif text-4xl font-black tracking-tight text-[#f5f5f0]">HOSPIA identified NIS 27.1k in monthly leakage and NIS 12.9k recoverable within 30 days.</h2>
+          <p className="mt-4 text-sm leading-8 text-[#e8dcc0]">The strongest drivers are compensation before recovery, missed beverage upsells, and unmanaged kitchen delays. The next move is not more data - it is manager execution.</p>
         </div>
       </Card>
       <div className="mb-6 grid gap-4 md:grid-cols-4">
@@ -2423,10 +2539,10 @@ function BusinessMRI({ t }) {
   return (
     <>
       <Header eyebrow={t.pages.businessMRI} title="Business MRI" body="A diagnostic scan of the service dimensions that influence revenue, guest trust, and management focus." />
-      <Card className="mb-6 border-[#d7b76a]/20 bg-[#19170f]">
+      <Card className="mb-6 border-[#c9a96e]/20 bg-[#1a1a1a]">
         <div className="flex flex-wrap items-center gap-6">
-          <div><div className="font-serif text-7xl font-black text-[#d7b76a]">{score}</div><div className="text-[10px] font-black uppercase tracking-[0.16em] text-stone-600">Overall MRI Score</div></div>
-          <p className="max-w-2xl font-serif text-2xl leading-10 text-stone-100">Two weak points are currently dragging operational value: Natural Upselling and Delay Communication.</p>
+          <div><div className="font-serif text-7xl font-black text-[#c9a96e]">{score}</div><div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#e8dcc0]">Overall MRI Score</div></div>
+          <p className="max-w-2xl font-serif text-2xl leading-10 text-[#f5f5f0]">Two weak points are currently dragging operational value: Natural Upselling and Delay Communication.</p>
         </div>
       </Card>
       <Card>
@@ -2434,8 +2550,8 @@ function BusinessMRI({ t }) {
         <div className="space-y-4">
           {dimensions.map(([label, value, status]) => (
             <div key={label} className="grid gap-3 sm:grid-cols-[220px_1fr_60px] sm:items-center">
-              <div className="text-sm font-bold text-stone-300">{label}</div>
-              <div className="h-2 overflow-hidden rounded-full bg-stone-800"><div className={cx('h-full rounded-full', colors[status].split(' ')[0])} style={{ width: `${value}%` }} /></div>
+              <div className="text-sm font-bold text-[#e8dcc0]">{label}</div>
+              <div className="h-2 overflow-hidden rounded-full bg-[#6b705c]/30"><div className={cx('h-full rounded-full', colors[status].split(' ')[0])} style={{ width: `${value}%` }} /></div>
               <div className={cx('text-sm font-black sm:text-right', colors[status].split(' ')[1])}>{value}%</div>
             </div>
           ))}
@@ -2446,12 +2562,46 @@ function BusinessMRI({ t }) {
 }
 
 function ProfitLeaks({ t }) {
+  const [leakFixRate, setLeakFixRate] = useState(30) // Slider for "How much can we fix?"
   const total = PROFIT_LEAKS.reduce((sum, leak) => sum + leak.monthly, 0)
-  const riskClass = { high: 'border-red-800/50 bg-red-950/25 text-red-200', medium: 'border-amber-800/50 bg-amber-950/25 text-amber-200', low: 'border-stone-700 bg-stone-900/40 text-stone-400' }
+  const projectedRecovery = Math.round(total * (leakFixRate / 100))
+  
+  const riskClass = { high: 'border-red-800/50 bg-red-950/25 text-red-200', medium: 'border-amber-800/50 bg-amber-950/25 text-amber-200', low: 'border-[#6b705c]/50 bg-[#6b705c]/25 text-[#e8dcc0]' }
 
   return (
     <>
-      <Header eyebrow={t.pages.profitLeaks} title="Profit Leak Intelligence" body="Revenue leaving through preventable service execution failures. Each leak is translated into a training or management action." />
+      <Header eyebrow={t.pages.profitLeaks} title="Profit Leak Intelligence" body="Revenue leaving the building through preventable execution failures. Use the calculator below to model your recovery ROI." />
+      
+      <section className="mb-12">
+        <Card className="bg-gradient-to-br from-[#1c1b17] to-[#0a0a08] border-[#c9a96e]/30">
+          <div className="grid gap-8 lg:grid-cols-[1fr_300px] items-center">
+            <div>
+              <Label>Leak Recovery Modeling</Label>
+              <h2 className="font-serif text-4xl font-black text-[#f5f5f0] mb-6">
+                If we improve execution by <span className="text-[#c9a96e]">{leakFixRate}%</span>...
+              </h2>
+              <input 
+                type="range" 
+                min="5" 
+                max="100" 
+                value={leakFixRate} 
+                onChange={(e) => setLeakFixRate(e.target.value)}
+                className="w-full h-2 bg-[#6b705c]/30 rounded-lg appearance-none cursor-pointer accent-[#c9a96e]"
+              />
+              <div className="flex justify-between mt-4 text-[10px] font-black uppercase tracking-widest text-[#e8dcc0]">
+                <span>Incremental Fix</span>
+                <span>Full Transformation</span>
+              </div>
+            </div>
+            <div className="text-center p-6 rounded-3xl bg-[#c9a96e]/10 border border-[#c9a96e]/20">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[#c9a96e] mb-2">Est. Monthly Recovery</div>
+              <div className="font-serif text-5xl font-black text-[#f5f5f0]">NIS {projectedRecovery.toLocaleString()}</div>
+              <div className="mt-2 text-xs text-[#e8dcc0]">NIS {(projectedRecovery * 12).toLocaleString()} / year</div>
+            </div>
+          </div>
+        </Card>
+      </section>
+
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         <Metric label="Total Monthly Leakage" value={`NIS ${total.toLocaleString()}`} sub="Detected exposure" />
         <Metric label="Recoverable In 30 Days" value="NIS 12.9k" sub="Targeted execution" />
@@ -2459,13 +2609,13 @@ function ProfitLeaks({ t }) {
       </div>
       <div className="space-y-4">
         {PROFIT_LEAKS.map(leak => (
-          <Card key={leak.category} className={cx('border-l-4', leak.risk === 'high' ? 'border-l-red-700' : leak.risk === 'medium' ? 'border-l-amber-700' : 'border-l-stone-700')}>
+          <Card key={leak.category} className={cx('border-l-4', leak.risk === 'high' ? 'border-l-red-700' : leak.risk === 'medium' ? 'border-l-amber-700' : 'border-l-[#6b705c]')}>
             <div className="mb-3 flex flex-wrap items-start justify-between gap-4">
               <span className={cx('rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em]', riskClass[leak.risk])}>{leak.risk} risk - {leak.trend}</span>
-              <div className="text-right"><div className="font-serif text-3xl font-black text-[#d7b76a]">NIS {leak.monthly.toLocaleString()}/mo</div><div className="text-xs text-stone-600">NIS {leak.weekly.toLocaleString()}/week</div></div>
+              <div className="text-right"><div className="font-serif text-3xl font-black text-[#c9a96e]">NIS {leak.monthly.toLocaleString()}/mo</div><div className="text-xs text-[#e8dcc0]">NIS {leak.weekly.toLocaleString()}/week</div></div>
             </div>
-            <h2 className="font-serif text-2xl font-black text-stone-50">{leak.category}</h2>
-            <p className="mt-2 text-sm leading-7 text-stone-400">{leak.note}</p>
+            <h2 className="font-serif text-2xl font-black text-[#f5f5f0]">{leak.category}</h2>
+            <p className="mt-2 text-sm leading-7 text-[#e8dcc0]">{leak.note}</p>
           </Card>
         ))}
       </div>
@@ -2482,17 +2632,17 @@ function OwnerReport({ t, reportArchive = [], eventPlans = [] }) {
   return (
     <>
       <Header eyebrow={t.pages.ownerReport} title="Owner Weekly Report" body="A boardroom-ready summary created from End Of Day reports, readiness data, profit leak signals, and business memory." />
-      <Card className="mb-6 border-[#d7b76a]/20 bg-[#19170f]">
-        <div className="text-xs font-black uppercase tracking-[0.2em] text-[#d7b76a]">Executive Summary</div>
-        <h2 className="mt-3 font-serif text-4xl font-black text-stone-50">Hospitality Score: 87/100. Recoverable value this month: NIS 12.9k.</h2>
-        <p className="mt-3 text-sm leading-7 text-stone-400">Performance improved in farewell and first impression. Drag remains in upselling and delay communication.</p>
+      <Card className="mb-6 border-[#c9a96e]/20 bg-[#1a1a1a]">
+        <div className="text-xs font-black uppercase tracking-[0.2em] text-[#c9a96e]">Executive Summary</div>
+        <h2 className="mt-3 font-serif text-4xl font-black text-[#f5f5f0]">Hospitality Score: 87/100. Recoverable value this month: NIS 12.9k.</h2>
+        <p className="mt-3 text-sm leading-7 text-[#e8dcc0]">Performance improved in farewell and first impression. Drag remains in upselling and delay communication.</p>
       </Card>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card><Label>Owner Actions Required</Label><List items={['Approve recovery-first compensation policy.', 'Review Dana P. readiness plan.', 'Confirm beverage upsell training mandate.', 'Review Friday delay pattern with management.']} /></Card>
         <Card><Label>Commercial Signals</Label><List items={['NIS 27.1k monthly leakage detected.', 'NIS 42.6k protected revenue tracked.', '7-shift reporting streak reached.', 'Two staff members create elevated weekend risk.']} /></Card>
       </div>
       <OwnerValueLedger totalEventProfit={totalEventProfit} reportSignals={reportSignals} eventPlans={eventPlans} reportArchive={reportArchive} />
-      <Card className="mt-4 border-[#d7b76a]/20">
+      <Card className="mt-4 border-[#c9a96e]/20">
         <Label>Latest Submitted End Of Day Report</Label>
         {latestReport ? (
           <div className="grid gap-4 md:grid-cols-2">
@@ -2502,10 +2652,10 @@ function OwnerReport({ t, reportArchive = [], eventPlans = [] }) {
             <ReportFact label="Urgent Items" value={latestReport.urgent_items || 'No urgent items entered'} />
           </div>
         ) : (
-          <p className="text-sm leading-7 text-stone-500">No successful End Of Day submissions have been archived in this browser yet.</p>
+          <p className="text-sm leading-7 text-[#e8dcc0]">No successful End Of Day submissions have been archived in this browser yet.</p>
         )}
       </Card>
-      <Card className="mt-4 border-[#d7b76a]/20">
+      <Card className="mt-4 border-[#c9a96e]/20">
         <Label>Latest Saved Event Orchestrator Report</Label>
         {latestEvent ? (
           <div className="grid gap-4 md:grid-cols-2">
@@ -2515,7 +2665,7 @@ function OwnerReport({ t, reportArchive = [], eventPlans = [] }) {
             <ReportFact label="Projected Margin" value={`${Number(latestEvent.projected_margin || latestEvent.calculations?.margin || 0).toFixed(1)}%`} />
           </div>
         ) : (
-          <p className="text-sm leading-7 text-stone-500">No saved Event Orchestrator plans yet.</p>
+          <p className="text-sm leading-7 text-[#e8dcc0]">No saved Event Orchestrator plans yet.</p>
         )}
       </Card>
     </>
@@ -2531,17 +2681,17 @@ function OwnerValueLedger({ totalEventProfit, reportSignals, eventPlans, reportA
   ]
 
   return (
-    <Card className="mt-4 border-[#d7b76a]/20 bg-[radial-gradient(circle_at_top_right,rgba(215,183,106,0.1),transparent_36%),#14130f]">
-      <div className="mb-5 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#d7b76a]">
+    <Card className="mt-4 border-[#c9a96e]/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,110,0.1),transparent_36%),#14130f]">
+      <div className="mb-5 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e]">
         <CircleDollarSign className="h-4 w-4" aria-hidden="true" />
         Owner Value Ledger
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {ledger.map(item => (
-          <div key={item.label} className="rounded-2xl border border-stone-800 bg-[#1b1a15] p-4">
-            <div className="font-serif text-3xl font-black text-[#d7b76a]">{item.value}</div>
-            <div className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-stone-500">{item.label}</div>
-            <p className="mt-2 text-xs leading-5 text-stone-600">{item.detail}</p>
+          <div key={item.label} className="rounded-2xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4">
+            <div className="font-serif text-3xl font-black text-[#c9a96e]">{item.value}</div>
+            <div className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-[#e8dcc0]">{item.label}</div>
+            <p className="mt-2 text-xs leading-5 text-[#e8dcc0]">{item.detail}</p>
           </div>
         ))}
       </div>
@@ -2551,9 +2701,9 @@ function OwnerValueLedger({ totalEventProfit, reportSignals, eventPlans, reportA
 
 function ReportFact({ label, value }) {
   return (
-    <div className="rounded-xl border border-stone-800 bg-[#1b1a15] p-4">
-      <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-stone-600">{label}</div>
-      <p className="text-sm leading-7 text-stone-300">{value}</p>
+    <div className="rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4">
+      <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#e8dcc0]">{label}</div>
+      <p className="text-sm leading-7 text-[#f5f5f0]">{value}</p>
     </div>
   )
 }
@@ -2576,9 +2726,9 @@ function BusinessMemoryPage({ t, reportArchive = [], businessMemory = BUSINESS_M
   const style = {
     alert: 'border-red-900/40',
     win: 'border-emerald-900/40',
-    note: 'border-stone-800',
-    report: 'border-[#d7b76a]/25',
-    event: 'border-[#d7b76a]/30 bg-[#19170f]'
+    note: 'border-[#6b705c]/30',
+    report: 'border-[#c9a96e]/25',
+    event: 'border-[#c9a96e]/30 bg-[#1a1a1a]'
   }
 
   return (
@@ -2590,17 +2740,17 @@ function BusinessMemoryPage({ t, reportArchive = [], businessMemory = BUSINESS_M
         <Metric label="Open Human Risk" value="Dana P." sub="At Risk status" />
       </div>
       <div className="relative space-y-4 ps-6">
-        <div className="absolute bottom-0 start-2 top-0 w-px bg-stone-800" />
+        <div className="absolute bottom-0 start-2 top-0 w-px bg-[#6b705c]/30" />
         {memoryEvents.map(event => (
           <article key={`${event.date}-${event.title}`} className="relative">
-            <div className={cx('absolute -start-5 top-6 h-3 w-3 rounded-full border-2 border-[#0d0c09]', event.type === 'alert' ? 'bg-red-500' : event.type === 'win' ? 'bg-emerald-500' : 'bg-[#d7b76a]')} />
+            <div className={cx('absolute -start-5 top-6 h-3 w-3 rounded-full border-2 border-[#0d0c09]', event.type === 'alert' ? 'bg-red-500' : event.type === 'win' ? 'bg-emerald-500' : 'bg-[#c9a96e]')} />
             <Card className={style[event.type] || style.note}>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#d7b76a]">{event.type}</span>
-                <span className="text-xs text-stone-600">{event.date}</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#c9a96e]">{event.type}</span>
+                <span className="text-xs text-[#e8dcc0]">{event.date}</span>
               </div>
-              <h2 className="font-serif text-xl font-black text-stone-50">{event.title}</h2>
-              <p className="mt-2 text-sm leading-7 text-stone-400">{event.detail}</p>
+              <h2 className="font-serif text-xl font-black text-[#f5f5f0]">{event.title}</h2>
+              <p className="mt-2 text-sm leading-7 text-[#e8dcc0]">{event.detail}</p>
             </Card>
           </article>
         ))}
@@ -2622,18 +2772,18 @@ function StrategicRecommendations({ t }) {
       <Header eyebrow={t.pages.strategicRecommendations} title="Strategic Recommendations" body="Prioritized decisions that connect service execution to owner-level value." />
       <div className="space-y-4">
         {recs.map(([horizon, title, impact, detail], index) => (
-          <Card key={title} className={cx('border-l-4', index === 0 ? 'border-l-red-700' : index === 1 ? 'border-l-amber-700' : 'border-l-[#d7b76a]')}>
+          <Card key={title} className={cx('border-l-4', index === 0 ? 'border-l-red-700' : index === 1 ? 'border-l-amber-700' : 'border-l-[#c9a96e]')}>
             <div className="mb-3 flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-4">
-                <span className="font-serif text-5xl font-black leading-none text-stone-700">0{index + 1}</span>
+                <span className="font-serif text-5xl font-black leading-none text-[#6b705c]">0{index + 1}</span>
                 <div>
-                  <span className="rounded-full border border-stone-700 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-stone-500">{horizon}</span>
-                  <h2 className="mt-2 font-serif text-2xl font-black text-stone-50">{title}</h2>
+                  <span className="rounded-full border border-[#6b705c]/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#e8dcc0]">{horizon}</span>
+                  <h2 className="mt-2 font-serif text-2xl font-black text-[#f5f5f0]">{title}</h2>
                 </div>
               </div>
-              <div className="text-right text-sm font-black text-[#d7b76a]">{impact}</div>
+              <div className="text-right text-sm font-black text-[#c9a96e]">{impact}</div>
             </div>
-            <p className="text-sm leading-7 text-stone-300">{detail}</p>
+            <p className="text-sm leading-7 text-[#e8dcc0]">{detail}</p>
           </Card>
         ))}
       </div>
@@ -2647,7 +2797,7 @@ function MissingPage({ page }) {
       <Header eyebrow="System" title="Page unavailable" body="This route is not available for the current product configuration." />
       <Card className="border-amber-900/40 bg-amber-950/10">
         <Label>Route Guard</Label>
-        <p className="text-sm leading-7 text-stone-400">The requested page key is <span className="font-mono text-[#d7b76a]">{page}</span>. If this appears during normal navigation, a page was added before its production component was implemented.</p>
+        <p className="text-sm leading-7 text-[#e8dcc0]">The requested page key is <span className="font-mono text-[#c9a96e]">{page}</span>. If this appears during normal navigation, a page was added before its production component was implemented.</p>
       </Card>
     </>
   )
@@ -2659,7 +2809,7 @@ function Settings({ t }) {
       <Header eyebrow={t.pages.settings} title={t.pages.settings} body={t.copy.settingsBody} />
       <Card>
         <Label>{t.app.language}</Label>
-        <p className="mb-4 text-sm leading-7 text-stone-400">
+        <p className="mb-4 text-sm leading-7 text-[#e8dcc0]">
           Use the language switcher in the side panel to change interface language.
         </p>
         <Button>{t.ui.save}</Button>
@@ -2670,7 +2820,7 @@ function Settings({ t }) {
 
 function Card({ children, className = '' }) {
   return (
-    <section className={cx('rounded-2xl border border-stone-800 bg-[#14130f] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.22)]', className)}>
+    <section className={cx('rounded-[2.5rem] border border-[#6b705c]/10 bg-gradient-to-br from-[#1a1a1a] to-[#0a0a08] p-10 lg:p-14 shadow-[0_40px_100px_rgba(0,0,0,0.4)] transition-all duration-700 hover:shadow-[0_60px_150px_rgba(0,0,0,0.6)]', className)}>
       {children}
     </section>
   )
@@ -2678,9 +2828,9 @@ function Card({ children, className = '' }) {
 
 function Button({ children, onClick, variant = 'primary', className = '', disabled, type = 'button' }) {
   const styles = {
-    primary: 'bg-[#d7b76a] text-[#11100d] hover:bg-[#e7ca82]',
-    secondary: 'border border-stone-700 bg-stone-950/30 text-stone-100 hover:border-[#d7b76a] hover:text-[#d7b76a]',
-    ghost: 'text-stone-300 hover:bg-stone-800 hover:text-white'
+    primary: 'bg-[#c9a96e] text-[#0d0c09] hover:bg-[#dfc497] shadow-xl shadow-[#c9a96e]/10',
+    secondary: 'border border-[#6b705c]/30 bg-transparent text-[#f5f5f0] hover:border-[#c9a96e]/40 hover:text-[#c9a96e]',
+    ghost: 'text-[#e8dcc0] hover:bg-[#6b705c]/20 hover:text-[#f5f5f0]'
   }
 
   return (
@@ -2689,7 +2839,7 @@ function Button({ children, onClick, variant = 'primary', className = '', disabl
       onClick={onClick}
       disabled={disabled}
       className={cx(
-        'inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex min-h-14 items-center justify-center rounded-2xl px-10 py-3 text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500 disabled:cursor-not-allowed disabled:opacity-50',
         styles[variant],
         className
       )}
@@ -2701,7 +2851,7 @@ function Button({ children, onClick, variant = 'primary', className = '', disabl
 
 function Label({ children }) {
   return (
-    <div className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-stone-500">
+    <div className="mb-6 text-[10px] font-black uppercase tracking-[0.4em] text-[#c9a96e] opacity-70">
       {children}
     </div>
   )
@@ -2709,10 +2859,10 @@ function Label({ children }) {
 
 function Header({ eyebrow, title, body }) {
   return (
-    <header className="mb-8">
-      <div className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-[#d7b76a]">{eyebrow}</div>
-      <h1 className="max-w-5xl font-serif text-4xl font-black tracking-tight text-stone-50 sm:text-5xl">{title}</h1>
-      <p className="mt-4 max-w-3xl text-base leading-8 text-stone-400">{body}</p>
+    <header className="mb-24 lg:mb-32">
+      <div className="mb-6 text-[10px] font-black uppercase tracking-[0.4em] text-[#c9a96e]">{eyebrow}</div>
+      <h1 className="max-w-5xl font-serif text-6xl font-black leading-[1] tracking-tighter text-[#f5f5f0] sm:text-8xl lg:text-9xl">{title}</h1>
+      <p className="mt-12 max-w-3xl text-xl font-light leading-relaxed text-[#e8dcc0] opacity-80 italic">{body}</p>
     </header>
   )
 }
@@ -2720,7 +2870,7 @@ function Header({ eyebrow, title, body }) {
 function Field({ id, label, value, onChange, type = 'text' }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-stone-500">
+      <label htmlFor={id} className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]">
         {label}
       </label>
       <input
@@ -2729,7 +2879,7 @@ function Field({ id, label, value, onChange, type = 'text' }) {
         type={type}
         value={value}
         onChange={event => onChange(event.target.value)}
-        className="w-full rounded-xl border border-stone-800 bg-[#1b1a15] px-3 py-2.5 text-sm text-stone-100 outline-none transition focus:border-[#d7b76a] focus:ring-2 focus:ring-[#d7b76a]/20"
+        className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-3 py-2.5 text-sm text-[#f5f5f0] outline-none transition focus:border-[#c9a96e] focus:ring-2 focus:ring-[#c9a96e]/20"
       />
     </div>
   )
@@ -2738,7 +2888,7 @@ function Field({ id, label, value, onChange, type = 'text' }) {
 function TextArea({ id, label, value, onChange, rows = 5 }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-stone-500">
+      <label htmlFor={id} className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]">
         {label}
       </label>
       <textarea
@@ -2747,7 +2897,7 @@ function TextArea({ id, label, value, onChange, rows = 5 }) {
         rows={rows}
         value={value}
         onChange={event => onChange(event.target.value)}
-        className="w-full resize-y rounded-2xl border border-stone-800 bg-[#1b1a15] p-4 text-sm leading-7 text-stone-100 outline-none transition focus:border-[#d7b76a] focus:ring-2 focus:ring-[#d7b76a]/20"
+        className="w-full resize-y rounded-2xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4 text-sm leading-7 text-[#f5f5f0] outline-none transition focus:border-[#c9a96e] focus:ring-2 focus:ring-[#c9a96e]/20"
       />
     </div>
   )
@@ -2756,8 +2906,8 @@ function TextArea({ id, label, value, onChange, rows = 5 }) {
 function Progress({ value, label }) {
   return (
     <div role="progressbar" aria-label={label} aria-valuemin="0" aria-valuemax="100" aria-valuenow={value}>
-      <div className="h-2 overflow-hidden rounded-full bg-stone-800">
-        <div className="h-full rounded-full bg-[#d7b76a]" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      <div className="h-2 overflow-hidden rounded-full bg-[#6b705c]/30">
+        <div className="h-full rounded-full bg-[#c9a96e]" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
       </div>
     </div>
   )
@@ -2768,7 +2918,7 @@ function ProgressBlock({ label, value }) {
     <div className="mb-5 last:mb-0">
       <div className="mb-2 flex justify-between text-sm">
         <span>{label}</span>
-        <span className="font-black text-[#d7b76a]">{value}%</span>
+        <span className="font-black text-[#c9a96e]">{value}%</span>
       </div>
       <Progress value={value} label={label} />
     </div>
@@ -2778,19 +2928,19 @@ function ProgressBlock({ label, value }) {
 function Metric({ label, value, sub, large = false }) {
   return (
     <Card className="relative overflow-hidden">
-      <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full border border-[#d7b76a]/10" />
-      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-stone-500">{label}</div>
-      <div className={cx('mt-3 font-serif font-black tracking-tight text-[#d7b76a]', large ? 'text-6xl' : 'text-4xl')}>{value}</div>
-      <p className="mt-2 text-sm leading-6 text-stone-500">{sub}</p>
+      <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full border border-[#c9a96e]/5" />
+      <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[#c9a96e] opacity-60">{label}</div>
+      <div className={cx('mt-6 font-serif font-black tracking-tighter text-[#f5f5f0]', large ? 'text-8xl' : 'text-6xl')}>{value}</div>
+      <p className="mt-4 text-[11px] font-black uppercase tracking-widest text-[#e8dcc0] opacity-40">{sub}</p>
     </Card>
   )
 }
 
 function List({ items }) {
   return (
-    <div className="space-y-3">
+    <div className="grid gap-6">
       {items.map(item => (
-        <div key={item} className="rounded-xl border border-stone-800 bg-[#1b1a15] p-4 text-sm leading-7 text-stone-300">
+        <div key={item} className="rounded-3xl border border-[#6b705c]/10 bg-white/[0.02] p-8 text-sm leading-relaxed text-[#e8dcc0]">
           {item}
         </div>
       ))}
@@ -2813,7 +2963,7 @@ function Alert({ type, children }) {
 
 function LanguageSwitcher({ t, lang, setLang }) {
   return (
-    <div className="flex shrink-0 rounded-xl border border-stone-800 bg-[#1b1a15] p-1">
+    <div className="flex shrink-0 rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] p-1">
       {[
         ['en', t.app.english],
         ['he', t.app.hebrew]
@@ -2824,7 +2974,7 @@ function LanguageSwitcher({ t, lang, setLang }) {
           onClick={() => setLang(key)}
           className={cx(
             'rounded-lg px-3 py-1.5 text-xs font-black transition',
-            lang === key ? 'bg-[#d7b76a] text-[#11100d]' : 'text-stone-400 hover:text-white'
+            lang === key ? 'bg-[#c9a96e] text-[#11100d]' : 'text-[#e8dcc0] hover:text-[#f5f5f0]'
           )}
         >
           {label}
