@@ -258,11 +258,12 @@ function actionRow(row) {
 }
 
 async function askGemini(prompt) {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("Missing GEMINI_API_KEY in .env.");
+  const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'PASTE_KEY_HERE') {
+    throw new Error("Missing VITE_GEMINI_API_KEY in .env.");
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
     method: "POST",
@@ -280,6 +281,21 @@ async function askGemini(prompt) {
 
   return data.candidates?.[0]?.content?.parts?.[0]?.text || "No answer generated.";
 }
+
+app.post("/api/gemini", async (req, res) => {
+  try {
+    const prompt = String(req.body?.prompt || "").trim();
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required." });
+    }
+
+    const answer = await askGemini(prompt);
+    res.json({ answer });
+  } catch (error) {
+    console.log("GEMINI PROXY ERROR:", error);
+    res.status(500).json({ error: error.message || "Gemini request failed." });
+  }
+});
 
 app.post("/api/session/login", (req, res) => {
   const code = String(req.body?.code || "").trim().toUpperCase();
