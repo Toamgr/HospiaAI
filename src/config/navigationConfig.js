@@ -5,7 +5,7 @@
   },
   operations: {
     roles: ['manager', 'bar_manager', 'admin'],
-    pages: ['actionBoard', 'managerEmployeeRequests', 'operationalNotes', 'endOfDay', 'budgetRequest']
+    pages: ['preShiftBriefing', 'actionBoard', 'managerEmployeeRequests', 'operationalNotes', 'endOfDay', 'budgetRequest']
   },
   employeeWorkflow: {
     roles: ['employee', 'admin'],
@@ -40,6 +40,7 @@
 
 export const PAGE_META = {
   commandCenter: { area: 'command', roles: ['owner', 'admin'], code: 'CC', section: 'Owner Command', description: 'Strategic business intelligence homepage' },
+  preShiftBriefing: { area: 'operations', roles: ['manager', 'bar_manager', 'admin'], code: 'PB', section: 'Shift Start', description: 'Review all open signals before service begins' },
   actionBoard: { area: 'operations', roles: ['manager', 'bar_manager', 'admin'], code: 'AB', section: 'Shift Control', description: 'Daily manager operating room' },
   managerEmployeeRequests: { area: 'operations', roles: ['manager', 'bar_manager', 'admin'], code: 'ER', section: 'Shift Control', description: 'Review operational requests submitted by employees' },
   operationalNotes: { area: 'operations', roles: ['manager', 'bar_manager', 'admin'], code: 'ON', section: 'Shift Control', description: 'Pinned notes and manager memory' },

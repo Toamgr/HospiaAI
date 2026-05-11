@@ -137,6 +137,34 @@ db.exec(`
     created_at TEXT NOT NULL,
     FOREIGN KEY (venue_id) REFERENCES venues(id)
   );
+
+  CREATE TABLE IF NOT EXISTS incidents (
+    id TEXT PRIMARY KEY,
+    venue_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    description TEXT NOT NULL,
+    table_number TEXT,
+    resolved INTEGER NOT NULL DEFAULT 0,
+    resolution TEXT,
+    compensation TEXT,
+    reported_by TEXT,
+    shift_date TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (venue_id) REFERENCES venues(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS notes (
+    id TEXT PRIMARY KEY,
+    venue_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    tag TEXT NOT NULL DEFAULT 'reminder',
+    pinned INTEGER NOT NULL DEFAULT 0,
+    archived INTEGER NOT NULL DEFAULT 0,
+    created_by TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (venue_id) REFERENCES venues(id)
+  );
 `);
 
 seedDatabase();
@@ -312,7 +340,7 @@ app.post("/api/session/login", (req, res) => {
   });
 });
 
-app.get("/api/shift-reports", requireRole("manager", "owner"), (req, res) => {
+app.get("/api/shift-reports", requireRole("manager", "bar_manager", "owner", "admin"), (req, res) => {
   const rows = db.prepare(`
     SELECT * FROM shift_reports
     WHERE venue_id = ?
@@ -323,7 +351,7 @@ app.get("/api/shift-reports", requireRole("manager", "owner"), (req, res) => {
   res.json({ reports: rows.map(reportRow) });
 });
 
-app.post("/api/shift-reports", requireRole("manager"), (req, res) => {
+app.post("/api/shift-reports", requireRole("manager", "bar_manager", "admin"), (req, res) => {
   const report = {
     id: id("eod"),
     venue_id: defaultVenueId(),
@@ -373,7 +401,7 @@ app.post("/api/shift-reports", requireRole("manager"), (req, res) => {
   res.status(201).json({ report: reportRow(report) });
 });
 
-app.get("/api/business-memory", requireRole("manager", "owner"), (req, res) => {
+app.get("/api/business-memory", requireRole("manager", "bar_manager", "owner", "admin"), (req, res) => {
   const rows = db.prepare(`
     SELECT type, title, detail, event_date AS date, created_at
     FROM business_memory
@@ -385,7 +413,7 @@ app.get("/api/business-memory", requireRole("manager", "owner"), (req, res) => {
   res.json({ memory: rows });
 });
 
-app.get("/api/actions", requireRole("manager"), (req, res) => {
+app.get("/api/actions", requireRole("manager", "bar_manager", "admin"), (req, res) => {
   const rows = db.prepare(`
     SELECT id, priority, title, owner, due, signal, page, done, created_at, updated_at
     FROM actions
@@ -396,7 +424,37 @@ app.get("/api/actions", requireRole("manager"), (req, res) => {
   res.json({ actions: rows.map(actionRow) });
 });
 
-app.patch("/api/actions/:id", requireRole("manager"), (req, res) => {
+app.post("/api/actions", requireRole("manager", "bar_manager", "admin"), (req, res) => {
+  const action = {
+    id: req.body.id || id("action"),
+    venue_id: defaultVenueId(),
+    priority: String(req.body.priority || "normal"),
+    title: String(req.body.title || "Untitled action"),
+    owner: String(req.body.owner || req.body.assignedPerson || "Manager"),
+    due: String(req.body.due || req.body.dueDate || "This week"),
+    signal: String(req.body.signal || req.body.sourceSignal || "Manual"),
+    page: String(req.body.page || "actionBoard"),
+    done: req.body.done ? 1 : 0,
+    created_at: nowIso(),
+    updated_at: nowIso()
+  };
+
+  const existing = db.prepare("SELECT id FROM actions WHERE id = ?").get(action.id);
+  if (existing) {
+    db.prepare("UPDATE actions SET priority=?, title=?, owner=?, due=?, signal=?, page=?, done=?, updated_at=? WHERE id=? AND venue_id=?").run(
+      action.priority, action.title, action.owner, action.due, action.signal, action.page, action.done, nowIso(), action.id, defaultVenueId()
+    );
+  } else {
+    db.prepare(`
+      INSERT INTO actions (id, venue_id, priority, title, owner, due, signal, page, done, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(action.id, action.venue_id, action.priority, action.title, action.owner, action.due, action.signal, action.page, action.done, action.created_at, action.updated_at);
+  }
+
+  res.status(201).json({ action: actionRow({ ...action, done: Boolean(action.done) }) });
+});
+
+app.patch("/api/actions/:id", requireRole("manager", "bar_manager", "admin"), (req, res) => {
   const done = req.body.done ? 1 : 0;
   db.prepare("UPDATE actions SET done = ?, updated_at = ? WHERE id = ? AND venue_id = ?").run(
     done,
@@ -410,7 +468,108 @@ app.patch("/api/actions/:id", requireRole("manager"), (req, res) => {
   res.json({ action: actionRow(row) });
 });
 
-app.post("/api/event-plans", requireRole("manager"), (req, res) => {
+app.get("/api/incidents", requireRole("manager", "bar_manager", "owner", "admin"), (req, res) => {
+  const rows = db.prepare(`
+    SELECT * FROM incidents WHERE venue_id = ? ORDER BY created_at DESC LIMIT 100
+  `).all(defaultVenueId());
+  res.json({ incidents: rows.map(r => ({ ...r, resolved: Boolean(r.resolved) })) });
+});
+
+app.post("/api/incidents", requireRole("manager", "bar_manager", "employee", "admin"), (req, res) => {
+  const incident = {
+    id: req.body.id || id("incident"),
+    venue_id: defaultVenueId(),
+    type: String(req.body.type || "service"),
+    description: String(req.body.description || ""),
+    table_number: String(req.body.table_number || req.body.tableNumber || ""),
+    resolved: req.body.resolved ? 1 : 0,
+    resolution: String(req.body.resolution || ""),
+    compensation: String(req.body.compensation || ""),
+    reported_by: String(req.body.reported_by || req.body.reportedBy || ""),
+    shift_date: String(req.body.shift_date || req.body.date || new Date().toISOString().slice(0, 10)),
+    created_at: nowIso()
+  };
+
+  db.prepare(`
+    INSERT OR IGNORE INTO incidents (id, venue_id, type, description, table_number, resolved, resolution, compensation, reported_by, shift_date, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(incident.id, incident.venue_id, incident.type, incident.description, incident.table_number, incident.resolved, incident.resolution, incident.compensation, incident.reported_by, incident.shift_date, incident.created_at);
+
+  db.prepare("INSERT INTO business_memory (id, venue_id, type, title, detail, event_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
+    id("memory"), defaultVenueId(), "alert",
+    `Service incident reported: ${incident.type}`,
+    incident.description || "Service incident logged.",
+    incident.shift_date, incident.created_at
+  );
+
+  res.status(201).json({ incident: { ...incident, resolved: Boolean(incident.resolved) } });
+});
+
+app.post("/api/business-memory", requireRole("manager", "bar_manager", "owner", "admin"), (req, res) => {
+  const entry = {
+    id: id("memory"),
+    venue_id: defaultVenueId(),
+    type: String(req.body.type || "note"),
+    title: String(req.body.title || ""),
+    detail: String(req.body.detail || ""),
+    event_date: String(req.body.event_date || req.body.date || new Date().toISOString().slice(0, 10)),
+    created_at: nowIso()
+  };
+
+  db.prepare("INSERT INTO business_memory (id, venue_id, type, title, detail, event_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
+    entry.id, entry.venue_id, entry.type, entry.title, entry.detail, entry.event_date, entry.created_at
+  );
+
+  res.status(201).json({ entry });
+});
+
+app.get("/api/notes", requireRole("manager", "bar_manager", "admin"), (req, res) => {
+  const rows = db.prepare(`
+    SELECT * FROM notes WHERE venue_id = ? AND archived = 0 ORDER BY pinned DESC, created_at DESC LIMIT 50
+  `).all(defaultVenueId());
+  res.json({ notes: rows.map(r => ({ ...r, pinned: Boolean(r.pinned), archived: Boolean(r.archived) })) });
+});
+
+app.post("/api/notes", requireRole("manager", "bar_manager", "admin"), (req, res) => {
+  const note = {
+    id: id("note"),
+    venue_id: defaultVenueId(),
+    content: String(req.body.content || ""),
+    tag: String(req.body.tag || "reminder"),
+    pinned: req.body.pinned ? 1 : 0,
+    archived: 0,
+    created_by: String(req.body.created_by || ""),
+    created_at: nowIso(),
+    updated_at: nowIso()
+  };
+
+  db.prepare(`
+    INSERT INTO notes (id, venue_id, content, tag, pinned, archived, created_by, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(note.id, note.venue_id, note.content, note.tag, note.pinned, note.archived, note.created_by, note.created_at, note.updated_at);
+
+  res.status(201).json({ note: { ...note, pinned: Boolean(note.pinned), archived: Boolean(note.archived) } });
+});
+
+app.patch("/api/notes/:id", requireRole("manager", "bar_manager", "admin"), (req, res) => {
+  const fields = [];
+  const values = [];
+
+  if (req.body.pinned !== undefined) { fields.push("pinned = ?"); values.push(req.body.pinned ? 1 : 0); }
+  if (req.body.archived !== undefined) { fields.push("archived = ?"); values.push(req.body.archived ? 1 : 0); }
+  if (req.body.content !== undefined) { fields.push("content = ?"); values.push(String(req.body.content)); }
+  if (req.body.tag !== undefined) { fields.push("tag = ?"); values.push(String(req.body.tag)); }
+  fields.push("updated_at = ?");
+  values.push(nowIso());
+
+  db.prepare(`UPDATE notes SET ${fields.join(", ")} WHERE id = ? AND venue_id = ?`).run(...values, req.params.id, defaultVenueId());
+
+  const row = db.prepare("SELECT * FROM notes WHERE id = ?").get(req.params.id);
+  if (!row) return res.status(404).json({ error: "Note not found." });
+  res.json({ note: { ...row, pinned: Boolean(row.pinned), archived: Boolean(row.archived) } });
+});
+
+app.post("/api/event-plans", requireRole("manager", "owner", "admin"), (req, res) => {
   const plan = {
     id: id("event"),
     venue_id: defaultVenueId(),
@@ -465,7 +624,7 @@ app.post("/api/event-plans", requireRole("manager"), (req, res) => {
   });
 });
 
-app.get("/api/event-plans", requireRole("manager", "owner"), (req, res) => {
+app.get("/api/event-plans", requireRole("manager", "owner", "admin"), (req, res) => {
   const rows = db.prepare(`
     SELECT * FROM event_plans
     WHERE venue_id = ?

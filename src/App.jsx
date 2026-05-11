@@ -1,4 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import PreShiftBriefing from './features/shift-brain/PreShiftBriefing'
+import OperationalNotesFeature from './features/shift-brain/OperationalNotes'
 import { buildSessionUser, clearSession, persistSession } from './services/authService'
 import { createUser, disableUser, loadUsers, updateUser, USER_ROLES } from './services/userService'
 import { requestCocktailProposal } from './services/cocktailService'
@@ -453,14 +455,24 @@ export default function App() {
 
   useEffect(() => {
     let active = true
-    if (!['manager', 'owner', 'admin'].includes(role)) return undefined
+    if (!['manager', 'bar_manager', 'owner', 'admin'].includes(role)) return undefined
 
-    Promise.allSettled([
+    const syncRole = ['manager', 'bar_manager', 'admin'].includes(role) ? role : 'manager'
+
+    const requests = [
       apiRequest('/api/shift-reports', { role }),
       apiRequest('/api/event-plans', { role }),
       apiRequest('/api/business-memory', { role })
-    ])
-      .then(([reportsResult, plansResult, memoryResult]) => {
+    ]
+
+    if (['manager', 'bar_manager', 'admin'].includes(role)) {
+      requests.push(apiRequest('/api/actions', { role: syncRole }))
+    } else {
+      requests.push(Promise.resolve(null))
+    }
+
+    Promise.allSettled(requests)
+      .then(([reportsResult, plansResult, memoryResult, actionsResult]) => {
         if (!active) return
         if (reportsResult.status === 'fulfilled' && Array.isArray(reportsResult.value.reports)) {
           setReportArchive(reportsResult.value.reports)
@@ -470,6 +482,21 @@ export default function App() {
         }
         if (memoryResult.status === 'fulfilled' && Array.isArray(memoryResult.value.memory)) {
           setBusinessMemory(memoryResult.value.memory)
+        }
+        if (actionsResult?.status === 'fulfilled' && Array.isArray(actionsResult.value?.actions) && actionsResult.value.actions.length) {
+          const backendActions = actionsResult.value.actions.map(a => ({
+            ...a,
+            status: a.done ? 'Completed' : (a.status || 'New'),
+            priority: a.priority || 'Medium',
+            comments: a.comments || []
+          }))
+          setActionItems(prev => {
+            const merged = [...backendActions]
+            prev.forEach(local => {
+              if (!merged.some(b => b.id === local.id)) merged.push(local)
+            })
+            return merged
+          })
         }
       })
       .catch(error => {
@@ -1580,6 +1607,7 @@ function PageRenderer({
 }) {
   const pages = {
     commandCenter: <CommandCenter t={t} currentUser={currentUser} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} businessMemory={businessMemory} budgetRequests={budgetRequests} employeeRequests={employeeRequests} serviceIncidents={serviceIncidents} actionItems={actionItems} notifications={notifications} onApproveEventEnquiry={onApproveEventEnquiry} />,
+    preShiftBriefing: <PreShiftBriefing t={t} currentUser={currentUser} actionItems={actionItems} serviceIncidents={serviceIncidents} eventPlans={eventPlans} notes={[]} />,
     actionBoard: <ActionBoard t={t} currentUser={currentUser} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} actionItems={actionItems} setActionItems={setActionItems} serviceIncidents={serviceIncidents} onUpdateIncident={onUpdateIncident} employeePerformance={employeePerformance} employeeTasks={employeeTasks} onUpdateEmployeeTask={onUpdateEmployeeTask} supplyRisks={supplyRisks} shiftProfile={shiftProfile} budgetRequests={budgetRequests} ownerNotes={ownerNotes} onOwnerNote={onOwnerNote} />,
     managerEmployeeRequests: <ManagerEmployeeRequests t={t} employeeRequests={employeeRequests} onReview={onManagerReviewEmployeeRequest} />,
     eventOrchestrator: <EventOrchestrator t={t} eventPlans={eventPlans} onEventPlanSaved={onEventPlanSaved} />,
@@ -1591,7 +1619,7 @@ function PageRenderer({
     serviceRecovery: <ServiceRecovery t={t} currentUser={currentUser} goToPage={goToPage} onServiceIncident={onServiceIncident} employeeTasks={employeeTasks} onUpdateEmployeeTask={onUpdateEmployeeTask} />,
     endOfDay: <EndOfDayReports t={t} reportArchive={reportArchive} onReportArchived={onReportArchived} />,
     budgetRequest: <BudgetRequestPage t={t} onSubmit={onBudgetRequest} budgetRequests={budgetRequests} currentUser={currentUser} />,
-    operationalNotes: <OperationalNotes t={t} />,
+    operationalNotes: <OperationalNotesFeature t={t} currentUser={currentUser} />,
     simulation: <Simulation t={t} goToPage={goToPage} />,
     courses: <Courses t={t} lang={lang} currentUser={currentUser} academyProgress={academyProgress} onOpenLesson={onOpenUniversityLesson} />,
     lessonPlayer: <LessonPlayer t={t} lang={lang} currentUser={currentUser} goToPage={goToPage} academyProgress={academyProgress} selectedAcademyId={selectedAcademyId} selectedLessonId={selectedLessonId} onOpenLesson={onOpenUniversityLesson} onCompleteLesson={onCompleteUniversityLesson} />,
@@ -1604,7 +1632,7 @@ function PageRenderer({
     executiveOverview: <ExecutiveOverview t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} />,
     budgetApprovals: <BudgetApprovals t={t} budgetRequests={budgetRequests} onRespond={onBudgetResponse} />,
     ownerOperationalRequests: <OwnerOperationalRequests t={t} employeeRequests={employeeRequests} onReview={onOwnerReviewEmployeeRequest} />,
-    weeklySummary: <WeeklySummary t={t} reportArchive={reportArchive} serviceIncidents={serviceIncidents} budgetRequests={budgetRequests} eventPlans={eventPlans} actionItems={actionItems} />,
+    weeklySummary: <WeeklySummary t={t} currentUser={currentUser} reportArchive={reportArchive} serviceIncidents={serviceIncidents} budgetRequests={budgetRequests} eventPlans={eventPlans} actionItems={actionItems} />,
     businessMRI: <BusinessMRI t={t} />,
     profitLeaks: <ProfitLeaks t={t} goToPage={goToPage} />,
     ownerReport: <OwnerReport t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} />,
@@ -1942,7 +1970,7 @@ function ActionBoard({ t, currentUser, goToPage, reportArchive = [], eventPlans 
   )
 }
 
-function PreShiftBriefing({ openActions, latestReport, latestEvent, goToPage }) {
+function ShiftBriefingWidget({ openActions, latestReport, latestEvent, goToPage }) {
   const urgentActions = openActions.filter(item => item.priority === 'urgent')
   const briefingItems = [
     urgentActions[0]?.title || 'Confirm floor readiness before doors open.',
@@ -6400,7 +6428,7 @@ function BudgetApprovals({ t, budgetRequests = [], onRespond }) {
   )
 }
 
-function WeeklySummary({ t, reportArchive = [], serviceIncidents = [], budgetRequests = [], eventPlans = [], actionItems = [] }) {
+function WeeklySummary({ t, reportArchive = [], serviceIncidents = [], budgetRequests = [], eventPlans = [], actionItems = [], currentUser }) {
   const summary = useMemo(() => {
     const unresolved = serviceIncidents.filter(item => !item.resolved)
     const pendingBudgets = budgetRequests.filter(item => item.status === 'pending')
@@ -6417,13 +6445,55 @@ function WeeklySummary({ t, reportArchive = [], serviceIncidents = [], budgetReq
     }
   }, [actionItems, budgetRequests, eventPlans, serviceIncidents])
 
+  const [aiBrief, setAiBrief] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+
+  async function generateBrief() {
+    setAiLoading(true)
+    setAiError('')
+    setAiBrief('')
+    try {
+      const { generateAIWeeklyBrief } = await import('./services/ownerInsightService')
+      const brief = await generateAIWeeklyBrief({
+        reports: reportArchive,
+        incidents: serviceIncidents,
+        actions: actionItems,
+        eventPlans,
+        role: currentUser?.role || 'owner'
+      })
+      setAiBrief(brief)
+    } catch (err) {
+      setAiError(err.message || 'AI brief generation failed. Check that the backend is running and a Gemini API key is configured.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   return (
     <>
-      <Header eyebrow={t.pages.weeklySummary} title="Weekly Intelligence Summary" body="Auto-generated owner summary panel ready for the existing email infrastructure." />
+      <Header eyebrow={t.pages.weeklySummary} title="Weekly Intelligence Summary" body="Auto-generated owner summary panel. Click Generate to produce an AI narrative from real operational data." />
       <Card className="border-[#c9a96e]/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,110,0.12),transparent_35%),#11100d]">
-        <Label>Generated Summary</Label>
-        <h2 className="font-serif text-4xl font-black text-[#f5f5f0]">This week: {summary.incidentCount} incidents, {summary.unresolved} unresolved, {summary.execution}% manager execution.</h2>
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <Label>Data Snapshot</Label>
+            <h2 className="font-serif text-4xl font-black text-[#f5f5f0]">This week: {summary.incidentCount} incidents, {summary.unresolved} unresolved, {summary.execution}% manager execution.</h2>
+          </div>
+          <Button variant="primary" onClick={generateBrief} disabled={aiLoading} className="shrink-0 mt-1">
+            {aiLoading ? 'Generating...' : 'Generate AI Brief'}
+          </Button>
+        </div>
+
+        {aiError && <Alert type="error" className="mb-6">{aiError}</Alert>}
+
+        {aiBrief && (
+          <div className="mb-8 rounded-2xl border border-[#c9a96e]/20 bg-[#c9a96e]/5 p-6">
+            <div className="text-[10px] font-black uppercase tracking-[0.24em] text-[#c9a96e] mb-3">AI-Generated Owner Brief</div>
+            <div className="text-sm leading-7 text-[#e8dcc0] whitespace-pre-line">{aiBrief}</div>
+          </div>
+        )}
+
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
           <MiniFact label="Budget Requests" value={summary.pendingBudgets} />
           <MiniFact label="Event Revenue Ahead" value={formatMoney(summary.eventRevenue)} />
           <MiniFact label="EOD Reports" value={reportArchive.length} />

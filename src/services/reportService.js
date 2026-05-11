@@ -1,8 +1,19 @@
 import { STORAGE } from '../config/systemConfig'
 import { readStoredArray, writeStoredValue } from '../lib/storage'
+import { fetchShiftReports, submitShiftReport } from './api/reportsApi'
 
 export function loadShiftReports() {
   return readStoredArray(STORAGE.reportArchive, [])
+}
+
+export async function syncReportsFromBackend() {
+  try {
+    const reports = await fetchShiftReports()
+    if (reports.length) writeStoredValue(STORAGE.reportArchive, reports)
+    return reports
+  } catch {
+    return loadShiftReports()
+  }
 }
 
 export function saveShiftReport(report) {
@@ -14,6 +25,10 @@ export function saveShiftReport(report) {
   }
   const nextReports = [nextReport, ...reports.filter(item => item.id !== nextReport.id)].slice(0, 120)
   writeStoredValue(STORAGE.reportArchive, nextReports)
+
+  // fire-and-forget — localStorage is the source of truth for UI
+  submitShiftReport(nextReport).catch(() => {})
+
   return { report: nextReport, reports: nextReports }
 }
 
