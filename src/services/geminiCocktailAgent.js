@@ -1,4 +1,4 @@
-﻿import { FEW_SHOT_EXAMPLES, BEVERAGE_DIRECTOR_SYSTEM_PROMPT, BEVERAGE_DIRECTOR_FEW_SHOT_EXAMPLES, EXPECTED_FIELDS } from '../prompts/geminiCocktailPrompts'
+import { FEW_SHOT_EXAMPLES, BEVERAGE_DIRECTOR_SYSTEM_PROMPT, BEVERAGE_DIRECTOR_FEW_SHOT_EXAMPLES, EXPECTED_FIELDS } from '../prompts/geminiCocktailPrompts.js'
 
 function stripMarkdownFences(text = '') {
   return text
@@ -956,6 +956,7 @@ function mapGeminiResponseToProposal(parsed, { agentPrompt, form, menuAnalysis }
     whyThisDeservesMenuSpace: normalizeValue(parsed.whyThisDeservesMenuSpace),
     menuConflictWarnings: Array.isArray(parsed.menuConflictWarnings) ? parsed.menuConflictWarnings : [],
     ingredientObjects: Array.isArray(parsed.ingredientsMl) ? parsed.ingredientsMl : [],
+    ingredientsMl: Array.isArray(parsed.ingredientsMl) ? parsed.ingredientsMl : [],
     ingredients: Array.isArray(parsed.ingredientsMl) ? parsed.ingredientsMl.map(ingredientObjectToDisplay) : [],
     method: normalizeValue(parsed.method),
     glassware: normalizeValue(parsed.glassware),
@@ -1086,7 +1087,7 @@ function normalizeConsultationDecision(parsed) {
 }
 
 export async function consultGeminiCocktailDirection({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, conversationHistory = [], previousProposal = null }) {
-  const key = import.meta.env.VITE_GEMINI_API_KEY
+  const key = import.meta.env?.VITE_GEMINI_API_KEY
   if (!key || key === 'PASTE_KEY_HERE') {
     throw new Error('AI connection not configured.')
   }
@@ -1112,7 +1113,7 @@ export async function consultGeminiCocktailDirection({ agentPrompt, form, approv
 }
 
 export async function generateGeminiCocktailProposal({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, variation = '', previousProposal = null }) {
-  const key = import.meta.env.VITE_GEMINI_API_KEY;
+  const key = import.meta.env?.VITE_GEMINI_API_KEY;
   if (!key || key === 'PASTE_KEY_HERE') {
     throw new Error('AI connection not configured.');
   }

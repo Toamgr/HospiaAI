@@ -35,7 +35,9 @@ export const EMAILJS = {
 }
 
 
-export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001'
+const env = import.meta.env || {}
+
+export const API_BASE = env.VITE_API_BASE || 'http://localhost:3001'
 
 export const ACCESS_CODES = {
   EMP123: 'employee',

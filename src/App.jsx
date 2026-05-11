@@ -1,10 +1,12 @@
 ﻿import React, { useEffect, useMemo, useState, useCallback } from 'react'
-import { generateGeminiCocktailProposal } from './services/geminiCocktailAgent'
+import { buildSessionUser, clearSession, persistSession } from './services/authService'
+import { createUser, disableUser, loadUsers, updateUser, USER_ROLES } from './services/userService'
+import { requestCocktailProposal } from './services/cocktailService'
 import { generateExecutiveEventSummary } from './prompts/eventPrompts'
 import { STORAGE, EMAILJS, API_BASE } from './config/systemConfig'
 import { NAV_GROUPS, PAGE_META } from './config/navigationConfig'
 import { TEXT } from './config/textConfig'
-import { USERS, allowedPagesForArea, canAccessPage, firstAllowedArea, firstAllowedPage, getRole, isAllowed, isAllowedPage } from './config/roleConfig'
+import { allowedPagesForArea, canAccessPage, firstAllowedArea, firstAllowedPage, getRole, isAllowed, isAllowedPage } from './config/roleConfig'
 import { SOP_SHEETS, SIMULATION_SCENARIOS } from './data/courses'
 import { STAFF } from './data/staff'
 import { ACTION_BOARD_ITEMS, PROFIT_LEAKS, BUSINESS_MEMORY } from './data/businessMemory'
@@ -43,19 +45,25 @@ function getInitialLang() {
 function getInitialUser() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE.currentUser) || 'null')
-    const canonical = USERS.find(user => user.username.toLowerCase() === saved?.username?.toLowerCase())
-    if (canonical && ['employee', 'manager', 'owner', 'admin'].includes(canonical.role)) {
+    const validRoles = ['employee', 'manager', 'bar_manager', 'owner', 'admin']
+    const savedUsers = loadUsers()
+    const canonical = savedUsers.find(user => user.username.toLowerCase() === saved?.username?.toLowerCase())
+    if (canonical && validRoles.includes(canonical.role) && !canonical.disabled) {
       return {
         username: canonical.username,
         role: canonical.role,
-        canManageCocktails: Boolean(canonical.canManageCocktails)
+        venue: canonical.venue,
+        team: canonical.team,
+        canManageCocktails: Boolean(canonical.canManageCocktails || canonical.role === 'admin' || canonical.role === 'bar_manager')
       }
     }
-    if (saved?.username && ['employee', 'manager', 'owner', 'admin'].includes(saved.role)) {
+    if (saved?.username && validRoles.includes(saved.role)) {
       return {
         username: saved.username,
         role: saved.role,
-        canManageCocktails: Boolean(saved.role === 'admin' || saved.canManageCocktails)
+        venue: saved.venue || 'Main Venue',
+        team: saved.team || saved.venue || 'Main Venue',
+        canManageCocktails: Boolean(saved.role === 'admin' || saved.role === 'bar_manager' || saved.canManageCocktails)
       }
     }
   } catch {
@@ -378,6 +386,7 @@ export default function App() {
 
   const [currentUser, setCurrentUser] = useState(getInitialUser)
   const role = currentUser?.role || ''
+  const [users, setUsers] = useState(loadUsers)
   const [area, setAreaState] = useState(() => localStorage.getItem(STORAGE.area) || firstAllowedArea(getInitialUser() || 'employee'))
   const [page, setPageState] = useState(() => localStorage.getItem(STORAGE.page) || firstAllowedPage(getInitialUser() || 'employee'))
   const [collapsed, setCollapsed] = useState(() => {
@@ -406,11 +415,14 @@ export default function App() {
   const [ownerNotes, setOwnerNotes] = useState(() => getStoredArray(STORAGE.ownerNotes, INITIAL_OWNER_NOTES))
 
   useEffect(() => {
-    localStorage.setItem(STORAGE.users, JSON.stringify(USERS))
     localStorage.setItem(STORAGE.lang, 'en')
     document.documentElement.lang = 'en'
     document.documentElement.dir = 'ltr'
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE.users, JSON.stringify(users))
+  }, [users])
 
   useEffect(() => {
     localStorage.setItem(STORAGE.collapsed, String(collapsed))
@@ -512,11 +524,48 @@ export default function App() {
     )))
   }, [currentUser, role])
 
-  async function login({ username, password }) {
-    const matched = USERS.find(user => user.username.toLowerCase() === username.trim().toLowerCase() && user.password === password)
-    if (!matched) throw new Error(t.app.invalid)
+  const handleCreateUser = useCallback(payload => {
+    if (!['owner', 'admin'].includes(currentUser?.role)) throw new Error('Only an owner or admin can create users.')
+    const result = createUser(users, payload)
+    setUsers(result.users)
+    pushNotification({
+      roles: ['owner', 'admin'],
+      title: 'User created',
+      body: `${result.user.username} was added as ${result.user.role}.`,
+      type: 'user',
+      page: 'userManagement'
+    })
+    return result.user
+  }, [currentUser?.role, pushNotification, users])
 
-    const user = { username: matched.username, role: matched.role, canManageCocktails: Boolean(matched.canManageCocktails) }
+  const handleUpdateUser = useCallback((username, updates) => {
+    if (!['owner', 'admin'].includes(currentUser?.role)) throw new Error('Only an owner or admin can edit users.')
+    const result = updateUser(users, username, updates)
+    setUsers(result.users)
+    if (currentUser?.username === username) {
+      const refreshed = {
+        username: result.user.username,
+        role: result.user.role,
+        venue: result.user.venue,
+        team: result.user.team,
+        canManageCocktails: Boolean(result.user.canManageCocktails || result.user.role === 'admin' || result.user.role === 'bar_manager')
+      }
+      setCurrentUser(refreshed)
+      persistSession(refreshed)
+    }
+    return result.user
+  }, [currentUser, users])
+
+  const handleDisableUser = useCallback(username => {
+    if (!['owner', 'admin'].includes(currentUser?.role)) throw new Error('Only an owner or admin can disable users.')
+    const result = disableUser(users, username)
+    setUsers(result.users)
+    if (currentUser?.username === username) logout()
+    return result.user
+  }, [currentUser?.role, currentUser?.username, users])
+
+  async function login({ username, password }) {
+    const user = buildSessionUser(users, username, password)
     const nextArea = firstAllowedArea(user)
     const nextPage = firstAllowedPage(user, nextArea)
 
@@ -524,16 +573,13 @@ export default function App() {
     setAreaState(nextArea)
     setPageState(nextPage)
 
-    localStorage.setItem(STORAGE.currentUser, JSON.stringify(user))
+    persistSession(user)
     localStorage.setItem(STORAGE.area, nextArea)
     localStorage.setItem(STORAGE.page, nextPage)
   }
 
   function logout() {
-    localStorage.removeItem(STORAGE.currentUser)
-    localStorage.removeItem(STORAGE.role)
-    localStorage.removeItem(STORAGE.area)
-    localStorage.removeItem(STORAGE.page)
+    clearSession()
     setCurrentUser(null)
   }
 
@@ -888,6 +934,9 @@ export default function App() {
   }, [addBusinessMemoryEvent, currentUser?.role, currentUser?.username, eventPlans, pushNotification])
 
   const saveCocktailDraft = useCallback(cocktail => {
+    if (!cocktail || typeof cocktail !== 'object') {
+      throw new Error('No complete cocktail proposal was generated to save.')
+    }
     const draft = {
       ...cocktail,
       id: cocktail.id || `cocktail-draft-${Date.now()}`,
@@ -1046,6 +1095,10 @@ export default function App() {
             role={role}
             page={page}
             goToPage={goToPage}
+            users={users}
+            onCreateUser={handleCreateUser}
+            onUpdateUser={handleUpdateUser}
+            onDisableUser={handleDisableUser}
             reportArchive={reportArchive}
             onReportArchived={archiveEndOfDayReport}
             eventPlans={eventPlans}
@@ -1479,6 +1532,10 @@ function PageRenderer({
   role,
   page,
   goToPage,
+  users,
+  onCreateUser,
+  onUpdateUser,
+  onDisableUser,
   reportArchive,
   onReportArchived,
   eventPlans,
@@ -1526,7 +1583,7 @@ function PageRenderer({
     actionBoard: <ActionBoard t={t} currentUser={currentUser} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} actionItems={actionItems} setActionItems={setActionItems} serviceIncidents={serviceIncidents} onUpdateIncident={onUpdateIncident} employeePerformance={employeePerformance} employeeTasks={employeeTasks} onUpdateEmployeeTask={onUpdateEmployeeTask} supplyRisks={supplyRisks} shiftProfile={shiftProfile} budgetRequests={budgetRequests} ownerNotes={ownerNotes} onOwnerNote={onOwnerNote} />,
     managerEmployeeRequests: <ManagerEmployeeRequests t={t} employeeRequests={employeeRequests} onReview={onManagerReviewEmployeeRequest} />,
     eventOrchestrator: <EventOrchestrator t={t} eventPlans={eventPlans} onEventPlanSaved={onEventPlanSaved} />,
-    staffProgression: <StaffProgression t={t} academyProgress={academyProgress} serviceIncidents={serviceIncidents} employeePerformance={employeePerformance} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} />,
+    staffProgression: <StaffProgression t={t} users={users} academyProgress={academyProgress} serviceIncidents={serviceIncidents} employeePerformance={employeePerformance} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} />,
     staffReadiness: <StaffReadiness t={t} goToPage={goToPage} />,
     employeeHome: <EmployeeHome t={t} currentUser={currentUser} goToPage={goToPage} academyProgress={academyProgress} employeeTasks={employeeTasks} employeeRequests={employeeRequests} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} />,
     employeeRequests: <EmployeeRequests t={t} currentUser={currentUser} employeeRequests={employeeRequests} onSubmit={onSubmitEmployeeRequest} />,
@@ -1553,6 +1610,7 @@ function PageRenderer({
     ownerReport: <OwnerReport t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} />,
     businessMemory: <BusinessMemoryPage t={t} reportArchive={reportArchive} businessMemory={businessMemory} />,
     strategicRecommendations: <StrategicRecommendations t={t} />,
+    userManagement: <UserManagement currentUser={currentUser} users={users} onCreateUser={onCreateUser} onUpdateUser={onUpdateUser} onDisableUser={onDisableUser} />,
     settings: <Settings t={t} />
   }
 
@@ -4663,7 +4721,7 @@ function CocktailLab({ t, cocktailDrafts = [], approvedCocktails = [], archivedC
     setStatus({ type: 'info', message: conflictWarnings.length ? 'Menu conflict detected. Building a complete proposal with the critique inside the director assessment.' : 'Building complete beverage proposal...' })
 
     try {
-      const nextProposal = await generateGeminiCocktailProposal({
+      const result = await requestCocktailProposal({
         agentPrompt,
         form: constraintForm,
         approvedCocktails,
@@ -4672,18 +4730,25 @@ function CocktailLab({ t, cocktailDrafts = [], approvedCocktails = [], archivedC
         variation: activeVariation,
         previousProposal: proposal
       })
+      const nextProposal = result.proposal
 
-      setProposal(nextProposal)
-      upsertCandidate(nextProposal, activeVariation || (proposal ? 'Revision route' : 'Original route'))
+      const workingProposal = onSaveDraft ? onSaveDraft(nextProposal) : nextProposal
+      setProposal(workingProposal)
+      upsertCandidate(workingProposal, nextProposal.fallbackGenerated ? 'Fallback draft' : (activeVariation || (proposal ? 'Revision draft' : 'Generated draft')))
       setMenuWarning(null)
-      const finalDirectorReply = nextProposal.directorConversationReply || `${nextProposal.name} is ready for review. ${nextProposal.strategicSuggestion || 'Review and edit before approval.'}`
+      const finalDirectorReply = workingProposal.directorConversationReply || `${workingProposal.name} is ready for review. ${workingProposal.strategicSuggestion || 'Review and edit before approval.'}`
       setDirectorContext(prev => [
         ...prev,
         { role: 'manager', text: `${agentPrompt.trim() || 'Generate from structured form constraints.'}${activeVariation ? ` Variation request: ${activeVariation}.` : ''}` },
         { role: 'agent', text: finalDirectorReply }
       ].slice(-6))
       setDirectorNotice(finalDirectorReply)
-      setStatus({ type: 'success', message: 'Beverage proposal generated. Review the executive board and choose the next action.' })
+      setStatus({
+        type: 'success',
+        message: result.source === 'fallback'
+          ? 'Gemini was unavailable. HOSPIA generated and saved a marked fallback draft so the workflow can continue.'
+          : 'Beverage proposal generated and saved as a working draft. Review the executive board and choose the next action.'
+      })
     } catch (error) {
       const message = error?.message || 'HOSPIA could not complete the beverage proposal. Please try a shorter directive or retry in a moment.'
       setDirectorNotice('')
@@ -4691,7 +4756,7 @@ function CocktailLab({ t, cocktailDrafts = [], approvedCocktails = [], archivedC
     } finally {
       setIsGenerating(false)
     }
-  }, [agentPrompt, approvedCocktails, cocktailDrafts, constraintForm, menuAnalysis, proposal, upsertCandidate])
+  }, [agentPrompt, approvedCocktails, cocktailDrafts, constraintForm, menuAnalysis, onSaveDraft, proposal, upsertCandidate])
 
   const saveDraft = useCallback(() => {
     if (!proposal) {
@@ -5866,7 +5931,7 @@ function formatCocktailIngredientLine(item) {
       amount ? `${amount} ml` : '',
       ingredient || 'Ingredient missing',
       role || ''
-    ].filter(Boolean).join(' ג€” ')
+    ].filter(Boolean).join(' - ')
   }
 
   const value = String(item || '').trim()
@@ -6023,7 +6088,7 @@ function ApprovedCocktailsTraining({ t, currentUser, approvedCocktails = [], coc
       item.garnish,
       item.kosherNotes,
       item.allergenNotes,
-      ...(item.ingredients || [])
+      ...(item.ingredientsMl || item.ingredientObjects || item.ingredients || []).map(formatCocktailIngredientLine)
     ].join(' ').toLowerCase().includes(needle))
   }, [approvedCocktails, query])
 
@@ -6091,7 +6156,7 @@ function ApprovedCocktailCard({ cocktail, practiced, onMarkPracticed }) {
       </div>
       <p className="mb-5 text-sm leading-7 text-[#e8dcc0]">{cocktail.guestDescription}</p>
       <div className="grid gap-3 md:grid-cols-2">
-        <CocktailFact label="Ingredients" value={(cocktail.ingredients || []).join(' / ')} />
+        <CocktailFact label="Ingredients" value={(cocktail.ingredientsMl || cocktail.ingredientObjects || cocktail.ingredients || []).map(formatCocktailIngredientLine).join(' / ')} />
         <CocktailFact label="Method" value={cocktail.method} />
         <CocktailFact label="Glassware / Ice" value={`${cocktail.glassware} - ${cocktail.ice}`} />
         <CocktailFact label="Garnish" value={cocktail.garnish} />
@@ -6178,14 +6243,14 @@ function RiskList({ title, items = [] }) {
   )
 }
 
-function StaffProgression({ t, academyProgress = {}, serviceIncidents = [], employeePerformance = {}, approvedCocktails = [], cocktailPractice = {} }) {
+function StaffProgression({ t, users = [], academyProgress = {}, serviceIncidents = [], employeePerformance = {}, approvedCocktails = [], cocktailPractice = {} }) {
   const staffAcademies = UNIVERSITY_MANIFEST.filter(academy => academy.roles?.includes('employee'))
   const totalUniversityLessons = countUniversityLessons(staffAcademies)
   const avgSimulation = Math.round(STAFF.reduce((sum, item) => sum + item.simulation, 0) / STAFF.length)
   const approvedCocktailCount = approvedCocktails.length
   const exposureRows = useMemo(() => {
     const employeeNames = Array.from(new Set([
-      ...USERS.filter(user => user.role === 'employee').map(user => user.username),
+      ...users.filter(user => user.role === 'employee').map(user => user.username),
       ...STAFF.map(staff => staff.name)
     ]))
 
@@ -6205,7 +6270,7 @@ function StaffProgression({ t, academyProgress = {}, serviceIncidents = [], empl
       const academyPercent = totalUniversityLessons ? Math.round((academyCompleted / totalUniversityLessons) * 100) : 0
       return { ...staff, progress: academyPercent, academyCompleted, performance, practicedCocktails, practicePercent }
     })
-  }, [academyProgress, approvedCocktailCount, approvedCocktails, cocktailPractice, employeePerformance, totalUniversityLessons])
+  }, [academyProgress, approvedCocktailCount, approvedCocktails, cocktailPractice, employeePerformance, totalUniversityLessons, users])
   const avgProgress = exposureRows.length ? Math.round(exposureRows.reduce((sum, item) => sum + item.progress, 0) / exposureRows.length) : 0
   const totalPracticeSlots = exposureRows.length * approvedCocktailCount
   const completedPracticeSlots = exposureRows.reduce((sum, row) => sum + row.practicedCocktails, 0)
@@ -6809,6 +6874,164 @@ function MissingPage({ page }) {
         <Label>Route Guard</Label>
         <p className="text-sm leading-7 text-[#e8dcc0]">The requested page key is <span className="font-mono text-[#c9a96e]">{page}</span>. If this appears during normal navigation, a page was added before its production component was implemented.</p>
       </Card>
+    </>
+  )
+}
+
+function UserManagement({ currentUser, users = [], onCreateUser, onUpdateUser, onDisableUser }) {
+  const [form, setForm] = useState({
+    username: '',
+    password: '',
+    role: 'employee',
+    venue: 'Main Venue',
+    team: 'Front of House',
+    canManageCocktails: false
+  })
+  const [editingUser, setEditingUser] = useState(null)
+  const [status, setStatus] = useState(null)
+  const canManage = ['owner', 'admin'].includes(currentUser?.role)
+
+  const updateField = (field, value) => {
+    setForm(prev => ({
+      ...prev,
+      [field]: value,
+      ...(field === 'role' && value === 'bar_manager' ? { canManageCocktails: true } : {})
+    }))
+  }
+
+  const resetForm = () => {
+    setEditingUser(null)
+    setForm({
+      username: '',
+      password: '',
+      role: 'employee',
+      venue: 'Main Venue',
+      team: 'Front of House',
+      canManageCocktails: false
+    })
+  }
+
+  function submit(event) {
+    event.preventDefault()
+    if (!canManage) {
+      setStatus({ type: 'error', message: 'Only owners and admins can manage users.' })
+      return
+    }
+
+    try {
+      const payload = {
+        ...form,
+        canManageCocktails: Boolean(form.canManageCocktails || form.role === 'bar_manager' || form.role === 'admin')
+      }
+      const saved = editingUser
+        ? onUpdateUser?.(editingUser.username, payload)
+        : onCreateUser?.(payload)
+      setStatus({ type: 'success', message: `${saved.username} ${editingUser ? 'updated' : 'created'} successfully.` })
+      resetForm()
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message || 'Could not save user.' })
+    }
+  }
+
+  function startEdit(user) {
+    setEditingUser(user)
+    setForm({
+      username: user.username,
+      password: user.password || '',
+      role: user.role || 'employee',
+      venue: user.venue || 'Main Venue',
+      team: user.team || user.venue || 'Front of House',
+      canManageCocktails: Boolean(user.canManageCocktails || user.role === 'bar_manager' || user.role === 'admin')
+    })
+    setStatus(null)
+  }
+
+  function disable(username) {
+    try {
+      const disabled = onDisableUser?.(username)
+      setStatus({ type: 'success', message: `${disabled.username} disabled. They can no longer log in.` })
+      if (editingUser?.username === username) resetForm()
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message || 'Could not disable user.' })
+    }
+  }
+
+  return (
+    <>
+      <Header
+        eyebrow="Workspace Access"
+        title="User Management"
+        body="Create team members, assign roles, connect them to a venue or team, and control access without changing code."
+      />
+      <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
+        <Card className="h-fit border-[#c9a96e]/20">
+          <Label>{editingUser ? 'Edit User' : 'Create User'}</Label>
+          <form onSubmit={submit} className="space-y-4">
+            <div>
+              <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]">Username</label>
+              <input value={form.username} onChange={event => updateField('username', event.target.value)} className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-3 py-2.5 text-sm text-[#f5f5f0] outline-none focus:border-[#c9a96e]" />
+            </div>
+            <div>
+              <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]">Password</label>
+              <input value={form.password} onChange={event => updateField('password', event.target.value)} className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-3 py-2.5 text-sm text-[#f5f5f0] outline-none focus:border-[#c9a96e]" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]">Role</label>
+                <select value={form.role} onChange={event => updateField('role', event.target.value)} className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-3 py-2.5 text-sm text-[#f5f5f0] outline-none focus:border-[#c9a96e]">
+                  {USER_ROLES.map(roleName => <option key={roleName} value={roleName}>{roleName.replace('_', ' ')}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]">Team</label>
+                <input value={form.team} onChange={event => updateField('team', event.target.value)} className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-3 py-2.5 text-sm text-[#f5f5f0] outline-none focus:border-[#c9a96e]" />
+              </div>
+            </div>
+            <div>
+              <label className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]">Venue</label>
+              <input value={form.venue} onChange={event => updateField('venue', event.target.value)} className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-3 py-2.5 text-sm text-[#f5f5f0] outline-none focus:border-[#c9a96e]" />
+            </div>
+            <label className="flex items-center gap-3 rounded-xl border border-[#6b705c]/30 bg-[#10100e] p-3 text-sm text-[#e8dcc0]">
+              <input type="checkbox" checked={form.canManageCocktails} onChange={event => updateField('canManageCocktails', event.target.checked)} />
+              Can manage Cocktail Lab / menu requests
+            </label>
+            {status && <Alert type={status.type}>{status.message}</Alert>}
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit">{editingUser ? 'Save User' : 'Create User'}</Button>
+              {editingUser && <Button variant="secondary" onClick={resetForm}>Cancel Edit</Button>}
+            </div>
+          </form>
+        </Card>
+
+        <Card>
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <Label>Workspace Users</Label>
+              <h2 className="font-serif text-3xl font-black text-[#f5f5f0]">{users.length} team profiles</h2>
+            </div>
+            <span className="rounded-full border border-[#c9a96e]/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#c9a96e]">Owner/Admin governed</span>
+          </div>
+          <div className="space-y-3">
+            {users.map(user => (
+              <article key={user.username} className={cx('rounded-2xl border p-4', user.disabled ? 'border-red-900/35 bg-red-950/10' : 'border-[#6b705c]/25 bg-[#10100e]')}>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-serif text-2xl font-black text-[#f5f5f0]">{user.username}</h3>
+                    <p className="mt-1 text-xs leading-5 text-[#e8dcc0]">{String(user.role || '').replace('_', ' ')} - {user.venue || 'Main Venue'} - {user.team || 'Team'}</p>
+                    {user.canManageCocktails && <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#c9a96e]">Cocktail Lab permission</p>}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="secondary" onClick={() => startEdit(user)}>Edit</Button>
+                    <Button variant="ghost" disabled={user.disabled || user.username === currentUser?.username} onClick={() => disable(user.username)}>
+                      {user.disabled ? 'Disabled' : 'Disable'}
+                    </Button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </Card>
+      </div>
     </>
   )
 }

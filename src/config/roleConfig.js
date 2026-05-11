@@ -1,15 +1,17 @@
-import { NAV_GROUPS, PAGE_META } from './navigationConfig'
+import { NAV_GROUPS, PAGE_META } from './navigationConfig.js'
 
 export const ROLE_NAMES = {
   employee: 'Employee',
   manager: 'Manager',
+  bar_manager: 'Bar Manager',
   owner: 'Owner',
   admin: 'Admin'
 }
 
 export const MODULE_ACCESS_RULES = {
   employee: ['employeeWorkflow', 'academy'],
-  manager: ['operations', 'planning', 'staffProgression', 'academy', 'barManagement'],
+  manager: ['operations', 'planning', 'staffProgression', 'academy'],
+  bar_manager: ['operations', 'planning', 'staffProgression', 'academy', 'barManagement'],
   owner: ['command', 'planning', 'ownerIntelligence', 'system'],
   admin: Object.keys(NAV_GROUPS)
 }
@@ -17,7 +19,7 @@ export const MODULE_ACCESS_RULES = {
 export const USERS = [
   { username: 'Peleg naim', password: '0000', role: 'employee' },
   { username: 'Saar wax', password: '0000', role: 'employee' },
-  { username: 'Omer Sadot', password: '0000', role: 'manager', canManageCocktails: true },
+  { username: 'Omer Sadot', password: '0000', role: 'bar_manager', canManageCocktails: true },
   { username: 'Zohar Zach', password: '0000', role: 'manager' },
   { username: 'Tal millo', password: '0357', role: 'owner' },
   { username: 'Toam Griffel', password: '0000', role: 'admin', canManageCocktails: true }
@@ -36,6 +38,8 @@ export function userCanManageCocktails(userOrRole) {
   const role = getRole(userOrRole)
   if (role === 'admin') return true
   if (typeof userOrRole === 'string') return false
+  if (userOrRole?.canManageCocktails) return true
+  if (role === 'bar_manager') return true
   const canonical = USERS.find(user => user.username.toLowerCase() === userOrRole?.username?.toLowerCase())
   return Boolean(canonical?.canManageCocktails)
 }
