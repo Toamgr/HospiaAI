@@ -1,6 +1,7 @@
 // Shared pricing adapter — connects Cocktail Lab ingredient format to the bar product seed.
 //
 // Matching priority:
+//   0. Explicit product_id on the ingredient  (benchmark_estimate, medium confidence)
 //   1. Exact seed brand / product-name match  (benchmark_estimate, medium confidence)
 //   2. Category average from seed             (benchmark_estimate, medium confidence)
 //   3. Original COST_DB fallback              (operational_assumption, low confidence)
@@ -21,13 +22,17 @@ const WASTE_BUFFER_PCT = 0.05        // 5% waste on top of ingredient cost
 const TARGET_STANDARD = 0.22        // 22% cost target — upscale restaurant model
 const TARGET_LUXURY = 0.16          // 16% cost target — luxury / fine dining
 
-// ─── Seed name lookup ─────────────────────────────────────────────────────────
-// Indexed by normalised brand and product name. Only entries with a benchmark price.
+// ─── Seed lookups ─────────────────────────────────────────────────────────────
 
 function normalise(str) {
   return str.toLowerCase().replace(/[''`]/g, '').trim()
 }
 
+// O(1) product_id → product map — used by Priority 0 resolver and exported helpers.
+const SEED_ID_MAP = {}
+for (const p of BAR_PRODUCT_SEED) SEED_ID_MAP[p.product_id] = p
+
+// Indexed by normalised brand and product name. Only entries with a benchmark price.
 const SEED_NAME_LOOKUP = []
 for (const p of BAR_PRODUCT_SEED) {
   if (!p.benchmark_price_nis || !p.bottle_size_ml) continue
@@ -102,7 +107,7 @@ function fallbackCpm(ingredient) {
 
 // ─── Core resolver ────────────────────────────────────────────────────────────
 
-function resolveIngredient(ingredientName) {
+function resolveByName(ingredientName) {
   const n = normalise(ingredientName)
 
   // Priority 1: seed brand / product name — require key ≥ 5 chars to prevent
@@ -110,7 +115,15 @@ function resolveIngredient(ingredientName) {
   for (const entry of SEED_NAME_LOOKUP) {
     if (entry.key.length < 5) continue
     if (n === entry.key || n.startsWith(entry.key + ' ') || n.includes(' ' + entry.key)) {
-      return { cpm: entry.cpm, match_type: 'product', product_id: entry.product_id, confidence: 'medium', data_status: 'benchmark_estimate' }
+      const p = SEED_ID_MAP[entry.product_id]
+      return {
+        cpm: entry.cpm,
+        match_type: 'product',
+        product_id: entry.product_id,
+        product_name: p ? `${p.brand} ${p.product_name}`.trim() : null,
+        confidence: 'medium',
+        data_status: 'benchmark_estimate',
+      }
     }
   }
 
@@ -120,13 +133,55 @@ function resolveIngredient(ingredientName) {
       const cpms = catIds.map(id => CATEGORY_MEDIAN_CPM[id]).filter(v => v != null)
       if (cpms.length > 0) {
         const avgCpm = cpms.reduce((s, v) => s + v, 0) / cpms.length
-        return { cpm: avgCpm, match_type: 'category', confidence: 'medium', data_status: 'benchmark_estimate' }
+        return { cpm: avgCpm, match_type: 'category', product_id: null, product_name: null, confidence: 'medium', data_status: 'benchmark_estimate' }
       }
     }
   }
 
   // Priority 3: original COST_DB values
-  return { cpm: fallbackCpm(ingredientName), match_type: 'cost_db_estimate', confidence: 'low', data_status: 'operational_assumption' }
+  return { cpm: fallbackCpm(ingredientName), match_type: 'cost_db_estimate', product_id: null, product_name: null, confidence: 'low', data_status: 'operational_assumption' }
+}
+
+function resolveIngredient(ingredientName, product_id = null) {
+  // Priority 0: explicit product_id — direct seed lookup, no name guessing.
+  if (product_id) {
+    const p = SEED_ID_MAP[product_id]
+    if (p && p.benchmark_price_nis && p.bottle_size_ml) {
+      return {
+        cpm: p.benchmark_price_nis / p.bottle_size_ml,
+        match_type: 'product_id',
+        product_id: p.product_id,
+        product_name: `${p.brand} ${p.product_name}`.trim(),
+        confidence: 'medium',
+        data_status: 'benchmark_estimate',
+        _missing_linked_product: false,
+      }
+    }
+    // product_id provided but not in seed — fall through with a flag so caller can warn.
+    return { ...resolveByName(ingredientName), _missing_linked_product: true }
+  }
+
+  return resolveByName(ingredientName)
+}
+
+// ─── Public helpers ───────────────────────────────────────────────────────────
+
+export function getProductById(product_id) {
+  return SEED_ID_MAP[product_id] || null
+}
+
+// Returns products relevant to an ingredient name, filtered by category match.
+// Falls back to all priced products if no category pattern matches.
+export function getProductsForIngredient(ingredientName) {
+  const n = ingredientName.toLowerCase()
+  let catIds = null
+  for (const [pattern, ids] of CATEGORY_PATTERNS) {
+    if (pattern.test(n)) { catIds = ids; break }
+  }
+  const products = catIds
+    ? BAR_PRODUCT_SEED.filter(p => catIds.includes(p.category_id) && p.benchmark_price_nis)
+    : BAR_PRODUCT_SEED.filter(p => p.benchmark_price_nis)
+  return [...products].sort((a, b) => a.brand.localeCompare(b.brand))
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
@@ -139,17 +194,23 @@ export function buildCostSheet(ingredientsOrCocktail, targetPrice = null) {
     ? ingredientsOrCocktail
     : (ingredientsOrCocktail?.ingredientsMl || ingredientsOrCocktail?.ingredientObjects || [])
 
-  const rows = ingredientsMl.filter(i => i.amountMl > 0).map(i => {
-    const resolved = resolveIngredient(i.ingredient || '')
+  const rawRows = ingredientsMl.filter(i => i.amountMl > 0).map(i => {
+    const resolved = resolveIngredient(i.ingredient || '', i.product_id || null)
     return {
       ingredient: i.ingredient,
       ml: i.amountMl,
       cpm: resolved.cpm,
       total: Math.round(i.amountMl * resolved.cpm * 100) / 100,
       match_type: resolved.match_type,
-      confidence: resolved.confidence
+      product_id: resolved.product_id,
+      product_name: resolved.product_name,
+      confidence: resolved.confidence,
+      _missing_linked_product: resolved._missing_linked_product || false,
     }
   })
+
+  // Strip internal flags before exposing rows to consumers.
+  const rows = rawRows.map(({ _missing_linked_product: _m, ...rest }) => rest)
 
   const totalCost = Math.round(rows.reduce((s, r) => s + r.total, 0) * 100) / 100
   const wasteBuffer = Math.round(totalCost * WASTE_BUFFER_PCT * 100) / 100
@@ -164,10 +225,12 @@ export function buildCostSheet(ingredientsOrCocktail, targetPrice = null) {
     : (suggested > 0 ? Math.round((totalCost / suggested) * 100) : 0)
 
   const hasCostDbRows = rows.some(r => r.match_type === 'cost_db_estimate')
+  const hasMissingLinkedProduct = rawRows.some(r => r._missing_linked_product)
   const cost_status = rows.length === 0 ? 'no_ingredients' : 'benchmark_estimate'
   const missing_data_warnings = [
     'Pricing uses benchmark estimates — supplier validation required.',
-    ...(hasCostDbRows ? ['Some ingredients matched by category estimate only.'] : [])
+    ...(hasCostDbRows ? ['Some ingredients matched by category estimate only.'] : []),
+    ...(hasMissingLinkedProduct ? ['One or more linked product IDs not found — fallback pricing used.'] : []),
   ]
 
   return {

@@ -46,7 +46,15 @@ function CostSheetCard({ cocktail, expanded, onToggle }) {
           <div className="space-y-0 divide-y divide-[#c9a96e]/06">
             {cost.rows.map((r, i) => (
               <div key={i} className="grid grid-cols-[1fr_40px_60px_60px] items-center gap-2 py-2.5 text-xs">
-                <span className="font-medium text-[#e8dcc0]">{r.ingredient}</span>
+                <div className="min-w-0">
+                  <span className="font-medium text-[#e8dcc0]">{r.ingredient}</span>
+                  {r.match_type === 'product_id' && (
+                    <span className="ml-1.5 inline-flex items-center rounded-full border border-emerald-800/30 bg-emerald-950/30 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-emerald-400">Linked</span>
+                  )}
+                  {r.match_type === 'product_id' && r.product_name && (
+                    <div className="truncate text-[9px] text-[#e8dcc0]/30">{r.product_name}</div>
+                  )}
+                </div>
                 <span className="text-right font-mono text-[#e8dcc0]/45">{r.ml}ml</span>
                 <span className="text-right font-mono text-[#e8dcc0]/45">₪{r.cpm.toFixed(2)}</span>
                 <span className="text-right font-bold text-[#c9a96e]">₪{r.total.toFixed(2)}</span>

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { requestCocktailProposal } from '../../services/cocktailService'
-import { buildCostSheet } from '../../domain/hospitality/bar/cocktailLabPricingAdapter.js'
+import { buildCostSheet, getProductById, getProductsForIngredient } from '../../domain/hospitality/bar/cocktailLabPricingAdapter.js'
 
 // ─── Flavor & Cost Logic ─────────────────────────────────────────────────────
 
@@ -306,13 +306,52 @@ function SpecRow({ ingredient, ml, role }) {
   )
 }
 
-function CostRow({ ingredient, ml, cpm, total }) {
+function CostRow({ ingredient, ml, cpm, total, isExplicitlyLinked, linkedProductName, isLinking, suggestedProducts, onLink, onUnlink, onSelectProduct, onCancelLink }) {
   return (
-    <div className="grid grid-cols-[1fr_40px_60px_60px] items-center gap-2 border-b border-[#c9a96e]/08 py-2.5 text-xs">
-      <span className="font-medium text-[#e8dcc0]">{ingredient}</span>
-      <span className="text-right font-mono text-[#e8dcc0]/55">{ml}ml</span>
-      <span className="text-right font-mono text-[#e8dcc0]/55">₪{cpm.toFixed(2)}/ml</span>
-      <span className="text-right font-bold text-[#c9a96e]">₪{total.toFixed(2)}</span>
+    <div className="border-b border-[#c9a96e]/08 py-2.5 text-xs">
+      <div className="grid grid-cols-[1fr_40px_60px_60px] items-center gap-2">
+        <div className="min-w-0">
+          <span className="font-medium text-[#e8dcc0]">{ingredient}</span>
+          {isExplicitlyLinked && (
+            <span className="ml-1.5 inline-flex items-center rounded-full border border-emerald-800/30 bg-emerald-950/30 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-emerald-400">Linked</span>
+          )}
+        </div>
+        <span className="text-right font-mono text-[#e8dcc0]/55">{ml}ml</span>
+        <span className="text-right font-mono text-[#e8dcc0]/55">₪{cpm.toFixed(2)}/ml</span>
+        <span className="text-right font-bold text-[#c9a96e]">₪{total.toFixed(2)}</span>
+      </div>
+
+      {isExplicitlyLinked && !isLinking && (
+        <div className="mt-0.5 flex items-center gap-2">
+          {linkedProductName && <span className="truncate max-w-[200px] text-[9px] text-[#e8dcc0]/30">{linkedProductName}</span>}
+          <button onClick={onUnlink} className="shrink-0 text-[9px] text-[#e8dcc0]/25 transition-colors hover:text-red-400/60">Unlink</button>
+        </div>
+      )}
+
+      {!isExplicitlyLinked && !isLinking && (
+        <button onClick={onLink} className="mt-0.5 text-[9px] text-[#e8dcc0]/25 transition-colors hover:text-[#c9a96e]/60">
+          + Link product
+        </button>
+      )}
+
+      {isLinking && (
+        <div className="mt-2 space-y-1">
+          <select
+            autoFocus
+            defaultValue=""
+            onChange={e => { if (e.target.value) onSelectProduct(e.target.value) }}
+            className="w-full rounded-lg border border-[#c9a96e]/20 bg-[#0f0e0b] px-2 py-1.5 text-[11px] text-[#e8dcc0] outline-none focus:border-[#c9a96e]/40"
+          >
+            <option value="" disabled>Select product…</option>
+            {suggestedProducts.map(p => (
+              <option key={p.product_id} value={p.product_id}>
+                {p.brand}{p.product_name !== p.brand ? ` — ${p.product_name}` : ''} ({p.bottle_size_ml}ml{p.benchmark_price_nis ? `, ₪${p.benchmark_price_nis}` : ''})
+              </option>
+            ))}
+          </select>
+          <button onClick={onCancelLink} className="text-[9px] text-[#e8dcc0]/25 transition-colors hover:text-[#e8dcc0]/50">Cancel</button>
+        </div>
+      )}
     </div>
   )
 }
@@ -355,13 +394,49 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
   const [showCost, setShowCost] = useState(true)
   const [approvedLocal, setApprovedLocal] = useState(false)
 
+  // ingredientLinks: keyed by ingredient name → { product_id, product_name, product_category,
+  //   product_confidence_level, product_data_status }. Initialized from any product_id fields
+  // already on the saved proposal (backward-compatible: proposals without them start empty).
+  const [ingredientLinks, setIngredientLinks] = useState(() => {
+    const links = {}
+    ;(proposal.ingredientsMl || proposal.ingredientObjects || []).forEach(ing => {
+      if (ing.product_id) {
+        links[ing.ingredient] = {
+          product_id: ing.product_id,
+          product_name: ing.product_name || null,
+          product_category: ing.product_category || null,
+          product_confidence_level: ing.product_confidence_level || 'medium',
+          product_data_status: ing.product_data_status || 'benchmark_estimate',
+        }
+      }
+    })
+    return links
+  })
+  const [linkingIngredient, setLinkingIngredient] = useState(null)
+
   const ings = proposal.ingredientsMl || proposal.ingredientObjects || []
+
+  // mergedIngs injects product_id and related fields from local link state into the ingredient
+  // array before costing so the adapter can use Priority 0 resolution.
+  const mergedIngs = useMemo(
+    () => ings.map(ing => ingredientLinks[ing.ingredient] ? { ...ing, ...ingredientLinks[ing.ingredient] } : ing),
+    [ings, ingredientLinks]
+  )
+
   const profile = useMemo(() => inferFlavorProfile(proposal, adjust), [proposal, adjust])
   const abv = useMemo(() => estimateABV(ings, adjust.abv * 1.2), [ings, adjust.abv])
-  const cost = useMemo(() => buildCostSheet(ings, proposal.targetPrice), [ings, proposal.targetPrice])
+  const cost = useMemo(() => buildCostSheet(mergedIngs, proposal.targetPrice), [mergedIngs, proposal.targetPrice])
   const chips = useMemo(() => trainingChips(proposal, profile), [proposal, profile])
 
-  const handleApprove = () => { setApprovedLocal(true); onApprove?.({ ...proposal, name: editName }) }
+  // Merges current ingredient links back into the proposal before saving to localStorage.
+  const proposalWithLinks = (overrides = {}) => ({
+    ...proposal,
+    name: editName,
+    ...overrides,
+    ingredientsMl: ings.map(ing => ({ ...ing, ...(ingredientLinks[ing.ingredient] || {}) })),
+  })
+
+  const handleApprove = () => { setApprovedLocal(true); onApprove?.(proposalWithLinks()) }
 
   const statusLabel = proposal.status === 'approved' ? 'Approved' : proposal.status === 'awaitingApproval' ? 'Pending Review' : proposal.fallbackGenerated ? 'Fallback Draft' : 'Generated'
 
@@ -484,7 +559,41 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
               <span>Ingredient</span><span className="text-right">ml</span><span className="text-right">Cost/ml</span><span className="text-right">Total</span>
             </div>
             <div className="divide-y divide-[#c9a96e]/06">
-              {cost.rows.map((r, i) => <CostRow key={i} {...r} />)}
+              {cost.rows.map((r, i) => {
+                const link = ingredientLinks[r.ingredient]
+                return (
+                  <CostRow
+                    key={i}
+                    {...r}
+                    isExplicitlyLinked={!!link}
+                    linkedProductName={link?.product_name}
+                    isLinking={linkingIngredient === r.ingredient}
+                    suggestedProducts={getProductsForIngredient(r.ingredient)}
+                    onLink={() => setLinkingIngredient(r.ingredient)}
+                    onUnlink={() => {
+                      setIngredientLinks(prev => { const n = { ...prev }; delete n[r.ingredient]; return n })
+                      setLinkingIngredient(null)
+                    }}
+                    onSelectProduct={pid => {
+                      const product = getProductById(pid)
+                      if (product) {
+                        setIngredientLinks(prev => ({
+                          ...prev,
+                          [r.ingredient]: {
+                            product_id: pid,
+                            product_name: `${product.brand} ${product.product_name}`.trim(),
+                            product_category: product.category_id,
+                            product_confidence_level: product.confidence_level || 'medium',
+                            product_data_status: product.data_status || 'benchmark_estimate',
+                          },
+                        }))
+                      }
+                      setLinkingIngredient(null)
+                    }}
+                    onCancelLink={() => setLinkingIngredient(null)}
+                  />
+                )
+              })}
             </div>
             <div className="grid grid-cols-[1fr_40px_60px_60px] items-center gap-2 py-2.5 text-xs border-t border-[#c9a96e]/10 mt-1">
               <span className="font-medium text-[#e8dcc0]/50">Bartender Labor</span>
@@ -539,11 +648,11 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
           className="rounded-[1.35rem] bg-[#c9a96e] px-8 py-3.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#11100d] shadow-[0_16px_48px_rgba(201,169,110,0.25)] transition hover:-translate-y-0.5 hover:bg-[#dfc497]">
           Approve Cocktail
         </button>
-        <button onClick={() => onSaveDraft?.({ ...proposal, name: editName })}
+        <button onClick={() => onSaveDraft?.(proposalWithLinks())}
           className="rounded-[1.35rem] border border-[#c9a96e]/30 bg-[#c9a96e]/08 px-7 py-3.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e] transition hover:bg-[#c9a96e]/15">
           Save Draft
         </button>
-        <button onClick={() => onSubmitApproval?.({ ...proposal, name: editName })}
+        <button onClick={() => onSubmitApproval?.(proposalWithLinks())}
           className="rounded-[1.35rem] border border-[#6b705c]/25 bg-black/20 px-7 py-3.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#e8dcc0] transition hover:border-[#c9a96e]/30">
           Submit for Review
         </button>
