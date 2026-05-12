@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { apiGet, apiPatch, apiPost } from '../../services/api/client'
 
+const STORAGE_KEY = 'hospia.operationalNotes'
 const NOTE_TAGS = ['reminder', 'sop-deviation', 'staff-note', 'vendor-note', 'follow-up', 'vip']
 
 const TAG_LABELS = {
@@ -25,14 +26,29 @@ function cx(...classes) {
   return classes.filter(Boolean).join(' ')
 }
 
-const SEED_NOTES = [
-  { id: 'seed-1', content: 'Dinner service delay pressure expected between 19:30 and 20:15. Brief floor team before doors.', tag: 'reminder', pinned: true, archived: false, created_by: 'Manager', created_at: '2026-05-03T00:00:00.000Z' },
-  { id: 'seed-2', content: 'Bar team improved second-drink recommendations after pre-shift role play.', tag: 'follow-up', pinned: false, archived: false, created_by: 'Manager', created_at: '2026-05-02T00:00:00.000Z' },
-  { id: 'seed-3', content: 'Dana needs one-on-one recovery coaching before next weekend shift.', tag: 'staff-note', pinned: false, archived: false, created_by: 'Manager', created_at: '2026-04-30T00:00:00.000Z' }
-]
+function loadLocalNotes() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
+    return Array.isArray(saved) && saved.length ? saved : null
+  } catch {
+    return null
+  }
+}
 
-export default function OperationalNotes({ t, currentUser, onNotesChange }) {
-  const [notes, setNotes] = useState(SEED_NOTES)
+function saveLocalNotes(notes) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes))
+  } catch {
+    // storage full or unavailable — notes still live in React state
+  }
+}
+
+const STATUS_DOT = { clear: 'bg-emerald-400', attention: 'bg-yellow-400', critical: 'bg-red-400' }
+const STATUS_LABEL = { clear: 'Clear', attention: 'Attention', critical: 'Critical' }
+const STATUS_TEXT = { clear: 'text-emerald-400', attention: 'text-yellow-400', critical: 'text-red-400' }
+
+export default function OperationalNotes({ t, currentUser, onNotesChange, shiftBrain }) {
+  const [notes, setNotes] = useState(() => loadLocalNotes() || [])
   const [draft, setDraft] = useState('')
   const [selectedTag, setSelectedTag] = useState('reminder')
   const [filterTag, setFilterTag] = useState('all')
@@ -40,16 +56,30 @@ export default function OperationalNotes({ t, currentUser, onNotesChange }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Persist notes to localStorage on every change
+  useEffect(() => {
+    saveLocalNotes(notes)
+  }, [notes])
+
+  // On mount: try backend, merge with localStorage (backend IDs win, local-only notes preserved)
   useEffect(() => {
     let mounted = true
     apiGet('/api/notes')
       .then(data => {
         if (!mounted) return
-        const fetched = data.notes || []
-        setNotes(fetched.length ? fetched : SEED_NOTES)
+        const fetched = (data.notes || []).filter(n => !n.archived)
+        if (!fetched.length) return
+        setNotes(prev => {
+          // backend notes win for shared IDs; preserve local-only notes
+          const merged = [...fetched]
+          prev.forEach(local => {
+            if (!merged.some(b => b.id === local.id)) merged.push(local)
+          })
+          return merged
+        })
       })
       .catch(() => {
-        // backend unavailable — keep seed notes
+        // backend unavailable — localStorage data is already loaded
       })
       .finally(() => {
         if (mounted) setLoading(false)
@@ -80,10 +110,10 @@ export default function OperationalNotes({ t, currentUser, onNotesChange }) {
     try {
       const data = await apiPost('/api/notes', newNote)
       if (data.note) {
-        setNotes(prev => prev.map(n => n.id === newNote.id ? data.note : n))
+        setNotes(prev => prev.map(n => n.id === newNote.id ? { ...data.note } : n))
       }
     } catch {
-      // kept in state, lost on refresh
+      // note is in localStorage — will sync to backend when available
     } finally {
       setSaving(false)
     }
@@ -97,16 +127,16 @@ export default function OperationalNotes({ t, currentUser, onNotesChange }) {
     try {
       await apiPatch(`/api/notes/${noteId}`, { pinned })
     } catch {
-      // local state is the fallback
+      // localStorage already updated above
     }
   }
 
   async function archiveNote(noteId) {
-    setNotes(prev => prev.filter(n => n.id !== noteId))
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, archived: true } : n))
     try {
       await apiPatch(`/api/notes/${noteId}`, { archived: true })
     } catch {
-      // no-op
+      // localStorage already updated above
     }
   }
 
@@ -117,13 +147,13 @@ export default function OperationalNotes({ t, currentUser, onNotesChange }) {
 
   return (
     <>
-      <div className="mb-8">
-        <div className="text-[10px] font-black uppercase tracking-[0.28em] text-[#c9a96e] mb-2">Shift Brain — Notes</div>
-        <h1 className="font-serif text-4xl font-black text-[#f5f5f0] mb-3">Operational Notes</h1>
-        <p className="text-[#e8dcc0] text-sm max-w-2xl">
+      <header className="mb-24 lg:mb-32">
+        <div className="mb-6 text-[10px] font-black uppercase tracking-[0.4em] text-[#c9a96e]">Shift Brain — Notes</div>
+        <h1 className="max-w-5xl font-serif text-6xl font-black leading-[1] tracking-tighter text-[#f5f5f0] sm:text-8xl lg:text-9xl">Operational Notes</h1>
+        <p className="mt-12 max-w-3xl text-xl font-light leading-relaxed text-[#e8dcc0] opacity-80 italic">
           Capture observations that should survive the shift. Pinned notes surface in the next pre-shift briefing.
         </p>
-      </div>
+      </header>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="space-y-4">
@@ -147,7 +177,7 @@ export default function OperationalNotes({ t, currentUser, onNotesChange }) {
             ))}
           </div>
 
-          {loading ? (
+          {loading && !visible.length ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-2xl border border-[#6b705c]/20 bg-[#14130f] animate-pulse" />)}
             </div>
@@ -193,12 +223,44 @@ export default function OperationalNotes({ t, currentUser, onNotesChange }) {
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="text-5xl mb-3 opacity-40">◎</div>
-              <p className="text-[#e8dcc0] text-sm">No notes match this filter.</p>
+              {notes.filter(n => !n.archived).length === 0 ? (
+                <>
+                  <p className="text-[#e8dcc0] text-sm font-bold mb-2">No operational notes yet.</p>
+                  <p className="text-[#e8dcc0]/60 text-xs max-w-xs leading-6">Add notes as you observe patterns, staff behaviours, or service gaps. Pinned notes surface in the next pre-shift briefing.</p>
+                </>
+              ) : (
+                <p className="text-[#e8dcc0] text-sm">No notes match this filter.</p>
+              )}
             </div>
           )}
         </div>
 
         <div className="space-y-4">
+          {shiftBrain && (
+            <div className="rounded-2xl border border-[#6b705c]/30 bg-[#14130f] p-4">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Shift Context</div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className={cx('h-2 w-2 rounded-full', STATUS_DOT[shiftBrain.summary.operationalStatus] || STATUS_DOT.clear)} />
+                <span className={cx('text-xs font-black uppercase tracking-wider', STATUS_TEXT[shiftBrain.summary.operationalStatus] || STATUS_TEXT.clear)}>
+                  {STATUS_LABEL[shiftBrain.summary.operationalStatus] || 'Clear'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-3 text-center">
+                <div>
+                  <div className="font-serif text-2xl font-black text-[#f5f5f0]">{shiftBrain.summary.openActions}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-[#e8dcc0]/60">Open Actions</div>
+                </div>
+                <div>
+                  <div className="font-serif text-2xl font-black text-[#f5f5f0]">{shiftBrain.summary.unresolvedIncidents}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-[#e8dcc0]/60">Incidents</div>
+                </div>
+              </div>
+              {shiftBrain.recommendedFocus.slice(0, 2).map((f, i) => (
+                <p key={i} className="text-xs text-[#e8dcc0]/70 leading-5 mb-1">↗ {f}</p>
+              ))}
+            </div>
+          )}
+
           <div className="rounded-2xl border border-[#6b705c]/30 bg-[#14130f] p-5">
             <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-4">Add Operational Note</div>
 

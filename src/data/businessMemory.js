@@ -1,12 +1,6 @@
 // HOSPIA AI - extracted static data. Values moved from App.jsx without behavior changes.
 
-export const ACTION_BOARD_ITEMS = [
-  { id: 1, priority: 'urgent', title: 'Brief floor team on delay communication before dinner service', owner: 'Manager', due: 'Today 17:00', signal: 'Kitchen delays triggered 3 guest complaints last Friday', page: 'serviceRecovery', done: false },
-  { id: 2, priority: 'urgent', title: 'Open coaching plan for Dana P. - At Risk status', owner: 'Manager', due: 'Today', signal: '31% academy progress and 55% simulation score', page: 'staffReadiness', done: false },
-  { id: 3, priority: 'high', title: 'Run complaint recovery simulation with Oren and Dana', owner: 'Shift Lead', due: 'Tomorrow', signal: 'Recovery score below 70% for both staff members', page: 'simulation', done: false },
-  { id: 4, priority: 'high', title: 'Submit End Of Day report with urgent items carried forward', owner: 'Closing Manager', due: 'Tonight', signal: 'Owner report depends on consistent shift memory', page: 'endOfDay', done: false },
-  { id: 5, priority: 'normal', title: 'Assign Natural Upselling module to bar and floor team', owner: 'Manager', due: 'This week', signal: 'Beverage upsell leak estimated at NIS 6.2k per month', page: 'courses', done: true }
-]
+export const ACTION_BOARD_ITEMS = []
 
 
 export const PROFIT_LEAKS = [
@@ -19,11 +13,5 @@ export const PROFIT_LEAKS = [
 ]
 
 
-export const BUSINESS_MEMORY = [
-  { date: '2026-05-03', type: 'alert', title: 'Delay communication failure - dinner service', detail: 'Three tables waited 35+ minutes without proactive update. Estimated preventable loss: NIS 420.' },
-  { date: '2026-05-02', type: 'win', title: 'Noa completed full recovery certification', detail: 'Noa reached 95% course progress and 89% simulation score. Use as peer mentor for at-risk staff.' },
-  { date: '2026-04-30', type: 'note', title: 'Beverage upsell conversion improved after training', detail: 'Second-drink recommendations rose after Natural Upselling module. Repeat briefing before weekend.' },
-  { date: '2026-04-28', type: 'alert', title: 'Complaint escalated to owner', detail: 'Manager did not resolve a kitchen delay before owner intervention. Full meal comped.' },
-  { date: '2026-04-27', type: 'note', title: 'End Of Day reporting streak reached 7 shifts', detail: 'Consistent reporting now gives enough signal to detect weekly operational patterns.' }
-]
+export const BUSINESS_MEMORY = []
 

@@ -1,6 +1,6 @@
-# HOSPIA AI
+# HESTIA AI
 
-HOSPIA AI is the AI operating system for hospitality teams: restaurants, cocktail bars, boutique venues, and service-led hospitality groups.
+HESTIA AI is the AI operating system for hospitality teams: restaurants, cocktail bars, boutique venues, and service-led hospitality groups.
 
 The product is built around one principle: guests are hosted, not processed. AI supports human warmth, operational memory, service discipline, training, and better manager decisions.
 
@@ -10,7 +10,7 @@ The product is built around one principle: guests are hosted, not processed. AI 
 - Owner/admin user management with persisted user creation, role editing, venue/team assignment, Cocktail Lab permission, and disable flow.
 - Shift operations control tower, service issue reporting, employee requests, budget requests, Event CRM, staff progression, academy, approved cocktail training, and owner intelligence.
 - Cocktail Lab / Flavor Brain with Gemini generation and a local fallback generator so the workflow does not fail silently when AI quota or connectivity is unavailable.
-- HOSPIA University with Service, Bar, Wine, Coffee, Culinary Intelligence, Hostess, Manager, Event, Ethics, and Train-the-Trainer academies.
+- HESTIA University with Service, Bar, Wine, Coffee, Culinary Intelligence, Hostess, Manager, Event, Ethics, and Train-the-Trainer academies.
 
 ## Run Locally
 
@@ -65,4 +65,4 @@ The current MVP uses browser persistence behind service abstractions for the flo
 
 ## Product Direction
 
-HOSPIA should become the memory of the venue: shifts, incidents, recurring issues, staff growth, guest experience signals, cocktail approvals, owner briefings, and operational follow-up should connect into one daily rhythm.
+HESTIA should become the memory of the venue: shifts, incidents, recurring issues, staff growth, guest experience signals, cocktail approvals, owner briefings, and operational follow-up should connect into one daily rhythm.

@@ -159,7 +159,7 @@ export function createFallbackCocktailProposal({ agentPrompt = '', form = {}, ap
     practicalityScore: lowPrep ? 88 : 76,
     complexityScore: lowPrep ? 3 : 5,
     confidenceLabel: 'Fallback Demo',
-    directorConversationReply: 'Gemini was unavailable, so HOSPIA generated a complete fallback tasting candidate. It is marked clearly and remains suitable for draft, review, approval, or rejection.'
+    directorConversationReply: 'Gemini was unavailable, so HESTIA generated a complete fallback tasting candidate. It is marked clearly and remains suitable for draft, review, approval, or rejection.'
   }
 }
 

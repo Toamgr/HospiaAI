@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useState } from 'react'
 import { apiPost } from '../../services/api/client'
-import { apiGet } from '../../services/api/client'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -25,7 +24,7 @@ function PriorityBadge({ priority }) {
   )
 }
 
-function BriefingItem({ id, label, meta, priority, briefed, onToggle, children }) {
+function BriefingItem({ id, label, meta, priority, briefed, onToggle }) {
   return (
     <article className={cx('rounded-2xl border p-4 transition-all duration-300', briefed ? 'border-[#c9a96e]/20 opacity-50' : 'border-[#6b705c]/30 bg-[#14130f]')}>
       <div className="flex items-start gap-3">
@@ -47,16 +46,22 @@ function BriefingItem({ id, label, meta, priority, briefed, onToggle, children }
             {priority && <PriorityBadge priority={priority} />}
             <span className="text-sm font-bold text-[#f5f5f0]">{label}</span>
           </div>
-          {meta && <p className="text-xs text-[#e8dcc0]/70 mb-1">{meta}</p>}
-          {children}
+          {meta && <p className="text-xs text-[#e8dcc0]/70">{meta}</p>}
         </div>
       </div>
     </article>
   )
 }
 
-export default function PreShiftBriefing({ t, currentUser, actionItems = [], serviceIncidents = [], eventPlans = [], notes = [] }) {
+const STATUS_CONFIG = {
+  clear:     { label: 'Operationally Clear',            border: 'border-emerald-800/50 bg-emerald-950/20', text: 'text-emerald-400', dot: 'bg-emerald-400' },
+  attention: { label: 'Attention Required',             border: 'border-yellow-800/50 bg-yellow-950/20',   text: 'text-yellow-400', dot: 'bg-yellow-400' },
+  critical:  { label: 'Critical — Address Before Service', border: 'border-red-800/50 bg-red-950/20',     text: 'text-red-400',    dot: 'bg-red-400' }
+}
+
+export default function PreShiftBriefing({ t, currentUser, actionItems = [], serviceIncidents = [], eventPlans = [], notes = [], shiftBrain }) {
   const [briefed, setBriefed] = useState({})
+  const [checklistDone, setChecklistDone] = useState({})
   const [started, setStarted] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -65,8 +70,7 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
     if (item.resolved) return false
     const date = item.date || item.shift_date || item.created_at || ''
     if (!date) return true
-    const daysAgo = (Date.now() - new Date(date).getTime()) / 86400000
-    return daysAgo <= 7
+    return (Date.now() - new Date(date).getTime()) / 86400000 <= 7
   })
   const pinnedNotes = notes.filter(n => n.pinned && !n.archived)
   const todayEvents = eventPlans.filter(ev => {
@@ -82,32 +86,28 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
     setBriefed(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
+  function toggleChecklist(id) {
+    setChecklistDone(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
   async function startShift() {
     setSaving(true)
-    const snapshot = {
-      open_actions: openActions.length,
-      unresolved_incidents: recentIncidents.length,
-      pinned_notes: pinnedNotes.length,
-      briefed_items: briefedCount,
-      total_items: totalItems,
-      started_by: currentUser?.username || 'Manager',
-      shift_date: TODAY
-    }
-
     try {
       await apiPost('/api/business-memory', {
         type: 'note',
-        title: `Pre-shift briefing started by ${snapshot.started_by}`,
-        detail: `Briefed ${briefedCount}/${totalItems} items. Open actions: ${snapshot.open_actions}. Unresolved incidents: ${snapshot.unresolved_incidents}.`,
+        title: `Pre-shift briefing started by ${currentUser?.username || 'Manager'}`,
+        detail: `Briefed ${briefedCount}/${totalItems} items. Open actions: ${openActions.length}. Unresolved incidents: ${recentIncidents.length}. Status: ${shiftBrain?.summary?.operationalStatus || 'unknown'}.`,
         date: TODAY
       })
     } catch {
       // silent — snapshot is best-effort
     }
-
     setStarted(true)
     setSaving(false)
   }
+
+  const status = shiftBrain?.summary?.operationalStatus || 'clear'
+  const statusConfig = STATUS_CONFIG[status]
 
   if (started) {
     return (
@@ -124,13 +124,31 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
 
   return (
     <>
-      <div className="mb-8">
-        <div className="text-[10px] font-black uppercase tracking-[0.28em] text-[#c9a96e] mb-2">Shift Brain — Pre-Shift</div>
-        <h1 className="font-serif text-4xl font-black text-[#f5f5f0] mb-3">Pre-Shift Briefing</h1>
-        <p className="text-[#e8dcc0] text-sm max-w-2xl">
+      <header className="mb-24 lg:mb-32">
+        <div className="mb-6 text-[10px] font-black uppercase tracking-[0.4em] text-[#c9a96e]">Shift Brain — Pre-Shift</div>
+        <h1 className="max-w-5xl font-serif text-6xl font-black leading-[1] tracking-tighter text-[#f5f5f0] sm:text-8xl lg:text-9xl">Pre-Shift Briefing</h1>
+        <p className="mt-12 max-w-3xl text-xl font-light leading-relaxed text-[#e8dcc0] opacity-80 italic">
           Review every open signal before service begins. Acknowledge each item, then start the shift to save a briefing snapshot.
         </p>
-      </div>
+      </header>
+
+      {shiftBrain && (
+        <div className={cx('mb-6 rounded-2xl border p-4', statusConfig.border)}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className={cx('h-2.5 w-2.5 rounded-full', statusConfig.dot)} />
+              <span className={cx('text-sm font-black uppercase tracking-wider', statusConfig.text)}>{statusConfig.label}</span>
+            </div>
+            <div className="flex flex-wrap gap-4 text-xs text-[#e8dcc0]/70">
+              <span>{shiftBrain.summary.openActions} open actions</span>
+              <span>{shiftBrain.summary.unresolvedIncidents} unresolved incidents</span>
+              {shiftBrain.summary.eventsToday > 0 && (
+                <span>{shiftBrain.summary.eventsToday} event{shiftBrain.summary.eventsToday !== 1 ? 's' : ''} today</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-[#6b705c]/30 bg-[#14130f] p-4">
         <div>
@@ -155,95 +173,188 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
         </button>
       </div>
 
-      <div className="space-y-8">
-        {openActions.length > 0 && (
-          <section>
-            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Open Action Board ({openActions.length})</h2>
-            <div className="space-y-2">
-              {openActions.slice(0, 8).map(item => (
-                <BriefingItem
-                  key={item.id}
-                  id={`action-${item.id}`}
-                  label={item.title}
-                  priority={item.priority}
-                  meta={`Owner: ${item.owner || item.assignedPerson || 'Manager'} · Due: ${item.due || item.dueDate || '—'}`}
-                  briefed={Boolean(briefed[`action-${item.id}`])}
-                  onToggle={toggleBriefed}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+      <div className="grid gap-8 xl:grid-cols-[1fr_360px]">
+        {/* Briefable items */}
+        <div className="space-y-8">
+          {openActions.length > 0 && (
+            <section>
+              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Open Action Board ({openActions.length})</h2>
+              <div className="space-y-2">
+                {openActions.slice(0, 8).map(item => (
+                  <BriefingItem
+                    key={item.id}
+                    id={`action-${item.id}`}
+                    label={item.title}
+                    priority={item.priority}
+                    meta={`Owner: ${item.owner || item.assignedPerson || 'Manager'} · Due: ${item.due || item.dueDate || '—'}`}
+                    briefed={Boolean(briefed[`action-${item.id}`])}
+                    onToggle={toggleBriefed}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {recentIncidents.length > 0 && (
-          <section>
-            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Unresolved Incidents — Last 7 Days ({recentIncidents.length})</h2>
-            <div className="space-y-2">
-              {recentIncidents.map(item => (
-                <BriefingItem
-                  key={item.id}
-                  id={`incident-${item.id}`}
-                  label={item.issue || item.description || item.type || 'Service incident'}
-                  priority={item.severity || 'High'}
-                  meta={`Date: ${item.date || item.shift_date || '—'} · Table: ${item.tableNumber || item.table_number || '—'}`}
-                  briefed={Boolean(briefed[`incident-${item.id}`])}
-                  onToggle={toggleBriefed}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+          {recentIncidents.length > 0 && (
+            <section>
+              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Unresolved Incidents — Last 7 Days ({recentIncidents.length})</h2>
+              <div className="space-y-2">
+                {recentIncidents.map(item => (
+                  <BriefingItem
+                    key={item.id}
+                    id={`incident-${item.id}`}
+                    label={item.issue || item.description || item.type || 'Service incident'}
+                    priority={item.severity || 'High'}
+                    meta={`Date: ${item.date || item.shift_date || '—'} · Table: ${item.tableNumber || item.table_number || '—'}`}
+                    briefed={Boolean(briefed[`incident-${item.id}`])}
+                    onToggle={toggleBriefed}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {todayEvents.length > 0 && (
-          <section>
-            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Events Today ({todayEvents.length})</h2>
-            <div className="space-y-2">
-              {todayEvents.map(item => (
-                <BriefingItem
-                  key={item.id}
-                  id={`event-${item.id}`}
-                  label={item.name || item.config?.eventName || 'Event'}
-                  priority="High"
-                  meta={`Revenue: ${item.projected_revenue ? `NIS ${Math.round(item.projected_revenue).toLocaleString()}` : '—'} · Guests: ${item.config?.guestCount || '—'}`}
-                  briefed={Boolean(briefed[`event-${item.id}`])}
-                  onToggle={toggleBriefed}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+          {todayEvents.length > 0 && (
+            <section>
+              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Events Today ({todayEvents.length})</h2>
+              <div className="space-y-2">
+                {todayEvents.map(item => (
+                  <BriefingItem
+                    key={item.id}
+                    id={`event-${item.id}`}
+                    label={item.name || item.config?.eventName || 'Event'}
+                    priority="High"
+                    meta={`Revenue: ${item.projected_revenue ? `NIS ${Math.round(item.projected_revenue).toLocaleString()}` : '—'} · Guests: ${item.config?.guestCount || '—'}`}
+                    briefed={Boolean(briefed[`event-${item.id}`])}
+                    onToggle={toggleBriefed}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {pinnedNotes.length > 0 && (
-          <section>
-            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Pinned Manager Notes ({pinnedNotes.length})</h2>
-            <div className="space-y-2">
-              {pinnedNotes.map(item => (
-                <BriefingItem
-                  key={item.id}
-                  id={`note-${item.id}`}
-                  label={item.content || item.text}
-                  meta={`${item.tag || 'reminder'} · ${item.created_at?.slice(0, 10) || item.date || '—'} · ${item.created_by || item.author || 'Manager'}`}
-                  briefed={Boolean(briefed[`note-${item.id}`])}
-                  onToggle={toggleBriefed}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+          {pinnedNotes.length > 0 && (
+            <section>
+              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Pinned Manager Notes ({pinnedNotes.length})</h2>
+              <div className="space-y-2">
+                {pinnedNotes.map(item => (
+                  <BriefingItem
+                    key={item.id}
+                    id={`note-${item.id}`}
+                    label={item.content || item.text}
+                    meta={`${item.tag || 'reminder'} · ${item.created_at?.slice(0, 10) || item.date || '—'} · ${item.created_by || item.author || 'Manager'}`}
+                    briefed={Boolean(briefed[`note-${item.id}`])}
+                    onToggle={toggleBriefed}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {totalItems === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="text-6xl mb-4 opacity-40">◎</div>
-            <p className="text-[#c9a96e] font-black text-lg mb-2">Clean slate.</p>
-            <p className="text-[#e8dcc0] text-sm">No open actions, incidents, pinned notes, or events today.</p>
-            <button
-              type="button"
-              onClick={startShift}
-              disabled={saving}
-              className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#c9a96e] text-[#0d0c09] font-black text-sm uppercase tracking-wider hover:bg-[#e8d0a0] transition"
-            >
-              {saving ? 'Saving...' : 'Start Shift'}
-            </button>
+          {totalItems === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="text-6xl mb-4 opacity-40">◎</div>
+              <p className="text-[#c9a96e] font-black text-lg mb-2">Clean slate.</p>
+              <p className="text-[#e8dcc0] text-sm">No open actions, incidents, pinned notes, or events today.</p>
+              <button
+                type="button"
+                onClick={startShift}
+                disabled={saving}
+                className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#c9a96e] text-[#0d0c09] font-black text-sm uppercase tracking-wider hover:bg-[#e8d0a0] transition"
+              >
+                {saving ? 'Saving...' : 'Start Shift'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Intelligence panel */}
+        {shiftBrain && (
+          <div className="space-y-4">
+            {shiftBrain.recommendedFocus.length > 0 && (
+              <div className="rounded-2xl border border-[#6b705c]/30 bg-[#14130f] p-5">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Recommended Focus</div>
+                <ul className="space-y-2.5">
+                  {shiftBrain.recommendedFocus.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-[#e8dcc0] leading-6">
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c9a96e]" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {shiftBrain.riskSignals.length > 0 && (
+              <div className="rounded-2xl border border-yellow-800/40 bg-yellow-950/10 p-5">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500 mb-3">Risk Signals</div>
+                <ul className="space-y-2.5">
+                  {shiftBrain.riskSignals.map(s => (
+                    <li key={s.id} className="flex items-start gap-2 text-sm leading-6">
+                      <span className={cx('mt-2 h-1.5 w-1.5 shrink-0 rounded-full', s.severity === 'high' ? 'bg-red-400' : 'bg-yellow-400')} />
+                      <span className="text-[#e8dcc0]">{s.signal}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {shiftBrain.carryForwardItems.length > 0 && (
+              <div className="rounded-2xl border border-[#6b705c]/30 bg-[#14130f] p-5">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Carry-Forward</div>
+                <div className="space-y-2">
+                  {shiftBrain.carryForwardItems.map(item => (
+                    <div key={item.id} className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-[#e8dcc0] leading-5 line-clamp-2">{item.label}</span>
+                      <span className="shrink-0 rounded border border-[#6b705c]/30 px-1.5 py-0.5 text-[10px] font-black text-[#e8dcc0]/60 whitespace-nowrap">
+                        {item.daysOpen}d open
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {shiftBrain.managerChecklist.length > 0 && (
+              <div className="rounded-2xl border border-[#6b705c]/30 bg-[#14130f] p-5">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Manager Checklist</div>
+                <div className="space-y-2">
+                  {shiftBrain.managerChecklist.map(item => {
+                    const done = Boolean(checklistDone[item.id])
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => toggleChecklist(item.id)}
+                        className={cx('flex w-full items-start gap-2.5 text-left transition', done ? 'opacity-50' : '')}
+                      >
+                        <span className={cx('mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[9px] font-black transition', done ? 'border-[#c9a96e] bg-[#c9a96e] text-[#0d0c09]' : 'border-[#6b705c]/50')}>
+                          {done ? '✓' : ''}
+                        </span>
+                        <span className={cx('text-xs leading-5', done ? 'line-through text-[#e8dcc0]/40' : 'text-[#e8dcc0]')}>{item.text}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {shiftBrain.servicePatterns.length > 0 && (
+              <div className="rounded-2xl border border-[#6b705c]/20 bg-[#14130f] p-4">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Service Patterns</div>
+                <div className="space-y-2">
+                  {shiftBrain.servicePatterns.map(p => (
+                    <div key={p.category} className="flex items-center justify-between">
+                      <span className="text-xs text-[#e8dcc0]">{p.category}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cx('h-1.5 w-1.5 rounded-full', p.severity === 'high' ? 'bg-red-400' : 'bg-yellow-400')} />
+                        <span className="text-xs font-black text-[#c9a96e]">{p.count}×</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

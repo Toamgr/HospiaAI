@@ -879,9 +879,9 @@ function buildCompactRevisionPrompt({ agentPrompt, form, menuAnalysis, variation
   const menuGaps = menuAnalysis?.menuGapNotes?.slice(0, 5).join('; ') || 'None supplied'
   const menuWarnings = menuAnalysis?.warnings?.slice(0, 5).join('; ') || 'None supplied'
 
-  return `HOSPIA COMPACT REVISION MODE.
+  return `HESTIA COMPACT REVISION MODE.
 
-You are HOSPIA Flavor Brain V2, acting as an elite Beverage Director.
+You are HESTIA Flavor Brain V2, acting as an elite Beverage Director.
 This is a follow-up revision, not a first build.
 Use the previous proposal as the baseline and apply only the manager change request.
 Keep the answer premium, decisive, operationally realistic, and much shorter than a full first-generation reasoning pass.
@@ -934,7 +934,7 @@ function formatGeminiServiceError(data, fallbackMessage) {
   ].join(' ').toLowerCase()
 
   if (/quota|rate|429|resource_exhausted|too many requests|limit exceeded/.test(raw)) {
-    return 'HOSPIA Flavor Agent is temporarily rate-limited. The proposal engine is protecting Gemini quota. Wait a moment, shorten the directive, or use a compact revision instead of a full rebuild.'
+    return 'HESTIA Flavor Agent is temporarily rate-limited. The proposal engine is protecting Gemini quota. Wait a moment, shorten the directive, or use a compact revision instead of a full rebuild.'
   }
 
   return fallbackMessage
@@ -1000,7 +1000,7 @@ function buildDirectorConsultationPrompt({ agentPrompt, form, approvedCocktails,
 - Guest description: ${normalizeValue(previousProposal.guestDescription)}
 - Director logic: ${normalizeValue(previousProposal.operationalReasoning || previousProposal.whyThisDeservesMenuSpace)}` : 'No previous proposal.'
 
-  return `You are running PRE-GENERATION CONSULTATION MODE for HOSPIA Cocktail Lab.
+  return `You are running PRE-GENERATION CONSULTATION MODE for HESTIA Cocktail Lab.
 
 Your job is to decide whether a serious beverage director would build immediately or stop the meeting to sharpen the brief.
 
@@ -1104,7 +1104,7 @@ export async function consultGeminiCocktailDirection({ agentPrompt, form, approv
 
   const data = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(formatGeminiServiceError(data, 'HOSPIA could not complete the Beverage Director consultation. Please shorten the brief and try again.'))
+    throw new Error(formatGeminiServiceError(data, 'HESTIA could not complete the Beverage Director consultation. Please shorten the brief and try again.'))
   }
 
   const rawText = getResponseText(data.answer || data)
@@ -1133,7 +1133,7 @@ export async function generateGeminiCocktailProposal({ agentPrompt, form, approv
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(formatGeminiServiceError(data, 'HOSPIA could not complete the beverage proposal. Please try a shorter directive or retry in a moment.'));
+    throw new Error(formatGeminiServiceError(data, 'HESTIA could not complete the beverage proposal. Please try a shorter directive or retry in a moment.'));
   }
 
   const rawText = getResponseText(data.answer || data);

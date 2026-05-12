@@ -12,25 +12,15 @@ export const INITIAL_SUPPLY_RISKS = [
   { item: 'Premium tonic', level: 'medium', detail: 'Projected shortage if terrace opens.' }
 ]
 
-export const INITIAL_BUDGET_REQUESTS = [
-  { id: 'budget-seed-1', managerName: 'Omer Sadot', title: 'Emergency glassware replenishment', department: 'Bar', reason: 'High breakage during events and insufficient coupe reserve.', amount: 2800, urgency: 'High', roi: 'Prevents service delays and rental spend this weekend.', notes: 'Needed before Thursday wedding.', status: 'pending', created_at: '2026-05-04T16:30:00.000Z' }
-]
+export const INITIAL_BUDGET_REQUESTS = []
 
-export const INITIAL_SERVICE_INCIDENTS = [
-  { id: 'incident-seed-1', employeeName: 'Peleg naim', issueType: 'Delay', guestTable: 'Table 12', description: 'Mains delayed 28 minutes; guest updated and bread service refreshed.', compensation: 'Dessert offered', severity: 'medium', resolved: true, time: '19:42', created_at: '2026-05-04T19:42:00.000Z' },
-  { id: 'incident-seed-2', employeeName: 'Saar wax', issueType: 'Beverage', guestTable: 'Bar 4', description: 'Incorrect garnish on allergy-sensitive mocktail. Rebuilt immediately.', compensation: 'None', severity: 'high', resolved: false, time: '20:15', created_at: '2026-05-04T20:15:00.000Z' }
-]
+export const INITIAL_SERVICE_INCIDENTS = []
 
 export const INITIAL_EMPLOYEE_TASKS = []
 
-export const INITIAL_NOTIFICATIONS = [
-  { id: 'note-seed-1', roles: ['owner', 'admin'], title: 'Budget approval pending', body: 'Emergency glassware replenishment requires owner review.', type: 'budget', page: 'budgetApprovals', readBy: [], created_at: '2026-05-04T16:31:00.000Z' },
-  { id: 'note-seed-2', roles: ['manager', 'admin'], title: 'Unresolved service incident', body: 'Bar 4 beverage incident still needs manager resolution.', type: 'incident', page: 'actionBoard', readBy: [], created_at: '2026-05-04T20:16:00.000Z' }
-]
+export const INITIAL_NOTIFICATIONS = []
 
-export const INITIAL_OWNER_NOTES = [
-  { id: 'owner-note-1', from: 'Tal millo', body: 'Review terrace staffing cost before approving additional weekend labor.', created_at: '2026-05-04T09:00:00.000Z' }
-]
+export const INITIAL_OWNER_NOTES = []
 
 export const REQUEST_CATEGORIES = [
   'Bar Supply',

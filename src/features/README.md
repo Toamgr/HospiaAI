@@ -7,7 +7,7 @@ Preferred future shape:
 - `auth`: login, session, protected views, user management.
 - `shift-brain`: shift reports, incident memory, operational snapshots.
 - `cocktail-lab`: bar manager R&D, draft pipeline, approval workflow.
-- `academy`: HOSPIA University, lesson player, progression.
+- `academy`: HESTIA University, lesson player, progression.
 - `events`: Event CRM, future event records, event tasks.
 - `staff`: staff progression, coaching, readiness.
 - `tasks`: manager action board and comments.

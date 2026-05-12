@@ -1,5 +1,5 @@
 export const HOSPITALITY_PHILOSOPHY = {
-  name: 'HOSPIA Hospitality Philosophy',
+  name: 'HESTIA Hospitality Philosophy',
   coreDoctrine: 'Functional excellence creates permission for emotional excellence.',
   pillars: [
     { id: 'functional-first', title: 'Functional Needs First', standard: 'Accuracy, timing, cleanliness, safety, and clarity must be solved before emotional service can feel credible.' },

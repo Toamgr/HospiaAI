@@ -1,6 +1,31 @@
 import { USERS } from '../config/roleConfig.js'
-import { STORAGE } from '../config/systemConfig.js'
+import { STORAGE, API_BASE } from '../config/systemConfig.js'
 import { readStoredArray, writeStoredValue } from '../lib/storage.js'
+
+function syncUserToBackend(user) {
+  try {
+    fetch(`${API_BASE}/api/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-HOSPIA-Role': 'admin' },
+      body: JSON.stringify(user)
+    }).catch(() => {})
+  } catch {
+    // fire-and-forget — localStorage is source of truth
+  }
+}
+
+export async function syncUsersFromBackend(role = 'admin') {
+  try {
+    const res = await fetch(`${API_BASE}/api/users`, {
+      headers: { 'X-HOSPIA-Role': role }
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data.users) ? data.users : []
+  } catch {
+    return []
+  }
+}
 
 export const USER_ROLES = ['employee', 'manager', 'bar_manager', 'owner', 'admin']
 
@@ -69,6 +94,7 @@ export function createUser(users, payload) {
   const nextUser = normalizeUser({ ...payload, id: `user-${Date.now()}` })
   const nextUsers = [nextUser, ...users]
   persistUsers(nextUsers)
+  syncUserToBackend(nextUser)
   return { user: nextUser, users: nextUsers }
 }
 
@@ -80,6 +106,7 @@ export function updateUser(users, username, updates = {}) {
   const updated = normalizeUser({ ...target, ...updates, updated_at: new Date().toISOString() })
   const nextUsers = users.map(user => user.username === username ? updated : user)
   persistUsers(nextUsers)
+  syncUserToBackend(updated)
   return { user: updated, users: nextUsers }
 }
 

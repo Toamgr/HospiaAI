@@ -1,7 +1,7 @@
 ﻿export const TEXT = {
   en: {
     app: {
-      name: 'HOSPIA',
+      name: 'HESTIA',
       suffix: 'AI',
       tagline: 'Hospitality Intelligence OS',
       secureAccess: 'Secure Access',
@@ -39,7 +39,7 @@
       planning: 'Event CRM, calculators, run-of-show, and pipeline',
       staffProgression: 'Team readiness, practice, incident exposure, and coaching',
       academy: 'Courses, service standards, lessons, and approved knowledge',
-      barManagement: 'Cocktail creation and approval pipeline',
+      barManagement: 'Cocktail R&D, costing, and menu approval pipeline',
       ownerIntelligence: 'Reports, approvals, profit leaks, memory, and strategy',
       system: 'Owner workspace preferences'
     },
@@ -63,7 +63,12 @@
       sopSheets: 'Service',
       knowledgeLibrary: 'Knowledge Library',
       wineKnowledge: 'Wine Academy / Wine Knowledge',
-      cocktailLab: 'Cocktail Lab / Flavor Agent',
+      cocktailLab: 'Cocktail Lab',
+      foodCostTables: 'Food Cost Tables',
+      approvedCocktailsBar: 'Approved Cocktails',
+      cocktailLibrary: 'Cocktail Library',
+      inventoryOverview: 'Inventory Overview',
+      barReports: 'Bar Reports',
       approvedCocktails: 'Approved Cocktails Library',
       learningProgress: 'Learning Progress',
       executiveOverview: 'Executive Overview',
@@ -103,7 +108,7 @@
     },
     copy: {
       commandTitle: 'Your venue needs attention in three areas before tonight.',
-      commandBody: 'HOSPIA turns service signals into operational action before they become revenue loss.',
+      commandBody: 'HESTIA turns service signals into operational action before they become revenue loss.',
       ownerTitle: 'Executive business intelligence for hidden leaks.',
       managerTitle: 'Daily execution intelligence for the floor.',
       academyTitle: 'Curated hospitality standards for every role.',
@@ -117,7 +122,7 @@
   },
   he: {
     app: {
-      name: 'HOSPIA',
+      name: 'HESTIA',
       suffix: 'AI',
       tagline: '׳׳¢׳¨׳›׳× ׳‘׳™׳ ׳” ׳×׳₪׳¢׳•׳׳™׳× ׳׳¢׳•׳׳ ׳”׳׳™׳¨׳•׳—',
       secureAccess: '׳›׳ ׳™׳¡׳” ׳׳׳•׳‘׳˜׳—׳×',
@@ -198,7 +203,7 @@
     },
     copy: {
       commandTitle: '׳”׳¢׳¡׳§ ׳¦׳¨׳™׳ ׳×׳©׳•׳׳× ׳׳‘ ׳‘׳©׳׳•׳©׳” ׳׳–׳•׳¨׳™׳ ׳׳₪׳ ׳™ ׳”׳¢׳¨׳‘.',
-      commandBody: 'HOSPIA ׳׳×׳¨׳’׳׳× ׳׳™׳×׳•׳×׳™ ׳©׳™׳¨׳•׳× ׳׳₪׳¢׳•׳׳” ׳×׳₪׳¢׳•׳׳™׳× ׳׳₪׳ ׳™ ׳©׳”׳ ׳”׳•׳₪׳›׳™׳ ׳׳׳•׳‘׳“׳ ׳”׳›׳ ׳¡׳”.',
+      commandBody: 'HESTIA ׳׳×׳¨׳’׳׳× ׳׳™׳×׳•׳×׳™ ׳©׳™׳¨׳•׳× ׳׳₪׳¢׳•׳׳” ׳×׳₪׳¢׳•׳׳™׳× ׳׳₪׳ ׳™ ׳©׳”׳ ׳”׳•׳₪׳›׳™׳ ׳׳׳•׳‘׳“׳ ׳”׳›׳ ׳¡׳”.',
       ownerTitle: '׳׳•׳“׳™׳¢׳™׳ ׳¢׳¡׳§׳™ ׳׳‘׳¢׳׳™׳ ׳©׳׳–׳”׳” ׳“׳׳™׳₪׳•׳× ׳ ׳¡׳×׳¨׳•׳×.',
       managerTitle: '׳׳•׳“׳™׳¢׳™׳ ׳‘׳™׳¦׳•׳¢ ׳™׳•׳׳™ ׳׳¨׳¦׳₪׳× ׳”׳©׳™׳¨׳•׳×.',
       academyTitle: '׳¡׳˜׳ ׳“׳¨׳˜׳™׳ ׳׳§׳¦׳•׳¢׳™׳™׳ ׳׳›׳ ׳×׳₪׳§׳™׳“ ׳‘׳׳¢׳¨׳›׳×.',

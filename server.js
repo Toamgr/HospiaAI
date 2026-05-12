@@ -25,7 +25,7 @@ const ACCESS_CODES = {
 };
 
 const SYSTEM = `
-You are HOSPIA AI - an elite hospitality intelligence system built to train, guide, and elevate restaurants, bars, boutique hotels, luxury venues, and premium guest-facing teams.
+You are HESTIA AI - an elite hospitality intelligence system built to train, guide, and elevate restaurants, bars, boutique hotels, luxury venues, and premium guest-facing teams.
 
 Guests are not customers. Guests are people we host.
 
@@ -165,7 +165,30 @@ db.exec(`
     updated_at TEXT NOT NULL,
     FOREIGN KEY (venue_id) REFERENCES venues(id)
   );
+
+  CREATE TABLE IF NOT EXISTS hospia_users (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL,
+    venue TEXT NOT NULL DEFAULT 'Main Venue',
+    team TEXT NOT NULL DEFAULT 'Front of House',
+    can_manage_cocktails INTEGER NOT NULL DEFAULT 0,
+    disabled INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
+
+for (const [col, def] of [
+  ["severity",    "TEXT DEFAULT 'medium'"],
+  ["root_cause",  "TEXT"],
+  ["resolved_at", "TEXT"],
+  ["updated_at",  "TEXT"],
+  ["shift_id",    "TEXT"],
+]) {
+  try { db.exec(`ALTER TABLE incidents ADD COLUMN ${col} ${def}`); } catch { /* already exists */ }
+}
 
 seedDatabase();
 
@@ -186,7 +209,7 @@ function seedDatabase() {
   if (!existingVenue) {
     db.prepare("INSERT INTO venues (id, name, venue_type, created_at) VALUES (?, ?, ?, ?)").run(
       defaultVenueId(),
-      "HOSPIA Flagship Venue",
+      "HESTIA Flagship Venue",
       "premium-restaurant-events",
       nowIso()
     );
@@ -207,41 +230,6 @@ function seedDatabase() {
     }
   }
 
-  const memoryCount = db.prepare("SELECT COUNT(*) AS count FROM business_memory").get().count;
-  if (!memoryCount) {
-    const memories = [
-      ["alert", "Delay communication failure", "Three tables waited 35+ minutes without proactive update. Estimated preventable loss: NIS 420.", "2026-05-03"],
-      ["win", "Recovery certification completed", "Noa reached full recovery certification and should mentor at-risk staff.", "2026-05-02"],
-      ["note", "Beverage upsell conversion improved", "Second-drink recommendations improved after pre-shift training.", "2026-04-30"]
-    ];
-    for (const [type, title, detail, eventDate] of memories) {
-      db.prepare("INSERT INTO business_memory (id, venue_id, type, title, detail, event_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
-        id("memory"),
-        defaultVenueId(),
-        type,
-        title,
-        detail,
-        eventDate,
-        nowIso()
-      );
-    }
-  }
-
-  const actionCount = db.prepare("SELECT COUNT(*) AS count FROM actions").get().count;
-  if (!actionCount) {
-    const actions = [
-      ["urgent", "Brief floor team on delay communication before dinner service", "Manager", "Today 17:00", "Kitchen delays triggered guest complaints last Friday", "serviceRecovery", 0],
-      ["urgent", "Open coaching plan for Dana P. - At Risk status", "Manager", "Today", "31% academy progress and 55% simulation score", "staffReadiness", 0],
-      ["high", "Run complaint recovery simulation with Oren and Dana", "Shift Lead", "Tomorrow", "Recovery score below 70% for both staff members", "simulation", 0],
-      ["normal", "Assign Natural Upselling module to bar and floor team", "Manager", "This week", "Beverage upsell leak estimated at NIS 6.2k per month", "courses", 1]
-    ];
-    for (const action of actions) {
-      db.prepare(`
-        INSERT INTO actions (id, venue_id, priority, title, owner, due, signal, page, done, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(id("action"), defaultVenueId(), ...action, nowIso(), nowIso());
-    }
-  }
 }
 
 function roleFromRequest(req) {
@@ -470,7 +458,10 @@ app.patch("/api/actions/:id", requireRole("manager", "bar_manager", "admin"), (r
 
 app.get("/api/incidents", requireRole("manager", "bar_manager", "owner", "admin"), (req, res) => {
   const rows = db.prepare(`
-    SELECT * FROM incidents WHERE venue_id = ? ORDER BY created_at DESC LIMIT 100
+    SELECT id, venue_id, type, description, table_number, resolved, resolution,
+           compensation, reported_by, shift_date, created_at,
+           severity, root_cause, resolved_at, updated_at, shift_id
+    FROM incidents WHERE venue_id = ? ORDER BY created_at DESC LIMIT 100
   `).all(defaultVenueId());
   res.json({ incidents: rows.map(r => ({ ...r, resolved: Boolean(r.resolved) })) });
 });
@@ -487,13 +478,18 @@ app.post("/api/incidents", requireRole("manager", "bar_manager", "employee", "ad
     compensation: String(req.body.compensation || ""),
     reported_by: String(req.body.reported_by || req.body.reportedBy || ""),
     shift_date: String(req.body.shift_date || req.body.date || new Date().toISOString().slice(0, 10)),
+    severity: String(req.body.severity || "medium"),
+    root_cause: req.body.root_cause ? String(req.body.root_cause) : null,
+    shift_id: req.body.shift_id ? String(req.body.shift_id) : null,
+    resolved_at: null,
+    updated_at: nowIso(),
     created_at: nowIso()
   };
 
   db.prepare(`
-    INSERT OR IGNORE INTO incidents (id, venue_id, type, description, table_number, resolved, resolution, compensation, reported_by, shift_date, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(incident.id, incident.venue_id, incident.type, incident.description, incident.table_number, incident.resolved, incident.resolution, incident.compensation, incident.reported_by, incident.shift_date, incident.created_at);
+    INSERT OR IGNORE INTO incidents (id, venue_id, type, description, table_number, resolved, resolution, compensation, reported_by, shift_date, created_at, severity, root_cause, shift_id, resolved_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(incident.id, incident.venue_id, incident.type, incident.description, incident.table_number, incident.resolved, incident.resolution, incident.compensation, incident.reported_by, incident.shift_date, incident.created_at, incident.severity, incident.root_cause, incident.shift_id, incident.resolved_at, incident.updated_at);
 
   db.prepare("INSERT INTO business_memory (id, venue_id, type, title, detail, event_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
     id("memory"), defaultVenueId(), "alert",
@@ -503,6 +499,38 @@ app.post("/api/incidents", requireRole("manager", "bar_manager", "employee", "ad
   );
 
   res.status(201).json({ incident: { ...incident, resolved: Boolean(incident.resolved) } });
+});
+
+app.patch("/api/incidents/:id", requireRole("manager", "bar_manager", "admin"), (req, res) => {
+  const fields = [];
+  const values = [];
+
+  if (req.body.resolved !== undefined)    { fields.push("resolved = ?");    values.push(req.body.resolved ? 1 : 0); }
+  if (req.body.resolution !== undefined)  { fields.push("resolution = ?");  values.push(String(req.body.resolution)); }
+  if (req.body.resolved_at !== undefined) { fields.push("resolved_at = ?"); values.push(String(req.body.resolved_at)); }
+  if (req.body.severity !== undefined)    { fields.push("severity = ?");    values.push(String(req.body.severity)); }
+  if (req.body.root_cause !== undefined)  { fields.push("root_cause = ?");  values.push(String(req.body.root_cause)); }
+  if (req.body.shift_id !== undefined)    { fields.push("shift_id = ?");    values.push(String(req.body.shift_id)); }
+
+  if (!fields.length) {
+    return res.status(400).json({ error: "No valid fields provided." });
+  }
+
+  fields.push("updated_at = ?");
+  values.push(nowIso());
+
+  db.prepare(`UPDATE incidents SET ${fields.join(", ")} WHERE id = ? AND venue_id = ?`).run(
+    ...values, req.params.id, defaultVenueId()
+  );
+
+  const row = db.prepare(`
+    SELECT id, venue_id, type, description, table_number, resolved, resolution,
+           compensation, reported_by, shift_date, created_at,
+           severity, root_cause, resolved_at, updated_at, shift_id
+    FROM incidents WHERE id = ?
+  `).get(req.params.id);
+  if (!row) return res.status(404).json({ error: "Incident not found." });
+  res.json({ incident: { ...row, resolved: Boolean(row.resolved) } });
 });
 
 app.post("/api/business-memory", requireRole("manager", "bar_manager", "owner", "admin"), (req, res) => {
@@ -692,7 +720,7 @@ Evaluate:
   }
 });
 
-app.post("/api/analyze", async (req, res) => {
+app.post("/api/analyze", requireRole("manager", "bar_manager", "owner", "admin"), async (req, res) => {
   try {
     const data =
       req.body?.complaintSummary ||
@@ -720,6 +748,83 @@ Return:
   }
 });
 
+function huspiaUserRow(row) {
+  return {
+    id: row.id,
+    username: row.username,
+    password: row.password,
+    role: row.role,
+    venue: row.venue,
+    team: row.team,
+    canManageCocktails: Boolean(row.can_manage_cocktails),
+    disabled: Boolean(row.disabled),
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
+
+app.get("/api/users", requireRole("manager", "bar_manager", "owner", "admin"), (req, res) => {
+  const rows = db.prepare("SELECT * FROM hospia_users ORDER BY created_at ASC").all();
+  res.json({ users: rows.map(huspiaUserRow) });
+});
+
+app.post("/api/users", requireRole("owner", "admin"), (req, res) => {
+  const existing = db.prepare("SELECT id FROM hospia_users WHERE username = ? COLLATE NOCASE").get(String(req.body.username || "").trim());
+  const userId = (req.body.id && !existing) ? req.body.id : (existing ? existing.id : id("huser"));
+  const now = nowIso();
+
+  if (existing) {
+    db.prepare(`UPDATE hospia_users SET username=?,password=?,role=?,venue=?,team=?,can_manage_cocktails=?,disabled=?,updated_at=? WHERE id=?`).run(
+      String(req.body.username || "").trim(),
+      String(req.body.password || ""),
+      String(req.body.role || "employee"),
+      String(req.body.venue || "Main Venue"),
+      String(req.body.team || "Front of House"),
+      req.body.canManageCocktails ? 1 : 0,
+      req.body.disabled ? 1 : 0,
+      now,
+      existing.id
+    );
+  } else {
+    db.prepare(`INSERT INTO hospia_users (id,username,password,role,venue,team,can_manage_cocktails,disabled,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`).run(
+      userId,
+      String(req.body.username || "").trim(),
+      String(req.body.password || ""),
+      String(req.body.role || "employee"),
+      String(req.body.venue || "Main Venue"),
+      String(req.body.team || "Front of House"),
+      req.body.canManageCocktails ? 1 : 0,
+      req.body.disabled ? 1 : 0,
+      req.body.created_at || now,
+      now
+    );
+  }
+
+  const saved = db.prepare("SELECT * FROM hospia_users WHERE id=?").get(userId) || db.prepare("SELECT * FROM hospia_users WHERE username=? COLLATE NOCASE").get(String(req.body.username || "").trim());
+  res.status(existing ? 200 : 201).json({ user: huspiaUserRow(saved) });
+});
+
+app.patch("/api/users/:id", requireRole("owner", "admin"), (req, res) => {
+  const row = db.prepare("SELECT * FROM hospia_users WHERE id=?").get(req.params.id);
+  if (!row) return res.status(404).json({ error: "User not found." });
+
+  const fields = [];
+  const values = [];
+  if (req.body.username !== undefined) { fields.push("username=?"); values.push(String(req.body.username).trim()); }
+  if (req.body.password !== undefined) { fields.push("password=?"); values.push(String(req.body.password)); }
+  if (req.body.role !== undefined) { fields.push("role=?"); values.push(String(req.body.role)); }
+  if (req.body.venue !== undefined) { fields.push("venue=?"); values.push(String(req.body.venue)); }
+  if (req.body.team !== undefined) { fields.push("team=?"); values.push(String(req.body.team)); }
+  if (req.body.canManageCocktails !== undefined) { fields.push("can_manage_cocktails=?"); values.push(req.body.canManageCocktails ? 1 : 0); }
+  if (req.body.disabled !== undefined) { fields.push("disabled=?"); values.push(req.body.disabled ? 1 : 0); }
+  fields.push("updated_at=?");
+  values.push(nowIso());
+
+  db.prepare(`UPDATE hospia_users SET ${fields.join(",")} WHERE id=?`).run(...values, req.params.id);
+  const updated = db.prepare("SELECT * FROM hospia_users WHERE id=?").get(req.params.id);
+  res.json({ user: huspiaUserRow(updated) });
+});
+
 app.get("/api/health", (req, res) => {
   const tables = db.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table'").get().count;
   res.json({
@@ -734,6 +839,6 @@ app.get("/api/health", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`HOSPIA backend running on http://localhost:${PORT}`);
-  console.log(`HOSPIA SQLite database: ${DB_PATH}`);
+  console.log(`HESTIA backend running on http://localhost:${PORT}`);
+  console.log(`HESTIA SQLite database: ${DB_PATH}`);
 });

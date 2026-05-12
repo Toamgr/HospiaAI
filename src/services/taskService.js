@@ -1,31 +1,12 @@
 import { STORAGE } from '../config/systemConfig'
 import { readStoredArray, writeStoredValue } from '../lib/storage'
-import { fetchActions, createAction, updateActionDone } from './api/actionsApi'
+import { createAction, updateActionDone } from './api/actionsApi'
 
 export const TASK_STATUSES = ['New', 'In Progress', 'Waiting', 'Completed', 'Archived']
 export const TASK_PRIORITIES = ['Low', 'Medium', 'High', 'Critical']
 
 export function loadTasks() {
   return readStoredArray(STORAGE.actionItems, [])
-}
-
-export async function syncTasksFromBackend() {
-  try {
-    const actions = await fetchActions()
-    if (actions.length) {
-      const normalized = actions.map(a => ({
-        ...a,
-        status: a.done ? 'Completed' : (a.status || 'New'),
-        priority: a.priority || 'Medium',
-        comments: a.comments || []
-      }))
-      writeStoredValue(STORAGE.actionItems, normalized)
-      return normalized
-    }
-  } catch {
-    // backend unavailable
-  }
-  return loadTasks()
 }
 
 export function saveTask(task) {
