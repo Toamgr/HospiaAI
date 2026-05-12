@@ -184,6 +184,12 @@ export function getProductsForIngredient(ingredientName) {
   return [...products].sort((a, b) => a.brand.localeCompare(b.brand))
 }
 
+// Returns the CPM the adapter would use without an explicit product_id (Priority 1/2/3 only).
+// Used by the UI to compute the cost delta when a product is linked.
+export function getIngredientFallbackCpm(ingredientName) {
+  return resolveByName(ingredientName).cpm
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 // Accepts either:
 //   buildCostSheet(ingredientsMlArray, targetPrice)      ← CocktailLabStudio call-site

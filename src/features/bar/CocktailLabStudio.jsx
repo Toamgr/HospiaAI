@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { requestCocktailProposal } from '../../services/cocktailService'
-import { buildCostSheet, getProductById, getProductsForIngredient } from '../../domain/hospitality/bar/cocktailLabPricingAdapter.js'
+import { buildCostSheet, getProductById, getProductsForIngredient, getIngredientFallbackCpm } from '../../domain/hospitality/bar/cocktailLabPricingAdapter.js'
 
 // ─── Flavor & Cost Logic ─────────────────────────────────────────────────────
 
@@ -306,7 +306,86 @@ function SpecRow({ ingredient, ml, role }) {
   )
 }
 
-function CostRow({ ingredient, ml, cpm, total, isExplicitlyLinked, linkedProductName, isLinking, suggestedProducts, onLink, onUnlink, onSelectProduct, onCancelLink }) {
+// ─── Product Picker ───────────────────────────────────────────────────────────
+// Styled inline listbox — replaces the native <select> which ignores dark-theme CSS.
+
+function ProductPicker({ suggestedProducts, onSelect, onCancel }) {
+  const [query, setQuery] = useState('')
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return suggestedProducts
+    return suggestedProducts.filter(p =>
+      p.brand.toLowerCase().includes(q) ||
+      p.product_name.toLowerCase().includes(q) ||
+      (p.category_id || '').toLowerCase().includes(q)
+    )
+  }, [query, suggestedProducts])
+
+  return (
+    <div className="mt-2 overflow-hidden rounded-xl border border-[#c9a96e]/20 bg-[#0d0c0a]">
+      {/* Search bar */}
+      <div className="flex items-center gap-2 border-b border-[#c9a96e]/10 px-3 py-2">
+        <input
+          autoFocus
+          type="text"
+          placeholder="Search products…"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          className="min-w-0 flex-1 bg-transparent text-[11px] text-[#e8dcc0] outline-none placeholder:text-[#e8dcc0]/25"
+        />
+        <button
+          onClick={onCancel}
+          className="shrink-0 text-[9px] text-[#e8dcc0]/30 transition-colors hover:text-[#e8dcc0]/60"
+        >✕</button>
+      </div>
+
+      {/* Product list */}
+      <div className="max-h-52 overflow-y-auto">
+        {filtered.length === 0 ? (
+          <div className="px-3 py-3 text-[10px] text-[#e8dcc0]/30">
+            No matching products — fallback costing will be used.
+          </div>
+        ) : (
+          filtered.map(p => {
+            const cpm = p.benchmark_price_nis && p.bottle_size_ml
+              ? (p.benchmark_price_nis / p.bottle_size_ml).toFixed(3)
+              : null
+            return (
+              <button
+                key={p.product_id}
+                onClick={() => onSelect(p.product_id)}
+                className="w-full border-b border-[#c9a96e]/06 px-3 py-2 text-left transition-colors last:border-0 hover:bg-[#c9a96e]/08"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="text-[11px] font-medium text-[#e8dcc0]">{p.brand}</span>
+                    {p.product_name !== p.brand && (
+                      <span className="ml-1 text-[10px] text-[#e8dcc0]/50">{p.product_name}</span>
+                    )}
+                  </div>
+                  {cpm && (
+                    <span className="shrink-0 font-mono text-[10px] text-[#c9a96e]">₪{cpm}/ml</span>
+                  )}
+                </div>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <span className="text-[9px] text-[#e8dcc0]/30">{p.bottle_size_ml}ml</span>
+                  <span className="text-[9px] text-[#e8dcc0]/20">·</span>
+                  <span className="text-[9px] text-[#e8dcc0]/30">{(p.category_id || '').replace(/_/g, ' ')}</span>
+                  <span className="ml-auto rounded-full border border-amber-800/25 bg-amber-950/15 px-1.5 py-0.5 text-[8px] text-amber-400/70">est.</span>
+                </div>
+              </button>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Cost Row ─────────────────────────────────────────────────────────────────
+
+function CostRow({ ingredient, ml, cpm, total, isExplicitlyLinked, linkedProductName, cpmDelta, isLinking, suggestedProducts, onLink, onUnlink, onSelectProduct, onCancelLink }) {
   return (
     <div className="border-b border-[#c9a96e]/08 py-2.5 text-xs">
       <div className="grid grid-cols-[1fr_40px_60px_60px] items-center gap-2">
@@ -322,35 +401,43 @@ function CostRow({ ingredient, ml, cpm, total, isExplicitlyLinked, linkedProduct
       </div>
 
       {isExplicitlyLinked && !isLinking && (
-        <div className="mt-0.5 flex items-center gap-2">
-          {linkedProductName && <span className="truncate max-w-[200px] text-[9px] text-[#e8dcc0]/30">{linkedProductName}</span>}
-          <button onClick={onUnlink} className="shrink-0 text-[9px] text-[#e8dcc0]/25 transition-colors hover:text-red-400/60">Unlink</button>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+          {linkedProductName && (
+            <span className="truncate max-w-[180px] text-[9px] text-[#e8dcc0]/30">{linkedProductName}</span>
+          )}
+          {cpmDelta != null && (
+            <span className={`font-mono text-[9px] ${
+              Math.abs(cpmDelta) < 0.001
+                ? 'text-[#e8dcc0]/30'
+                : cpmDelta > 0
+                  ? 'text-orange-400/70'
+                  : 'text-emerald-400/70'
+            }`}>
+              {Math.abs(cpmDelta) < 0.001
+                ? 'Same as estimate'
+                : `${cpmDelta > 0 ? '+' : ''}₪${cpmDelta.toFixed(3)}/ml vs estimate`}
+            </span>
+          )}
+          <button
+            onClick={onUnlink}
+            className="ml-auto shrink-0 text-[9px] text-[#e8dcc0]/25 transition-colors hover:text-red-400/60"
+          >Unlink</button>
         </div>
       )}
 
       {!isExplicitlyLinked && !isLinking && (
-        <button onClick={onLink} className="mt-0.5 text-[9px] text-[#e8dcc0]/25 transition-colors hover:text-[#c9a96e]/60">
-          + Link product
-        </button>
+        <button
+          onClick={onLink}
+          className="mt-0.5 text-[9px] text-[#e8dcc0]/25 transition-colors hover:text-[#c9a96e]/60"
+        >+ Link product</button>
       )}
 
       {isLinking && (
-        <div className="mt-2 space-y-1">
-          <select
-            autoFocus
-            defaultValue=""
-            onChange={e => { if (e.target.value) onSelectProduct(e.target.value) }}
-            className="w-full rounded-lg border border-[#c9a96e]/20 bg-[#0f0e0b] px-2 py-1.5 text-[11px] text-[#e8dcc0] outline-none focus:border-[#c9a96e]/40"
-          >
-            <option value="" disabled>Select product…</option>
-            {suggestedProducts.map(p => (
-              <option key={p.product_id} value={p.product_id}>
-                {p.brand}{p.product_name !== p.brand ? ` — ${p.product_name}` : ''} ({p.bottle_size_ml}ml{p.benchmark_price_nis ? `, ₪${p.benchmark_price_nis}` : ''})
-              </option>
-            ))}
-          </select>
-          <button onClick={onCancelLink} className="text-[9px] text-[#e8dcc0]/25 transition-colors hover:text-[#e8dcc0]/50">Cancel</button>
-        </div>
+        <ProductPicker
+          suggestedProducts={suggestedProducts}
+          onSelect={onSelectProduct}
+          onCancel={onCancelLink}
+        />
       )}
     </div>
   )
@@ -394,14 +481,14 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
   const [showCost, setShowCost] = useState(true)
   const [approvedLocal, setApprovedLocal] = useState(false)
 
-  // ingredientLinks: keyed by ingredient name → { product_id, product_name, product_category,
-  //   product_confidence_level, product_data_status }. Initialized from any product_id fields
-  // already on the saved proposal (backward-compatible: proposals without them start empty).
+  // ingredientLinks: keyed by ingredient INDEX (not name) to prevent duplicate-name collisions.
+  // Initialized from product_id fields already on saved ingredient rows (backward-compatible:
+  // Phase 3 drafts stored product_id directly on ingredientsMl entries, which we read here).
   const [ingredientLinks, setIngredientLinks] = useState(() => {
     const links = {}
-    ;(proposal.ingredientsMl || proposal.ingredientObjects || []).forEach(ing => {
+    ;(proposal.ingredientsMl || proposal.ingredientObjects || []).forEach((ing, i) => {
       if (ing.product_id) {
-        links[ing.ingredient] = {
+        links[i] = {
           product_id: ing.product_id,
           product_name: ing.product_name || null,
           product_category: ing.product_category || null,
@@ -412,15 +499,23 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
     })
     return links
   })
-  const [linkingIngredient, setLinkingIngredient] = useState(null)
+  // linkingIdx: the ings[] index of the row currently showing the picker, or null.
+  const [linkingIdx, setLinkingIdx] = useState(null)
 
   const ings = proposal.ingredientsMl || proposal.ingredientObjects || []
 
-  // mergedIngs injects product_id and related fields from local link state into the ingredient
-  // array before costing so the adapter can use Priority 0 resolution.
+  // mergedIngs injects product_id and related fields from local link state (index-keyed) into
+  // the ingredient array before costing so the adapter can use Priority 0 resolution.
   const mergedIngs = useMemo(
-    () => ings.map(ing => ingredientLinks[ing.ingredient] ? { ...ing, ...ingredientLinks[ing.ingredient] } : ing),
+    () => ings.map((ing, i) => ingredientLinks[i] ? { ...ing, ...ingredientLinks[i] } : ing),
     [ings, ingredientLinks]
+  )
+
+  // nonZeroIndices: maps cost.rows[j] → original ings[] index. Needed because buildCostSheet
+  // filters out 0-ml ingredients, so cost row j ≠ ings index j.
+  const nonZeroIndices = useMemo(
+    () => ings.reduce((acc, ing, i) => { if ((ing.amountMl || 0) > 0) acc.push(i); return acc }, []),
+    [ings]
   )
 
   const profile = useMemo(() => inferFlavorProfile(proposal, adjust), [proposal, adjust])
@@ -429,11 +524,12 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
   const chips = useMemo(() => trainingChips(proposal, profile), [proposal, profile])
 
   // Merges current ingredient links back into the proposal before saving to localStorage.
+  // Writes product_id and related fields directly onto each ingredientsMl entry by index.
   const proposalWithLinks = (overrides = {}) => ({
     ...proposal,
     name: editName,
     ...overrides,
-    ingredientsMl: ings.map(ing => ({ ...ing, ...(ingredientLinks[ing.ingredient] || {}) })),
+    ingredientsMl: ings.map((ing, i) => ({ ...ing, ...(ingredientLinks[i] || {}) })),
   })
 
   const handleApprove = () => { setApprovedLocal(true); onApprove?.(proposalWithLinks()) }
@@ -559,27 +655,33 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
               <span>Ingredient</span><span className="text-right">ml</span><span className="text-right">Cost/ml</span><span className="text-right">Total</span>
             </div>
             <div className="divide-y divide-[#c9a96e]/06">
-              {cost.rows.map((r, i) => {
-                const link = ingredientLinks[r.ingredient]
+              {cost.rows.map((r, j) => {
+                const ingIdx = nonZeroIndices[j]
+                const link = ingredientLinks[ingIdx]
+                // cpmDelta: difference between linked CPM and what fallback would have used.
+                // Computed only when explicitly linked so we don't call fallback on every render.
+                const fallbackCpm = link ? getIngredientFallbackCpm(r.ingredient) : null
+                const cpmDelta = link != null ? r.cpm - fallbackCpm : null
                 return (
                   <CostRow
-                    key={i}
+                    key={j}
                     {...r}
                     isExplicitlyLinked={!!link}
                     linkedProductName={link?.product_name}
-                    isLinking={linkingIngredient === r.ingredient}
+                    cpmDelta={cpmDelta}
+                    isLinking={linkingIdx === ingIdx}
                     suggestedProducts={getProductsForIngredient(r.ingredient)}
-                    onLink={() => setLinkingIngredient(r.ingredient)}
+                    onLink={() => setLinkingIdx(ingIdx)}
                     onUnlink={() => {
-                      setIngredientLinks(prev => { const n = { ...prev }; delete n[r.ingredient]; return n })
-                      setLinkingIngredient(null)
+                      setIngredientLinks(prev => { const n = { ...prev }; delete n[ingIdx]; return n })
+                      setLinkingIdx(null)
                     }}
                     onSelectProduct={pid => {
                       const product = getProductById(pid)
                       if (product) {
                         setIngredientLinks(prev => ({
                           ...prev,
-                          [r.ingredient]: {
+                          [ingIdx]: {
                             product_id: pid,
                             product_name: `${product.brand} ${product.product_name}`.trim(),
                             product_category: product.category_id,
@@ -588,9 +690,9 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
                           },
                         }))
                       }
-                      setLinkingIngredient(null)
+                      setLinkingIdx(null)
                     }}
-                    onCancelLink={() => setLinkingIngredient(null)}
+                    onCancelLink={() => setLinkingIdx(null)}
                   />
                 )
               })}
