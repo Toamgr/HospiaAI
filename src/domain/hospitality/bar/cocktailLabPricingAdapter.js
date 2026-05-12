@@ -146,14 +146,18 @@ function resolveIngredient(ingredientName, product_id = null) {
   // Priority 0: explicit product_id — direct seed lookup, no name guessing.
   if (product_id) {
     const p = SEED_ID_MAP[product_id]
-    if (p && p.benchmark_price_nis && p.bottle_size_ml) {
+    if (p && p.bottle_size_ml) {
+      const priceForCosting = (p.actual_venue_price_nis != null && p.data_status === 'verified_source_backed')
+        ? p.actual_venue_price_nis
+        : p.benchmark_price_nis
+      if (!priceForCosting) return { ...resolveByName(ingredientName), _missing_linked_product: false }
       return {
-        cpm: p.benchmark_price_nis / p.bottle_size_ml,
+        cpm: priceForCosting / p.bottle_size_ml,
         match_type: 'product_id',
         product_id: p.product_id,
         product_name: `${p.brand} ${p.product_name}`.trim(),
-        confidence: 'medium',
-        data_status: 'benchmark_estimate',
+        confidence: p.confidence_level || 'medium',
+        data_status: p.data_status || 'benchmark_estimate',
         _missing_linked_product: false,
       }
     }

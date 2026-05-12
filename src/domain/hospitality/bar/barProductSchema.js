@@ -57,7 +57,9 @@ export function createBarProduct({
 
 // The computed pricing view — what BottlePrices UI renders per product
 export function createPriceOutputCard(product) {
-  const priceForCosting = product.actual_venue_price_nis ?? product.benchmark_price_nis
+  const priceForCosting = (product.actual_venue_price_nis != null && product.data_status === 'verified_source_backed')
+    ? product.actual_venue_price_nis
+    : product.benchmark_price_nis
   const hasPrice = priceForCosting != null
   const cpm = hasPrice ? priceForCosting / product.bottle_size_ml : null
 
