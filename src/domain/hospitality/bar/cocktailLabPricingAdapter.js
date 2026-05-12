@@ -1,7 +1,8 @@
 // Shared pricing adapter — connects Cocktail Lab ingredient format to the bar product seed.
 //
 // Matching priority:
-//   0. Explicit product_id on the ingredient  (benchmark_estimate, medium confidence)
+//   0. Explicit product_id on the ingredient  — uses local verified override if one exists,
+//      otherwise seed benchmark  (confidence reflects product's actual data_status)
 //   1. Exact seed brand / product-name match  (benchmark_estimate, medium confidence)
 //   2. Category average from seed             (benchmark_estimate, medium confidence)
 //   3. Original COST_DB fallback              (operational_assumption, low confidence)
@@ -14,6 +15,7 @@
 // pourCost remains ingredient cost as % of menu price (traditional bar metric).
 
 import { BAR_PRODUCT_SEED } from './barProductSeed.placeholders.js'
+import { getEffectiveProduct } from './verifiedPriceStorage.js'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -143,9 +145,10 @@ function resolveByName(ingredientName) {
 }
 
 function resolveIngredient(ingredientName, product_id = null) {
-  // Priority 0: explicit product_id — direct seed lookup, no name guessing.
+  // Priority 0: explicit product_id — returns verified local override if one exists,
+  // falls back to seed benchmark. getEffectiveProduct fails safely (never throws).
   if (product_id) {
-    const p = SEED_ID_MAP[product_id]
+    const p = getEffectiveProduct(product_id)
     if (p && p.bottle_size_ml) {
       const priceForCosting = (p.actual_venue_price_nis != null && p.data_status === 'verified_source_backed')
         ? p.actual_venue_price_nis
