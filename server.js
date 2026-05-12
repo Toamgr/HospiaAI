@@ -53,7 +53,7 @@ app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", origin || "*");
   }
   res.header("Vary", "Origin");
-  res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type,X-HOSPIA-Role");
 
   if (req.method === "OPTIONS") {
@@ -177,6 +177,15 @@ db.exec(`
     disabled INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS verified_price_overrides (
+    product_id             TEXT NOT NULL,
+    venue_id               TEXT NOT NULL,
+    normalized_update_json TEXT NOT NULL,
+    saved_by               TEXT NOT NULL,
+    saved_at               TEXT NOT NULL,
+    PRIMARY KEY (product_id, venue_id)
   );
 `);
 
@@ -836,6 +845,72 @@ app.get("/api/health", (req, res) => {
       tables
     }
   });
+});
+
+// ─── Verified Price Overrides ─────────────────────────────────────────────────
+// Access note:
+// Frontend canAccessBottlePrices() is the primary identity gate (by username:
+// Omer Sadot, Toam Griffel, Tal Millo). This role gate is secondary defense
+// only for the current local app. Future real auth must enforce exact user
+// identity server-side and must not rely on the X-HOSPIA-Role header alone.
+
+app.get("/api/verified-price-overrides", requireRole("bar_manager", "owner", "admin"), (req, res) => {
+  const rows = db.prepare(`
+    SELECT product_id, normalized_update_json, saved_by, saved_at
+    FROM verified_price_overrides
+    WHERE venue_id = ?
+  `).all(defaultVenueId());
+
+  const overrides = rows.map(row => {
+    try {
+      return {
+        product_id: row.product_id,
+        normalizedUpdate: JSON.parse(row.normalized_update_json),
+        saved_by: row.saved_by,
+        saved_at: row.saved_at,
+      };
+    } catch {
+      return null;
+    }
+  }).filter(Boolean);
+
+  res.json({ overrides });
+});
+
+app.post("/api/verified-price-overrides/:product_id", requireRole("bar_manager", "owner", "admin"), (req, res) => {
+  const { product_id } = req.params;
+  const { normalizedUpdate, savedBy } = req.body;
+
+  if (!normalizedUpdate || typeof normalizedUpdate !== "object" || Array.isArray(normalizedUpdate)) {
+    return res.status(400).json({ error: "normalizedUpdate is required and must be an object." });
+  }
+  if (normalizedUpdate.product_id !== product_id) {
+    return res.status(400).json({ error: "product_id mismatch between URL and normalizedUpdate." });
+  }
+
+  let json;
+  try {
+    json = JSON.stringify(normalizedUpdate);
+  } catch {
+    return res.status(400).json({ error: "normalizedUpdate is not serializable." });
+  }
+
+  const now = nowIso();
+  db.prepare(`
+    INSERT OR REPLACE INTO verified_price_overrides
+      (product_id, venue_id, normalized_update_json, saved_by, saved_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(product_id, defaultVenueId(), json, String(savedBy || ""), now);
+
+  res.status(201).json({ ok: true, product_id, saved_at: now });
+});
+
+app.delete("/api/verified-price-overrides/:product_id", requireRole("bar_manager", "owner", "admin"), (req, res) => {
+  const { product_id } = req.params;
+  db.prepare(`
+    DELETE FROM verified_price_overrides WHERE product_id = ? AND venue_id = ?
+  `).run(product_id, defaultVenueId());
+  res.json({ ok: true, product_id });
 });
 
 app.listen(PORT, () => {

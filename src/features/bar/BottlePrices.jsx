@@ -13,6 +13,11 @@ import {
   saveVerifiedPriceOverride,
   clearVerifiedPriceOverride,
 } from '../../domain/hospitality/bar/verifiedPriceStorage.js'
+import {
+  fetchVerifiedPriceOverrides,
+  saveVerifiedPriceOverrideToServer,
+  deleteVerifiedPriceOverrideFromServer,
+} from '../../services/api/verifiedPricesApi.js'
 
 const CONFIDENCE_COLORS = {
   high: 'text-emerald-400',
@@ -37,6 +42,13 @@ const SOURCE_TYPE_LABELS = {
 }
 
 const INPUT_CLS = 'w-full rounded-lg border border-[#c9a96e]/20 bg-[#0d0c09] px-3 py-2 text-sm text-[#f5f5f0] placeholder-[#e8dcc0]/20 focus:outline-none focus:border-[#c9a96e]/45 transition-colors'
+
+const SYNC_BADGE = {
+  synced:      { cls: 'border-emerald-800/20 bg-emerald-950/15 text-emerald-500/70', label: 'Synced' },
+  syncing:     { cls: 'border-sky-800/30 bg-sky-950/20 text-sky-400', label: 'Syncing' },
+  local_only:  { cls: 'border-amber-800/30 bg-amber-950/20 text-amber-400', label: 'Local Only' },
+  sync_failed: { cls: 'border-red-800/30 bg-red-950/20 text-red-400', label: 'Sync Failed' },
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -424,7 +436,7 @@ function VerifiedPriceForm({ product, currentUser, hasOverride, onVerified }) {
 
 // ─── Price card ───────────────────────────────────────────────────────────────
 
-function PriceCard({ card, product, currentUser, hasOverride, onVerified, onClear, onClose }) {
+function PriceCard({ card, product, currentUser, hasOverride, syncStatus, onVerified, onClear, onClose }) {
   const hasPrice = card.price_used_for_costing_nis != null
 
   return (
@@ -440,9 +452,16 @@ function PriceCard({ card, product, currentUser, hasOverride, onVerified, onClea
               {card.confidence_level} confidence
             </span>
             {hasOverride ? (
-              <span className="rounded-full border border-emerald-800/30 bg-emerald-950/25 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-emerald-400">
-                Verified Local Override
-              </span>
+              <>
+                <span className="rounded-full border border-emerald-800/30 bg-emerald-950/25 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-emerald-400">
+                  Verified Local Override
+                </span>
+                {SYNC_BADGE[syncStatus] && (
+                  <span className={`rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-wide ${SYNC_BADGE[syncStatus].cls}`}>
+                    {SYNC_BADGE[syncStatus].label}
+                  </span>
+                )}
+              </>
             ) : (
               <span className="text-[9px] text-[#e8dcc0]/30 uppercase tracking-wide">Benchmark Estimate</span>
             )}
@@ -635,9 +654,55 @@ export default function BottlePrices({ currentUser }) {
     () => loadAllVerifiedPriceOverrides(BAR_PRODUCT_SEED)
   )
 
+  // Per-product sync status: 'synced' | 'local_only' | 'syncing' | 'sync_failed'
+  const [syncStatuses, setSyncStatuses] = useState({})
+
+  // Phase A (sync): after first render, fetch backend overrides and merge.
+  // Backend wins per-product. Local-only products are marked as such.
+  useEffect(() => {
+    const initialLocalIds = new Set(Object.keys(loadAllVerifiedPriceOverrides(BAR_PRODUCT_SEED)))
+
+    fetchVerifiedPriceOverrides().then(backendOverrides => {
+      const nextOverrides = {}
+      const nextStatuses = {}
+      const backendIds = new Set()
+
+      for (const { product_id, normalizedUpdate } of backendOverrides) {
+        const seedProduct = BAR_PRODUCT_SEED.find(p => p.product_id === product_id)
+        if (!seedProduct) continue
+        const { product: updatedProduct, validation } = applyVerifiedPriceUpdate(seedProduct, normalizedUpdate)
+        if (!validation.valid) continue
+        saveVerifiedPriceOverride(product_id, normalizedUpdate)
+        nextOverrides[product_id] = updatedProduct
+        nextStatuses[product_id] = 'synced'
+        backendIds.add(product_id)
+      }
+
+      for (const id of initialLocalIds) {
+        if (!backendIds.has(id)) nextStatuses[id] = 'local_only'
+      }
+
+      if (Object.keys(nextOverrides).length > 0) {
+        setOverrides(prev => ({ ...prev, ...nextOverrides }))
+      }
+      setSyncStatuses(prev => ({ ...prev, ...nextStatuses }))
+    }).catch(() => {
+      const statuses = {}
+      for (const id of initialLocalIds) statuses[id] = 'local_only'
+      setSyncStatuses(statuses)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleVerified(productId, normalizedUpdate, updatedProduct) {
     saveVerifiedPriceOverride(productId, normalizedUpdate)
     setOverrides(prev => ({ ...prev, [productId]: updatedProduct }))
+    setSyncStatuses(prev => ({ ...prev, [productId]: 'syncing' }))
+
+    saveVerifiedPriceOverrideToServer(productId, normalizedUpdate, currentUser?.username ?? '').then(() => {
+      setSyncStatuses(prev => ({ ...prev, [productId]: 'synced' }))
+    }).catch(() => {
+      setSyncStatuses(prev => ({ ...prev, [productId]: 'sync_failed' }))
+    })
   }
 
   function handleClear(productId) {
@@ -646,6 +711,15 @@ export default function BottlePrices({ currentUser }) {
       const next = { ...prev }
       delete next[productId]
       return next
+    })
+    setSyncStatuses(prev => {
+      const next = { ...prev }
+      delete next[productId]
+      return next
+    })
+
+    deleteVerifiedPriceOverrideFromServer(productId).catch(() => {
+      // Fire-and-forget — next mount fetch will restore from backend if DELETE failed
     })
   }
 
@@ -702,7 +776,7 @@ export default function BottlePrices({ currentUser }) {
         <p className="text-sm text-[#e8dcc0]/45">
           Benchmark pricing reference — {BAR_PRODUCT_SEED.length} products
           {overrideCount > 0 && (
-            <span className="text-emerald-400/70"> · {overrideCount} verified locally</span>
+            <span className="text-emerald-400/70"> · {overrideCount} verified</span>
           )}
         </p>
       </div>
@@ -711,7 +785,7 @@ export default function BottlePrices({ currentUser }) {
       <div className="rounded-xl border border-amber-800/25 bg-amber-950/15 px-4 py-3 flex gap-3">
         <span className="text-amber-400 text-sm mt-0.5">⚠</span>
         <p className="text-[11px] text-amber-300/70 leading-relaxed">
-          All prices are benchmark estimates derived from market research. Local overrides reflect entered supplier data only — not Supabase-backed.
+          All prices are benchmark estimates derived from market research. Local overrides reflect entered supplier data only — synced to local backend when available.
           Do not use for final menu pricing without confirming against a current invoice.
         </p>
       </div>
@@ -779,6 +853,7 @@ export default function BottlePrices({ currentUser }) {
           product={effectiveSelectedProduct}
           currentUser={currentUser}
           hasOverride={!!overrides[selectedProductId]}
+          syncStatus={syncStatuses[selectedProductId]}
           onVerified={(normalizedUpdate, updatedProduct) =>
             handleVerified(selectedProductId, normalizedUpdate, updatedProduct)
           }
