@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { canAccessBottlePrices } from '../../config/roleConfig.js'
 import { BAR_PRODUCT_SEED } from '../../domain/hospitality/bar/barProductSeed.placeholders.js'
 import { createPriceOutputCard } from '../../domain/hospitality/bar/barProductSchema.js'
@@ -8,6 +8,11 @@ import {
   validateVerifiedPriceUpdate,
   applyVerifiedPriceUpdate,
 } from '../../domain/hospitality/bar/verifiedPriceIngestion.js'
+import {
+  loadAllVerifiedPriceOverrides,
+  saveVerifiedPriceOverride,
+  clearVerifiedPriceOverride,
+} from '../../domain/hospitality/bar/verifiedPriceStorage.js'
 
 const CONFIDENCE_COLORS = {
   high: 'text-emerald-400',
@@ -67,24 +72,54 @@ function FormField({ label, required, children }) {
 }
 
 // ─── Verified Price Form ──────────────────────────────────────────────────────
+// product: the effective product (override already applied if any exists)
+// hasOverride: true when this product has a stored local override
+// onVerified: called with (normalizedUpdate, updatedProduct) after valid submit
 
-function VerifiedPriceForm({ product, currentUser }) {
+function VerifiedPriceForm({ product, currentUser, hasOverride, onVerified }) {
   const [open, setOpen] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  // Pre-fill from effective product — if override exists, product will carry all fields
   const [fields, setFields] = useState(() => ({
-    actual_venue_price_nis: '',
-    supplier_name: '',
-    source_type: '',
-    source_reference: '',
-    last_verified_at: new Date().toISOString().slice(0, 10),
-    vat_included: '',
-    verified_by: currentUser?.username || '',
-    invoice_number: '',
-    invoice_date: '',
-    store_name: '',
-    supplier_contact: '',
-    notes: '',
+    actual_venue_price_nis: product.actual_venue_price_nis?.toString() ?? '',
+    supplier_name: product.supplier_name ?? '',
+    source_type: product.source_type ?? '',
+    source_reference: product.source_reference ?? '',
+    last_verified_at: product.last_verified_at ?? new Date().toISOString().slice(0, 10),
+    vat_included: product.vat_included != null ? String(product.vat_included) : '',
+    verified_by: product.verified_by ?? currentUser?.username ?? '',
+    invoice_number: product.invoice_number ?? '',
+    invoice_date: product.invoice_date ?? '',
+    store_name: product.store_name ?? '',
+    supplier_contact: product.supplier_contact ?? '',
+    notes: product.notes ?? '',
   }))
+
   const [verifiedProduct, setVerifiedProduct] = useState(null)
+
+  // When the override is cleared from outside (hasOverride: true → false),
+  // reset form fields to empty so stale data is not re-submitted.
+  useEffect(() => {
+    if (!hasOverride) {
+      setFields({
+        actual_venue_price_nis: '',
+        supplier_name: '',
+        source_type: '',
+        source_reference: '',
+        last_verified_at: new Date().toISOString().slice(0, 10),
+        vat_included: '',
+        verified_by: currentUser?.username ?? '',
+        invoice_number: '',
+        invoice_date: '',
+        store_name: '',
+        supplier_contact: '',
+        notes: '',
+      })
+      setVerifiedProduct(null)
+      setSaved(false)
+    }
+  }, [hasOverride]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = useMemo(() => ({
     product_id: product.product_id,
@@ -107,11 +142,16 @@ function VerifiedPriceForm({ product, currentUser }) {
   function set(key, value) {
     setFields(f => ({ ...f, [key]: value }))
     setVerifiedProduct(null)
+    setSaved(false)
   }
 
   function handleSubmit() {
     const result = applyVerifiedPriceUpdate(product, update)
-    if (result.validation.valid) setVerifiedProduct(result.product)
+    if (result.validation.valid) {
+      setVerifiedProduct(result.product)
+      setSaved(true)
+      onVerified?.(result.validation.normalized_update, result.product)
+    }
   }
 
   const verifiedCard = useMemo(
@@ -119,13 +159,15 @@ function VerifiedPriceForm({ product, currentUser }) {
     [verifiedProduct]
   )
 
+  const toggleLabel = hasOverride ? 'Update Verified Price' : 'Add Verified Price'
+
   return (
     <div className="border-t border-[#c9a96e]/10 pt-4">
       <button
         onClick={() => setOpen(o => !o)}
         className="flex w-full items-center justify-between rounded-xl border border-[#c9a96e]/15 bg-[#c9a96e]/04 px-4 py-2.5 text-left transition hover:border-[#c9a96e]/30 hover:bg-[#c9a96e]/07"
       >
-        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9a96e]">Add Verified Price</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9a96e]">{toggleLabel}</span>
         <span className="text-[#c9a96e]/50 text-[10px]">{open ? '▲' : '▼'}</span>
       </button>
 
@@ -303,7 +345,9 @@ function VerifiedPriceForm({ product, currentUser }) {
                 : 'border-[#6b705c]/15 bg-transparent text-[#e8dcc0]/20 cursor-not-allowed'
             }`}
           >
-            {validation.valid ? 'Preview Verified Price' : 'Complete Required Fields to Preview'}
+            {validation.valid
+              ? (hasOverride ? 'Save Updated Verified Price' : 'Save Verified Price Locally')
+              : 'Complete Required Fields to Save'}
           </button>
 
           {/* Verified preview */}
@@ -312,7 +356,7 @@ function VerifiedPriceForm({ product, currentUser }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-400">Verified Preview</span>
                 <span className="rounded-full border border-emerald-800/30 bg-emerald-950/40 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-emerald-400">
-                  Local Only — Not Saved
+                  {saved ? 'Saved Locally' : 'Local Only — Not Saved'}
                 </span>
               </div>
 
@@ -359,7 +403,6 @@ function VerifiedPriceForm({ product, currentUser }) {
                 </div>
               </div>
 
-              {/* Pour cost at verified price */}
               {verifiedCard.cost_per_ml_nis != null && (
                 <div className="border-t border-emerald-800/20 pt-3 space-y-1">
                   <div className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-400/60 mb-2">
@@ -371,12 +414,6 @@ function VerifiedPriceForm({ product, currentUser }) {
                   <PourCostRow label="60ml pour" value={verifiedCard.cost_per_60ml_nis} />
                 </div>
               )}
-
-              <div className="border-t border-emerald-800/20 pt-3">
-                <p className="text-[10px] text-emerald-300/45 leading-relaxed">
-                  Verified price validated locally. Persistence requires Supabase or approved storage.
-                </p>
-              </div>
             </div>
           )}
         </div>
@@ -387,7 +424,7 @@ function VerifiedPriceForm({ product, currentUser }) {
 
 // ─── Price card ───────────────────────────────────────────────────────────────
 
-function PriceCard({ card, product, currentUser, onClose }) {
+function PriceCard({ card, product, currentUser, hasOverride, onVerified, onClear, onClose }) {
   const hasPrice = card.price_used_for_costing_nis != null
 
   return (
@@ -402,9 +439,13 @@ function PriceCard({ card, product, currentUser, onClose }) {
             <span className={`text-[9px] font-black uppercase tracking-[0.14em] ${CONFIDENCE_COLORS[card.confidence_level] ?? 'text-[#e8dcc0]/40'}`}>
               {card.confidence_level} confidence
             </span>
-            <span className="text-[9px] text-[#e8dcc0]/30 uppercase tracking-wide">
-              {card.data_status === 'verified_source_backed' ? 'Verified' : 'Benchmark Estimate'}
-            </span>
+            {hasOverride ? (
+              <span className="rounded-full border border-emerald-800/30 bg-emerald-950/25 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-emerald-400">
+                Verified Local Override
+              </span>
+            ) : (
+              <span className="text-[9px] text-[#e8dcc0]/30 uppercase tracking-wide">Benchmark Estimate</span>
+            )}
           </div>
           <h3 className="font-serif text-2xl font-black text-[#f5f5f0]">{card.brand}</h3>
           <p className="text-sm text-[#e8dcc0]/60 mt-0.5">{card.product_name}</p>
@@ -412,12 +453,22 @@ function PriceCard({ card, product, currentUser, onClose }) {
             {card.bottle_size_ml}ml · {card.abv_percent != null ? `${card.abv_percent}% ABV` : 'ABV unknown'}
           </p>
         </div>
-        <button
-          onClick={onClose}
-          className="shrink-0 rounded-full border border-[#c9a96e]/20 bg-[#c9a96e]/08 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#e8dcc0]/50 hover:text-[#e8dcc0] transition-colors"
-        >
-          Close
-        </button>
+        <div className="shrink-0 flex flex-col items-end gap-2">
+          {hasOverride && (
+            <button
+              onClick={onClear}
+              className="rounded-full border border-red-800/30 bg-red-950/20 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-950/40 transition-colors"
+            >
+              Clear Override
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="rounded-full border border-[#c9a96e]/20 bg-[#c9a96e]/08 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#e8dcc0]/50 hover:text-[#e8dcc0] transition-colors"
+          >
+            Close
+          </button>
+        </div>
       </div>
 
       <div className="p-6 space-y-5">
@@ -433,7 +484,7 @@ function PriceCard({ card, product, currentUser, onClose }) {
             </div>
             <div>
               <div className="text-[9px] text-[#e8dcc0]/35 mb-0.5">Venue price (invoiced)</div>
-              <div className="font-mono text-lg font-black text-[#e8dcc0]/40">
+              <div className={`font-mono text-lg font-black ${hasOverride ? 'text-emerald-400' : 'text-[#e8dcc0]/40'}`}>
                 {card.actual_venue_price_nis != null ? `₪${card.actual_venue_price_nis}` : '—'}
               </div>
             </div>
@@ -457,7 +508,7 @@ function PriceCard({ card, product, currentUser, onClose }) {
         {/* Pour cost breakdown */}
         <div className="rounded-xl border border-[#c9a96e]/12 bg-[#c9a96e]/04 p-4">
           <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#e8dcc0]/35 mb-3">
-            Pour Cost (incl. 5% spillage)
+            Pour Cost {hasOverride ? '— Verified Price' : '(incl. 5% spillage)'}
           </div>
           {hasPrice ? (
             <>
@@ -502,8 +553,13 @@ function PriceCard({ card, product, currentUser, onClose }) {
           </div>
         )}
 
-        {/* Verified price entry form */}
-        <VerifiedPriceForm product={product} currentUser={currentUser} />
+        {/* Verified price entry / update form */}
+        <VerifiedPriceForm
+          product={product}
+          currentUser={currentUser}
+          hasOverride={hasOverride}
+          onVerified={onVerified}
+        />
       </div>
     </div>
   )
@@ -514,6 +570,7 @@ function PriceCard({ card, product, currentUser, onClose }) {
 function ProductRow({ product, isSelected, onSelect }) {
   const card = useMemo(() => createPriceOutputCard(product), [product])
   const hasPrice = card.price_used_for_costing_nis != null
+  const isVerified = product.data_status === 'verified_source_backed'
 
   return (
     <button
@@ -526,7 +583,14 @@ function ProductRow({ product, isSelected, onSelect }) {
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-medium text-sm text-[#f5f5f0] truncate">{product.brand}</div>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="font-medium text-sm text-[#f5f5f0] truncate">{product.brand}</div>
+            {isVerified && (
+              <span className="shrink-0 rounded-full border border-emerald-800/30 bg-emerald-950/30 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-emerald-400">
+                Verified
+              </span>
+            )}
+          </div>
           <div className="text-[11px] text-[#e8dcc0]/45 truncate">{product.product_name}</div>
         </div>
         <div className="shrink-0 text-right">
@@ -547,7 +611,7 @@ function ProductRow({ product, isSelected, onSelect }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function BottlePrices({ currentUser }) {
-  // Guard 1: component-level identity check (fail closed)
+  // Guard: component-level identity check (fail closed)
   if (!canAccessBottlePrices(currentUser)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-6">
@@ -564,6 +628,28 @@ export default function BottlePrices({ currentUser }) {
 
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [selectedProductId, setSelectedProductId] = useState(null)
+
+  // Local override map: { [product_id]: updatedProduct }
+  // Lazy-initialised from localStorage on mount; never touches BAR_PRODUCT_SEED.
+  const [overrides, setOverrides] = useState(
+    () => loadAllVerifiedPriceOverrides(BAR_PRODUCT_SEED)
+  )
+
+  function handleVerified(productId, normalizedUpdate, updatedProduct) {
+    saveVerifiedPriceOverride(productId, normalizedUpdate)
+    setOverrides(prev => ({ ...prev, [productId]: updatedProduct }))
+  }
+
+  function handleClear(productId) {
+    clearVerifiedPriceOverride(productId)
+    setOverrides(prev => {
+      const next = { ...prev }
+      delete next[productId]
+      return next
+    })
+  }
+
+  const overrideCount = Object.keys(overrides).length
 
   const categoriesWithProducts = useMemo(() => {
     const map = {}
@@ -589,13 +675,19 @@ export default function BottlePrices({ currentUser }) {
 
   const filteredProducts = selectedCategory ? (categoriesWithProducts[selectedCategory] ?? []) : []
 
+  // Seed product — unchanged reference to BAR_PRODUCT_SEED entry
   const selectedProduct = selectedProductId
     ? BAR_PRODUCT_SEED.find(p => p.product_id === selectedProductId)
     : null
 
+  // Effective product — override applied in-memory if one exists
+  const effectiveSelectedProduct = selectedProduct
+    ? (overrides[selectedProductId] ?? selectedProduct)
+    : null
+
   const selectedCard = useMemo(
-    () => (selectedProduct ? createPriceOutputCard(selectedProduct) : null),
-    [selectedProduct]
+    () => (effectiveSelectedProduct ? createPriceOutputCard(effectiveSelectedProduct) : null),
+    [effectiveSelectedProduct]
   )
 
   return (
@@ -608,7 +700,10 @@ export default function BottlePrices({ currentUser }) {
         </div>
         <h1 className="font-serif text-3xl font-black text-[#f5f5f0]">Bottle Prices</h1>
         <p className="text-sm text-[#e8dcc0]/45">
-          Benchmark pricing reference — {BAR_PRODUCT_SEED.length} products · All prices are estimates pending supplier validation
+          Benchmark pricing reference — {BAR_PRODUCT_SEED.length} products
+          {overrideCount > 0 && (
+            <span className="text-emerald-400/70"> · {overrideCount} verified locally</span>
+          )}
         </p>
       </div>
 
@@ -616,7 +711,7 @@ export default function BottlePrices({ currentUser }) {
       <div className="rounded-xl border border-amber-800/25 bg-amber-950/15 px-4 py-3 flex gap-3">
         <span className="text-amber-400 text-sm mt-0.5">⚠</span>
         <p className="text-[11px] text-amber-300/70 leading-relaxed">
-          All prices are benchmark estimates derived from market research. No supplier quotes have been verified.
+          All prices are benchmark estimates derived from market research. Local overrides reflect entered supplier data only — not Supabase-backed.
           Do not use for final menu pricing without confirming against a current invoice.
         </p>
       </div>
@@ -657,7 +752,7 @@ export default function BottlePrices({ currentUser }) {
         })}
       </div>
 
-      {/* Product list */}
+      {/* Product list — passes effective product so Verified badge renders on overridden products */}
       {selectedCategory && (
         <div className="space-y-2">
           <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]/35">
@@ -667,7 +762,7 @@ export default function BottlePrices({ currentUser }) {
             {filteredProducts.map(product => (
               <ProductRow
                 key={product.product_id}
-                product={product}
+                product={overrides[product.product_id] ?? product}
                 isSelected={selectedProductId === product.product_id}
                 onSelect={setSelectedProductId}
               />
@@ -677,12 +772,17 @@ export default function BottlePrices({ currentUser }) {
       )}
 
       {/* Price output card — keyed on product_id so VerifiedPriceForm state resets on product change */}
-      {selectedCard && selectedProduct && (
+      {selectedCard && effectiveSelectedProduct && (
         <PriceCard
           key={selectedProductId}
           card={{ ...selectedCard, tier: selectedProduct?.tier }}
-          product={selectedProduct}
+          product={effectiveSelectedProduct}
           currentUser={currentUser}
+          hasOverride={!!overrides[selectedProductId]}
+          onVerified={(normalizedUpdate, updatedProduct) =>
+            handleVerified(selectedProductId, normalizedUpdate, updatedProduct)
+          }
+          onClear={() => handleClear(selectedProductId)}
           onClose={() => setSelectedProductId(null)}
         />
       )}
