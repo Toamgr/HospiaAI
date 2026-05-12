@@ -24,8 +24,8 @@
     pages: ['courses', 'lessonPlayer', 'knowledgeLibrary', 'wineKnowledge', 'sopSheets', 'simulation', 'approvedCocktails']
   },
   barManagement: {
-    roles: ['manager', 'bar_manager', 'admin'],
-    pages: ['cocktailLab']
+    roles: ['manager', 'bar_manager', 'owner', 'admin'],
+    pages: ['cocktailLab', 'foodCostTables', 'approvedCocktailsBar', 'cocktailLibrary', 'inventoryOverview', 'barReports', 'bottlePrices']
   },
   ownerIntelligence: {
     roles: ['owner', 'admin'],
@@ -59,7 +59,13 @@ export const PAGE_META = {
   sopSheets: { area: 'academy', roles: ['employee', 'manager', 'bar_manager', 'admin'], code: 'SV', section: 'Service', description: 'Hospitality standards and service reference' },
   simulation: { area: 'academy', roles: ['manager', 'bar_manager', 'admin'], code: 'GS', section: 'Practice Lab', description: 'Guest scenarios and scoring' },
   approvedCocktails: { area: 'academy', roles: ['employee', 'manager', 'bar_manager', 'admin'], code: 'AC', section: 'Approved Bar Menu', description: 'Employee-approved cocktail training' },
-  cocktailLab: { area: 'barManagement', roles: ['manager', 'bar_manager', 'admin'], code: 'CL', section: 'Cocktail Pipeline', description: 'Create and submit cocktails for approval', requiresCocktailManager: true },
+  cocktailLab: { area: 'barManagement', roles: ['manager', 'bar_manager', 'admin'], code: 'CL', section: 'R&D Studio', description: 'AI cocktail creation — visual, editable, operational' },
+  foodCostTables: { area: 'barManagement', roles: ['manager', 'bar_manager', 'admin'], code: 'FC', section: 'R&D Studio', description: 'Ingredient costing, pour cost, and pricing logic' },
+  approvedCocktailsBar: { area: 'barManagement', roles: ['manager', 'bar_manager', 'admin'], code: 'AC', section: 'Menu', description: 'Approved cocktails published to the bar menu' },
+  cocktailLibrary: { area: 'barManagement', roles: ['manager', 'bar_manager', 'admin'], code: 'LB', section: 'Archive', description: 'Full cocktail development history — all drafts and approved' },
+  inventoryOverview: { area: 'barManagement', roles: ['manager', 'bar_manager', 'admin'], code: 'IO', section: 'Archive', description: 'Ingredient usage derived from the active cocktail portfolio' },
+  barReports: { area: 'barManagement', roles: ['manager', 'bar_manager', 'admin'], code: 'BR', section: 'Archive', description: 'Program performance, pipeline metrics, and recent approvals' },
+  bottlePrices: { area: 'barManagement', roles: ['bar_manager', 'owner', 'admin'], code: 'BP', section: 'Pricing Intelligence', description: 'Restricted bottle pricing — authorized personnel only', requiresBottlePricesAccess: true },
   executiveOverview: { area: 'ownerIntelligence', roles: ['owner', 'admin'], code: 'EO', section: 'Executive View', description: 'Owner command summary' },
   budgetApprovals: { area: 'ownerIntelligence', roles: ['owner', 'admin'], code: 'BA', section: 'Approvals', description: 'Approve, reject, or request budget detail' },
   ownerOperationalRequests: { area: 'ownerIntelligence', roles: ['owner', 'admin'], code: 'ORQ', section: 'Approvals', description: 'Owner inbox for manager-approved operational requests' },

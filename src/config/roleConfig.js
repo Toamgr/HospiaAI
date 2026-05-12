@@ -44,11 +44,19 @@ export function userCanManageCocktails(userOrRole) {
   return Boolean(canonical?.canManageCocktails)
 }
 
+const BOTTLE_PRICES_ALLOWED = ['omer sadot', 'toam griffel', 'tal millo']
+
+export function canAccessBottlePrices(userOrRole) {
+  if (!userOrRole || typeof userOrRole === 'string') return false
+  return BOTTLE_PRICES_ALLOWED.includes(userOrRole.username?.toLowerCase())
+}
+
 export function canAccessPage(userOrRole, page) {
   const meta = PAGE_META[page]
   const role = getRole(userOrRole)
   if (!meta || !role) return false
   if (meta.requiresCocktailManager) return userCanManageCocktails(userOrRole)
+  if (meta.requiresBottlePricesAccess) return canAccessBottlePrices(userOrRole)
   if (role === 'admin') return true
   if (!meta.roles.includes(role)) return false
   return true
