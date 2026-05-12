@@ -657,6 +657,10 @@ export default function BottlePrices({ currentUser }) {
   // Per-product sync status: 'synced' | 'local_only' | 'syncing' | 'sync_failed'
   const [syncStatuses, setSyncStatuses] = useState({})
 
+  // Product IDs whose backend DELETE failed — override is cleared locally but
+  // may still exist on backend and will reappear on next mount fetch.
+  const [clearSyncErrors, setClearSyncErrors] = useState(new Set())
+
   // Phase A (sync): after first render, fetch backend overrides and merge.
   // Backend wins per-product. Local-only products are marked as such.
   useEffect(() => {
@@ -706,6 +710,11 @@ export default function BottlePrices({ currentUser }) {
   }
 
   function handleClear(productId) {
+    const confirmed = window.confirm(
+      'Clear the verified price for this bottle? This will return it to benchmark pricing.'
+    )
+    if (!confirmed) return
+
     clearVerifiedPriceOverride(productId)
     setOverrides(prev => {
       const next = { ...prev }
@@ -719,7 +728,7 @@ export default function BottlePrices({ currentUser }) {
     })
 
     deleteVerifiedPriceOverrideFromServer(productId).catch(() => {
-      // Fire-and-forget — next mount fetch will restore from backend if DELETE failed
+      setClearSyncErrors(prev => new Set([...prev, productId]))
     })
   }
 
@@ -789,6 +798,16 @@ export default function BottlePrices({ currentUser }) {
           Do not use for final menu pricing without confirming against a current invoice.
         </p>
       </div>
+
+      {/* Backend clear sync failure warning */}
+      {clearSyncErrors.size > 0 && (
+        <div className="rounded-xl border border-red-800/25 bg-red-950/15 px-4 py-3 flex gap-3">
+          <span className="text-red-400 text-sm mt-0.5">⚠</span>
+          <p className="text-[11px] text-red-300/70 leading-relaxed">
+            {clearSyncErrors.size === 1 ? 'One override was' : `${clearSyncErrors.size} overrides were`} cleared locally but failed to sync with the backend. {clearSyncErrors.size === 1 ? 'It' : 'They'} may reappear on next page load. Check your backend connection.
+          </p>
+        </div>
+      )}
 
       {/* Category selection */}
       <div className="space-y-4">

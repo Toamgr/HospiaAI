@@ -9,10 +9,20 @@ function getRole() {
   }
 }
 
+function getUsername() {
+  try {
+    const user = JSON.parse(localStorage.getItem(STORAGE.currentUser) || 'null')
+    return user?.username || ''
+  } catch {
+    return ''
+  }
+}
+
 async function apiRequest(method, path, body = null) {
   const headers = {
     'Content-Type': 'application/json',
-    'X-HOSPIA-Role': getRole()
+    'X-HOSPIA-Role': getRole(),
+    'X-HESTIA-User': getUsername(),
   }
   const options = { method, headers }
   if (body !== null) options.body = JSON.stringify(body)

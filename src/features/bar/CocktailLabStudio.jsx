@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { requestCocktailProposal } from '../../services/cocktailService'
-import { buildCostSheet, getProductById, getProductsForIngredient, getIngredientFallbackCpm } from '../../domain/hospitality/bar/cocktailLabPricingAdapter.js'
+import { buildCostSheet, getProductsForIngredient, getIngredientFallbackCpm } from '../../domain/hospitality/bar/cocktailLabPricingAdapter.js'
+import { getEffectiveProduct } from '../../domain/hospitality/bar/verifiedPriceStorage.js'
 
 // ─── Flavor & Cost Logic ─────────────────────────────────────────────────────
 
@@ -348,8 +349,12 @@ function ProductPicker({ suggestedProducts, onSelect, onCancel }) {
           </div>
         ) : (
           filtered.map(p => {
-            const cpm = p.benchmark_price_nis && p.bottle_size_ml
-              ? (p.benchmark_price_nis / p.bottle_size_ml).toFixed(3)
+            const isVerified = p.data_status === 'verified_source_backed'
+            const effectivePrice = isVerified && p.actual_venue_price_nis != null
+              ? p.actual_venue_price_nis
+              : p.benchmark_price_nis
+            const cpm = effectivePrice && p.bottle_size_ml
+              ? (effectivePrice / p.bottle_size_ml).toFixed(3)
               : null
             return (
               <button
@@ -365,14 +370,17 @@ function ProductPicker({ suggestedProducts, onSelect, onCancel }) {
                     )}
                   </div>
                   {cpm && (
-                    <span className="shrink-0 font-mono text-[10px] text-[#c9a96e]">₪{cpm}/ml</span>
+                    <span className={`shrink-0 font-mono text-[10px] ${isVerified ? 'text-emerald-400' : 'text-[#c9a96e]'}`}>₪{cpm}/ml</span>
                   )}
                 </div>
                 <div className="mt-0.5 flex items-center gap-2">
                   <span className="text-[9px] text-[#e8dcc0]/30">{p.bottle_size_ml}ml</span>
                   <span className="text-[9px] text-[#e8dcc0]/20">·</span>
                   <span className="text-[9px] text-[#e8dcc0]/30">{(p.category_id || '').replace(/_/g, ' ')}</span>
-                  <span className="ml-auto rounded-full border border-amber-800/25 bg-amber-950/15 px-1.5 py-0.5 text-[8px] text-amber-400/70">est.</span>
+                  {isVerified
+                    ? <span className="ml-auto rounded-full border border-emerald-800/25 bg-emerald-950/15 px-1.5 py-0.5 text-[8px] text-emerald-400">verified</span>
+                    : <span className="ml-auto rounded-full border border-amber-800/25 bg-amber-950/15 px-1.5 py-0.5 text-[8px] text-amber-400/70">est.</span>
+                  }
                 </div>
               </button>
             )
@@ -670,14 +678,14 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
                     linkedProductName={link?.product_name}
                     cpmDelta={cpmDelta}
                     isLinking={linkingIdx === ingIdx}
-                    suggestedProducts={getProductsForIngredient(r.ingredient)}
+                    suggestedProducts={getProductsForIngredient(r.ingredient).map(p => getEffectiveProduct(p.product_id) || p)}
                     onLink={() => setLinkingIdx(ingIdx)}
                     onUnlink={() => {
                       setIngredientLinks(prev => { const n = { ...prev }; delete n[ingIdx]; return n })
                       setLinkingIdx(null)
                     }}
                     onSelectProduct={pid => {
-                      const product = getProductById(pid)
+                      const product = getEffectiveProduct(pid)
                       if (product) {
                         setIngredientLinks(prev => ({
                           ...prev,

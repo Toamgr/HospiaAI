@@ -260,6 +260,27 @@ function requireRole(...allowedRoles) {
   };
 }
 
+// Exact-user gate for verified price endpoints.
+// Checks X-HESTIA-User header in addition to role.
+// Frontend canAccessBottlePrices() (by username) is still the primary gate.
+// This is still local-app trust only — the header is set by the frontend and is
+// not cryptographically signed. Future real auth must verify identity server-side.
+const VERIFIED_PRICE_ALLOWED_USERS = ['omer sadot', 'toam griffel', 'tal millo'];
+
+function requireVerifiedPriceAccess(req, res, next) {
+  const role = roleFromRequest(req);
+  if (!['bar_manager', 'owner', 'admin'].includes(role)) {
+    return res.status(403).json({ error: "Forbidden.", required: ['bar_manager', 'owner', 'admin'], received: role || 'none' });
+  }
+  const username = (req.header('X-HESTIA-User') || '').toLowerCase().trim();
+  if (!username || !VERIFIED_PRICE_ALLOWED_USERS.includes(username)) {
+    return res.status(403).json({ error: "Access denied. Verified price endpoints require authorized user identity.", received: username || 'none' });
+  }
+  req.hospiaRole = role;
+  req.verifiedPriceUser = username;
+  next();
+}
+
 function reportRow(row) {
   return {
     id: row.id,
@@ -848,13 +869,34 @@ app.get("/api/health", (req, res) => {
 });
 
 // ─── Verified Price Overrides ─────────────────────────────────────────────────
-// Access note:
-// Frontend canAccessBottlePrices() is the primary identity gate (by username:
-// Omer Sadot, Toam Griffel, Tal Millo). This role gate is secondary defense
-// only for the current local app. Future real auth must enforce exact user
-// identity server-side and must not rely on the X-HOSPIA-Role header alone.
+// requireVerifiedPriceAccess gates on both role AND exact username (X-HESTIA-User).
+// Frontend canAccessBottlePrices() is still the primary identity gate.
 
-app.get("/api/verified-price-overrides", requireRole("bar_manager", "owner", "admin"), (req, res) => {
+const APPROVED_VERIFIED_SOURCE_TYPES = ['invoice', 'supplier_quote', 'supplier_catalog', 'direct_supplier_confirmation'];
+
+function validateNormalizedUpdate(nu, productIdFromUrl) {
+  if (!nu || typeof nu !== 'object' || Array.isArray(nu)) {
+    return 'normalizedUpdate is required and must be a plain object.';
+  }
+  if ('benchmark_price_nis' in nu || 'data_status' in nu || 'category_id' in nu || 'bottle_size_ml' in nu) {
+    return 'normalizedUpdate must not be a full product object. Send only normalized_update fields.';
+  }
+  if (!nu.product_id) return 'normalizedUpdate.product_id is required.';
+  if (nu.product_id !== productIdFromUrl) return 'product_id mismatch between URL and normalizedUpdate.product_id.';
+  const price = Number(nu.actual_venue_price_nis);
+  if (nu.actual_venue_price_nis == null) return 'actual_venue_price_nis is required.';
+  if (isNaN(price) || price <= 0) return 'actual_venue_price_nis must be a positive number.';
+  if (!String(nu.supplier_name || '').trim()) return 'supplier_name is required.';
+  if (!nu.source_type) return 'source_type is required.';
+  if (!APPROVED_VERIFIED_SOURCE_TYPES.includes(nu.source_type)) return `source_type '${nu.source_type}' is not an approved verified source.`;
+  if (!String(nu.source_reference || '').trim()) return 'source_reference is required.';
+  if (!nu.last_verified_at || isNaN(Date.parse(nu.last_verified_at))) return 'last_verified_at must be a valid ISO date string.';
+  if (typeof nu.vat_included !== 'boolean') return 'vat_included must be a boolean (true or false).';
+  if (!String(nu.verified_by || '').trim()) return 'verified_by is required.';
+  return null;
+}
+
+app.get("/api/verified-price-overrides", requireVerifiedPriceAccess, (req, res) => {
   const rows = db.prepare(`
     SELECT product_id, normalized_update_json, saved_by, saved_at
     FROM verified_price_overrides
@@ -877,15 +919,13 @@ app.get("/api/verified-price-overrides", requireRole("bar_manager", "owner", "ad
   res.json({ overrides });
 });
 
-app.post("/api/verified-price-overrides/:product_id", requireRole("bar_manager", "owner", "admin"), (req, res) => {
+app.post("/api/verified-price-overrides/:product_id", requireVerifiedPriceAccess, (req, res) => {
   const { product_id } = req.params;
   const { normalizedUpdate, savedBy } = req.body;
 
-  if (!normalizedUpdate || typeof normalizedUpdate !== "object" || Array.isArray(normalizedUpdate)) {
-    return res.status(400).json({ error: "normalizedUpdate is required and must be an object." });
-  }
-  if (normalizedUpdate.product_id !== product_id) {
-    return res.status(400).json({ error: "product_id mismatch between URL and normalizedUpdate." });
+  const validationError = validateNormalizedUpdate(normalizedUpdate, product_id);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
   }
 
   let json;
@@ -905,7 +945,7 @@ app.post("/api/verified-price-overrides/:product_id", requireRole("bar_manager",
   res.status(201).json({ ok: true, product_id, saved_at: now });
 });
 
-app.delete("/api/verified-price-overrides/:product_id", requireRole("bar_manager", "owner", "admin"), (req, res) => {
+app.delete("/api/verified-price-overrides/:product_id", requireVerifiedPriceAccess, (req, res) => {
   const { product_id } = req.params;
   db.prepare(`
     DELETE FROM verified_price_overrides WHERE product_id = ? AND venue_id = ?
