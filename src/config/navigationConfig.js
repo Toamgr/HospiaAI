@@ -53,7 +53,7 @@ export const PAGE_META = {
   eventOrchestrator: { area: 'planning', roles: ['manager', 'owner', 'admin'], code: 'EV', section: 'Event CRM', description: 'Future events, calculators, and pipeline' },
   staffProgression: { area: 'staffProgression', roles: ['manager', 'bar_manager', 'admin'], code: 'SP', section: 'Coaching Analytics', description: 'Training, readiness, incident exposure, and coaching flags' },
   courses: { area: 'academy', roles: ['employee', 'manager', 'bar_manager', 'admin'], code: 'CR', section: 'Course Catalog', description: 'Structured learning paths' },
-  lessonPlayer: { area: 'academy', roles: ['employee', 'manager', 'bar_manager', 'admin'], code: 'LP', section: 'Course Catalog', description: 'Lesson experience and service doctrine' },
+  lessonPlayer: { area: 'academy', roles: ['employee', 'manager', 'bar_manager', 'admin'], code: 'LP', section: 'Course Catalog', description: 'Lesson experience and service doctrine', hiddenInNav: true },
   knowledgeLibrary: { area: 'academy', roles: ['employee', 'manager', 'bar_manager', 'admin'], code: 'KL', section: 'Course Catalog', description: 'Grand Bar Atlas course module', hiddenInNav: true },
   wineKnowledge: { area: 'academy', roles: ['employee', 'manager', 'bar_manager', 'admin'], code: 'WK', section: 'Wine Academy', description: 'WSET-level wine knowledge foundation' },
   sopSheets: { area: 'academy', roles: ['employee', 'manager', 'bar_manager', 'admin'], code: 'SV', section: 'Service', description: 'Hospitality standards and service reference' },
