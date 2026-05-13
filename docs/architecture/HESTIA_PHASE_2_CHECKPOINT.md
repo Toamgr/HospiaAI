@@ -209,6 +209,18 @@ This layer has no runtime behavior and does not affect the current product exper
 
 ---
 
+## Post-Phase-2 Architecture: Bar Product Intelligence Foundation
+
+**Added 2026-05-13** — extends `src/domain/hospitality/bar/` with menu engineering, supplier candidate references, and data model map.
+
+Full specification: `/docs/architecture/HESTIA_BAR_PRODUCT_FOUNDATION.md`
+
+`src/domain/hospitality/bar/` is the canonical bar product domain layer. It covers product schemas, pricing intelligence, costing utilities, confidence classification, menu engineering quadrant logic, market-reference supplier candidates, and the DB schema design map.
+
+This layer has no runtime behavior. It is the specification and calculation reference for all future bar costing features, inventory management, cocktail recipe pricing, and supplier intelligence.
+
+---
+
 ## Recommended Next Development Priorities
 
 ### Immediate (feature-safe, no architecture changes needed)
