@@ -1,12 +1,36 @@
-// Israeli bar product supplier registry.
-// Records supplier identity, product coverage, and ordering characteristics for the Israeli market.
-// No runtime behavior — used for procurement intelligence and verified price attribution.
+// ─── MARKET REFERENCE CANDIDATES — NOT OPERATIONAL SUPPLIER RECORDS ──────────
+//
+// This file contains research-derived market candidate data for Israeli bar
+// product suppliers. These are NOT HESTIA venue suppliers. They are NOT active
+// or verified operational records. No relationship with this venue has been
+// confirmed. No values are source-backed unless source_url and source_name
+// are explicitly populated.
+//
+// DO NOT:
+//   - Use these candidates to drive purchasing or ordering decisions
+//   - Feed these into costing, pour cost, or pricing calculations
+//   - Surface these in owner reports, briefings, or supplier recommendations
+//   - Treat assumed_delivery_days, assumed_lead_time_days, or assumed_coverage
+//     as confirmed operational facts
+//   - Infer venue relationships from category coverage lists
+//
+// Every candidate carries:
+//   relationship_status: 'market_reference_only'
+//   data_status: 'needs_validation'
+//   confidence_level: 'low'
+//   requires_human_validation: true
+//
+// All operational fields (coverage, delivery schedule, lead time, VAT) are
+// prefixed assumed_ and represent unverified market research assumptions.
+// They must be confirmed by direct supplier contact before any operational use.
+// ─────────────────────────────────────────────────────────────────────────────
 
-export const SUPPLIER_RELIABILITY = {
-  high: { id: 'high', label: 'High Reliability', description: 'Consistent delivery, accurate invoicing, responsive' },
-  medium: { id: 'medium', label: 'Medium Reliability', description: 'Generally reliable; occasional delays or substitutions' },
-  low: { id: 'low', label: 'Low Reliability', description: 'Inconsistent — use only as backup supplier' },
-  unknown: { id: 'unknown', label: 'Unknown', description: 'No track record yet with this venue' }
+// Reliability level definitions — for use after human validation is complete
+export const SUPPLIER_RELIABILITY_LEVELS = {
+  high: { id: 'high', label: 'High Reliability', description: 'Consistent delivery, accurate invoicing, responsive — confirmed by venue track record' },
+  medium: { id: 'medium', label: 'Medium Reliability', description: 'Generally reliable; occasional delays — confirmed by venue track record' },
+  low: { id: 'low', label: 'Low Reliability', description: 'Inconsistent — confirmed by venue track record' },
+  needs_validation: { id: 'needs_validation', label: 'Needs Validation', description: 'No venue track record. Reliability has not been assessed.' }
 }
 
 export const SUPPLIER_TYPES = {
@@ -17,119 +41,198 @@ export const SUPPLIER_TYPES = {
   produce: 'Fresh produce — fruits, herbs, garnish'
 }
 
-export const ISRAEL_LIQUOR_SUPPLIERS = [
+// Classification defaults applied to every candidate — do not override without human validation
+export const CANDIDATE_CLASSIFICATION_DEFAULTS = {
+  relationship_status: 'market_reference_only',
+  data_status: 'needs_validation',
+  confidence_level: 'low',
+  source_quality: 'unknown',
+  source_url: null,
+  source_name: null,
+  last_checked_date: null,
+  can_drive_automation: false,
+  can_drive_costing: false,
+  can_appear_in_owner_reports: false,
+  requires_human_validation: true
+}
+
+export const MARKET_SUPPLIER_CANDIDATES = [
   {
-    supplier_id: 'sup-001',
+    candidate_id: 'cand-001',
     name: 'Multinational',
     type: 'importer',
-    coverage: ['whisky_scotch', 'whisky_bourbon', 'whisky_irish', 'whisky_japanese', 'gin', 'vodka', 'rum', 'cognac', 'armagnac', 'liqueur_herbal', 'liqueur_amaro', 'liqueur_coffee'],
-    delivery_days: ['Sunday', 'Tuesday', 'Thursday'],
-    lead_time_days: 2,
-    minimum_order_nis: null,
-    vat_on_invoices: true,
-    reliability: 'high',
-    notes: 'Primary importer for major international portfolio brands. Strong Scotch, bourbon, and gin coverage.'
+    // ── Classification ────────────────────────────────────────────────────────
+    relationship_status: 'market_reference_only',
+    data_status: 'needs_validation',
+    confidence_level: 'low',
+    source_quality: 'unknown',
+    source_url: null,
+    source_name: null,
+    last_checked_date: null,
+    can_drive_automation: false,
+    can_drive_costing: false,
+    can_appear_in_owner_reports: false,
+    requires_human_validation: true,
+    // ── Unverified assumptions (market research only) ─────────────────────────
+    assumed_reliability: 'needs_validation',
+    assumed_coverage: ['whisky_scotch', 'whisky_bourbon', 'whisky_irish', 'whisky_japanese', 'gin', 'vodka', 'rum', 'cognac', 'armagnac', 'liqueur_herbal', 'liqueur_amaro', 'liqueur_coffee'],
+    assumed_delivery_days: null,
+    assumed_lead_time_days: null,
+    assumed_vat_on_invoices: null,
+    notes: 'Market research reference only. General-purpose importer for major international spirits brands. Not a confirmed venue supplier. Contact, terms, and coverage must be validated before operational use.'
   },
   {
-    supplier_id: 'sup-002',
+    candidate_id: 'cand-002',
     name: 'Benozyo',
     type: 'distributor',
-    coverage: ['tequila', 'mezcal', 'vodka', 'gin', 'rum', 'brandy', 'liqueur_fruit', 'liqueur_triple_sec', 'liqueur_elderflower'],
-    delivery_days: ['Monday', 'Wednesday'],
-    lead_time_days: 2,
-    minimum_order_nis: null,
-    vat_on_invoices: true,
-    reliability: 'high',
-    notes: 'Strong tequila and mezcal coverage. Reliable for premium agave category. Request invoice price before ordering ultra-premium lines.'
+    // ── Classification ────────────────────────────────────────────────────────
+    relationship_status: 'market_reference_only',
+    data_status: 'needs_validation',
+    confidence_level: 'low',
+    source_quality: 'unknown',
+    source_url: null,
+    source_name: null,
+    last_checked_date: null,
+    can_drive_automation: false,
+    can_drive_costing: false,
+    can_appear_in_owner_reports: false,
+    requires_human_validation: true,
+    // ── Unverified assumptions (market research only) ─────────────────────────
+    assumed_reliability: 'needs_validation',
+    assumed_coverage: ['tequila', 'mezcal', 'vodka', 'gin', 'rum', 'brandy', 'liqueur_fruit', 'liqueur_triple_sec', 'liqueur_elderflower'],
+    assumed_delivery_days: null,
+    assumed_lead_time_days: null,
+    assumed_vat_on_invoices: null,
+    notes: 'Market research reference only. Known as an Israeli distributor with agave category presence. Not a confirmed venue supplier. Coverage, pricing, and terms must be validated by direct contact.'
   },
   {
-    supplier_id: 'sup-003',
+    candidate_id: 'cand-003',
     name: 'Tempo Beverages',
     type: 'importer',
-    coverage: ['rum', 'vodka', 'gin', 'liqueur_herbal', 'liqueur_cream', 'vermouth_dry', 'vermouth_sweet', 'vermouth_blanc', 'aperitif_spirit'],
-    delivery_days: ['Sunday', 'Wednesday'],
-    lead_time_days: 3,
-    minimum_order_nis: null,
-    vat_on_invoices: true,
-    reliability: 'high',
-    notes: 'Official Bacardi and Martini importer. Best source for vermouth and Martini aperitifs.'
+    // ── Classification ────────────────────────────────────────────────────────
+    relationship_status: 'market_reference_only',
+    data_status: 'needs_validation',
+    confidence_level: 'low',
+    source_quality: 'unknown',
+    source_url: null,
+    source_name: null,
+    last_checked_date: null,
+    can_drive_automation: false,
+    can_drive_costing: false,
+    can_appear_in_owner_reports: false,
+    requires_human_validation: true,
+    // ── Unverified assumptions (market research only) ─────────────────────────
+    assumed_reliability: 'needs_validation',
+    assumed_coverage: ['rum', 'vodka', 'gin', 'liqueur_herbal', 'liqueur_cream', 'vermouth_dry', 'vermouth_sweet', 'vermouth_blanc', 'aperitif_spirit'],
+    assumed_delivery_days: null,
+    assumed_lead_time_days: null,
+    assumed_vat_on_invoices: null,
+    notes: 'Market research reference only. Known importer for Bacardi and Martini portfolio brands in Israel. Vermouth coverage is assumed — not venue-confirmed. Contact and terms must be validated.'
   },
   {
-    supplier_id: 'sup-004',
+    candidate_id: 'cand-004',
     name: 'Carmel / Local Wine Importer',
     type: 'producer',
-    coverage: ['aperitif_wine', 'vermouth_dry', 'vermouth_sweet'],
-    delivery_days: ['Tuesday', 'Thursday'],
-    lead_time_days: 3,
-    minimum_order_nis: null,
-    vat_on_invoices: true,
-    reliability: 'medium',
-    notes: 'Israeli wine-based aperitifs and locally produced fortified wine alternatives.'
+    // ── Classification ────────────────────────────────────────────────────────
+    relationship_status: 'market_reference_only',
+    data_status: 'needs_validation',
+    confidence_level: 'low',
+    source_quality: 'unknown',
+    source_url: null,
+    source_name: null,
+    last_checked_date: null,
+    can_drive_automation: false,
+    can_drive_costing: false,
+    can_appear_in_owner_reports: false,
+    requires_human_validation: true,
+    // ── Unverified assumptions (market research only) ─────────────────────────
+    assumed_reliability: 'needs_validation',
+    assumed_coverage: ['aperitif_wine', 'vermouth_dry', 'vermouth_sweet'],
+    assumed_delivery_days: null,
+    assumed_lead_time_days: null,
+    assumed_vat_on_invoices: null,
+    notes: 'Market research reference only. Represents Israeli wine-based aperitif and local fortified wine production. Specific products, pricing, and availability must be confirmed by direct contact.'
   },
   {
-    supplier_id: 'sup-005',
+    candidate_id: 'cand-005',
     name: 'Local Arak Distributor',
     type: 'distributor',
-    coverage: ['arak', 'digestif', 'liqueur_herbal'],
-    delivery_days: ['Monday', 'Thursday'],
-    lead_time_days: 1,
-    minimum_order_nis: null,
-    vat_on_invoices: true,
-    reliability: 'medium',
-    notes: 'Primary source for arak. Prices fluctuate — always request current invoice price before ordering. Confirm which brands are in stock.'
+    // ── Classification ────────────────────────────────────────────────────────
+    relationship_status: 'market_reference_only',
+    data_status: 'needs_validation',
+    confidence_level: 'low',
+    source_quality: 'unknown',
+    source_url: null,
+    source_name: null,
+    last_checked_date: null,
+    can_drive_automation: false,
+    can_drive_costing: false,
+    can_appear_in_owner_reports: false,
+    requires_human_validation: true,
+    // ── Unverified assumptions (market research only) ─────────────────────────
+    assumed_reliability: 'needs_validation',
+    assumed_coverage: ['arak', 'digestif', 'liqueur_herbal'],
+    assumed_delivery_days: null,
+    assumed_lead_time_days: null,
+    assumed_vat_on_invoices: null,
+    notes: 'Market research reference only. Placeholder for local arak distribution channel. Actual supplier name, contact, and pricing are unknown and must be confirmed. Arak prices in the Israeli market fluctuate significantly.'
   },
   {
-    supplier_id: 'sup-006',
+    candidate_id: 'cand-006',
     name: 'Fresh Produce Supplier',
     type: 'produce',
-    coverage: ['fresh_citrus', 'garnish'],
-    delivery_days: ['Sunday', 'Tuesday', 'Thursday'],
-    lead_time_days: 1,
-    minimum_order_nis: null,
-    vat_on_invoices: false,
-    reliability: 'unknown',
-    notes: 'Venue-specific. Record actual supplier name, contact, and weekly price per unit once confirmed. Track lemon and lime prices per fruit.'
+    // ── Classification ────────────────────────────────────────────────────────
+    relationship_status: 'market_reference_only',
+    data_status: 'needs_validation',
+    confidence_level: 'low',
+    source_quality: 'unknown',
+    source_url: null,
+    source_name: null,
+    last_checked_date: null,
+    can_drive_automation: false,
+    can_drive_costing: false,
+    can_appear_in_owner_reports: false,
+    requires_human_validation: true,
+    // ── Unverified assumptions (market research only) ─────────────────────────
+    assumed_reliability: 'needs_validation',
+    assumed_coverage: ['fresh_citrus', 'garnish'],
+    assumed_delivery_days: null,
+    assumed_lead_time_days: null,
+    assumed_vat_on_invoices: null,
+    notes: 'Placeholder category candidate only. No specific supplier identified. Actual fresh produce supplier must be recorded by the venue once confirmed — including name, contact, weekly unit prices, and delivery schedule.'
   },
   {
-    supplier_id: 'sup-007',
+    candidate_id: 'cand-007',
     name: 'Premium Syrup Supplier',
     type: 'specialty',
-    coverage: ['simple_syrup', 'bitters'],
-    delivery_days: null,
-    lead_time_days: 5,
-    minimum_order_nis: null,
-    vat_on_invoices: true,
-    reliability: 'unknown',
-    notes: 'Monin, 1883, or Fever-Tree branded syrups. Consider in-house simple syrup production for cost control on base sweetener.'
+    // ── Classification ────────────────────────────────────────────────────────
+    relationship_status: 'market_reference_only',
+    data_status: 'needs_validation',
+    confidence_level: 'low',
+    source_quality: 'unknown',
+    source_url: null,
+    source_name: null,
+    last_checked_date: null,
+    can_drive_automation: false,
+    can_drive_costing: false,
+    can_appear_in_owner_reports: false,
+    requires_human_validation: true,
+    // ── Unverified assumptions (market research only) ─────────────────────────
+    assumed_reliability: 'needs_validation',
+    assumed_coverage: ['simple_syrup', 'bitters'],
+    assumed_delivery_days: null,
+    assumed_lead_time_days: null,
+    assumed_vat_on_invoices: null,
+    notes: 'Placeholder category candidate only. Represents branded syrup options (e.g. Monin, 1883) or in-house production. No specific supplier confirmed. Must be validated before any costing use.'
   }
 ]
 
-// All suppliers that cover a given category_id
-export function suppliersForCategory(categoryId) {
-  return ISRAEL_LIQUOR_SUPPLIERS.filter(s => s.coverage.includes(categoryId))
-}
+// ─── Research utility functions ───────────────────────────────────────────────
+// These functions filter market reference candidates only.
+// Results are NOT supplier recommendations and must NOT drive purchasing or costing.
 
-// Primary (highest reliability) supplier for a category
-export function primarySupplierForCategory(categoryId) {
-  const matches = suppliersForCategory(categoryId)
-  const order = ['high', 'medium', 'low', 'unknown']
-  return matches.sort((a, b) => order.indexOf(a.reliability) - order.indexOf(b.reliability))[0] || null
-}
-
-// Next available delivery day from a given ISO date string
-export function nextDeliveryDay(supplierOrId, fromDateIso = new Date().toISOString()) {
-  const supplier = typeof supplierOrId === 'string'
-    ? ISRAEL_LIQUOR_SUPPLIERS.find(s => s.supplier_id === supplierOrId)
-    : supplierOrId
-  if (!supplier?.delivery_days?.length) return null
-  const from = new Date(fromDateIso)
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-  for (let offset = 1; offset <= 7; offset++) {
-    const candidate = new Date(from)
-    candidate.setDate(from.getDate() + offset)
-    if (supplier.delivery_days.includes(dayNames[candidate.getDay()])) {
-      return candidate.toISOString().slice(0, 10)
-    }
-  }
-  return null
+// Returns market reference candidates that list a category in their assumed_coverage.
+// Result is research context only — not a validated supplier list for this venue.
+export function candidatesForCategory(categoryId) {
+  return MARKET_SUPPLIER_CANDIDATES.filter(c => (c.assumed_coverage || []).includes(categoryId))
 }
