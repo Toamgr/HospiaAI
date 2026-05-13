@@ -54,7 +54,7 @@ app.use((req, res, next) => {
   }
   res.header("Vary", "Origin");
   res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type,X-HOSPIA-Role");
+  res.header("Access-Control-Allow-Headers", "Content-Type,X-HOSPIA-Role,X-HESTIA-User");
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
@@ -186,6 +186,19 @@ db.exec(`
     saved_by               TEXT NOT NULL,
     saved_at               TEXT NOT NULL,
     PRIMARY KEY (product_id, venue_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS verified_price_audit_log (
+    id           TEXT PRIMARY KEY,
+    product_id   TEXT NOT NULL,
+    venue_id     TEXT NOT NULL,
+    action       TEXT NOT NULL,
+    old_price_nis REAL,
+    new_price_nis REAL,
+    supplier_name TEXT,
+    source_type  TEXT,
+    saved_by     TEXT NOT NULL,
+    saved_at     TEXT NOT NULL
   );
 `);
 
@@ -935,6 +948,15 @@ app.post("/api/verified-price-overrides/:product_id", requireVerifiedPriceAccess
     return res.status(400).json({ error: "normalizedUpdate is not serializable." });
   }
 
+  const existing = db.prepare(
+    `SELECT normalized_update_json FROM verified_price_overrides WHERE product_id = ? AND venue_id = ?`
+  ).get(product_id, defaultVenueId());
+
+  let oldPriceNis = null;
+  if (existing) {
+    try { oldPriceNis = JSON.parse(existing.normalized_update_json).actual_venue_price_nis ?? null; } catch {}
+  }
+
   const now = nowIso();
   db.prepare(`
     INSERT OR REPLACE INTO verified_price_overrides
@@ -942,15 +964,70 @@ app.post("/api/verified-price-overrides/:product_id", requireVerifiedPriceAccess
     VALUES (?, ?, ?, ?, ?)
   `).run(product_id, defaultVenueId(), json, String(savedBy || ""), now);
 
+  db.prepare(`
+    INSERT INTO verified_price_audit_log
+      (id, product_id, venue_id, action, old_price_nis, new_price_nis, supplier_name, source_type, saved_by, saved_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id('audit'), product_id, defaultVenueId(), 'save',
+    oldPriceNis,
+    Number(normalizedUpdate.actual_venue_price_nis),
+    String(normalizedUpdate.supplier_name || ''),
+    String(normalizedUpdate.source_type || ''),
+    req.verifiedPriceUser, now
+  );
+
   res.status(201).json({ ok: true, product_id, saved_at: now });
 });
 
 app.delete("/api/verified-price-overrides/:product_id", requireVerifiedPriceAccess, (req, res) => {
   const { product_id } = req.params;
+
+  const existing = db.prepare(
+    `SELECT normalized_update_json FROM verified_price_overrides WHERE product_id = ? AND venue_id = ?`
+  ).get(product_id, defaultVenueId());
+
+  let oldPriceNis = null;
+  if (existing) {
+    try { oldPriceNis = JSON.parse(existing.normalized_update_json).actual_venue_price_nis ?? null; } catch {}
+  }
+
   db.prepare(`
     DELETE FROM verified_price_overrides WHERE product_id = ? AND venue_id = ?
   `).run(product_id, defaultVenueId());
+
+  if (existing) {
+    db.prepare(`
+      INSERT INTO verified_price_audit_log
+        (id, product_id, venue_id, action, old_price_nis, new_price_nis, supplier_name, source_type, saved_by, saved_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id('audit'), product_id, defaultVenueId(), 'clear',
+      oldPriceNis, null, null, null,
+      req.verifiedPriceUser, nowIso()
+    );
+  }
+
   res.json({ ok: true, product_id });
+});
+
+app.get("/api/verified-price-audit-log", requireVerifiedPriceAccess, (req, res) => {
+  const productId = req.query.product_id;
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+
+  if (!productId) {
+    return res.status(400).json({ error: 'product_id query parameter is required.' });
+  }
+
+  const rows = db.prepare(`
+    SELECT id, product_id, action, old_price_nis, new_price_nis, supplier_name, source_type, saved_by, saved_at
+    FROM verified_price_audit_log
+    WHERE product_id = ? AND venue_id = ?
+    ORDER BY saved_at DESC
+    LIMIT ?
+  `).all(productId, defaultVenueId(), limit);
+
+  res.json({ log: rows });
 });
 
 app.listen(PORT, () => {

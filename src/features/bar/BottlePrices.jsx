@@ -15,6 +15,7 @@ import {
 } from '../../domain/hospitality/bar/verifiedPriceStorage.js'
 import {
   fetchVerifiedPriceOverrides,
+  fetchVerifiedPriceAuditLog,
   saveVerifiedPriceOverrideToServer,
   deleteVerifiedPriceOverrideFromServer,
 } from '../../services/api/verifiedPricesApi.js'
@@ -438,6 +439,32 @@ function VerifiedPriceForm({ product, currentUser, hasOverride, onVerified }) {
 
 function PriceCard({ card, product, currentUser, hasOverride, syncStatus, onVerified, onClear, onClose }) {
   const hasPrice = card.price_used_for_costing_nis != null
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyLog, setHistoryLog] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+
+  function loadHistory() {
+    setHistoryLoading(true)
+    fetchVerifiedPriceAuditLog(product.product_id)
+      .then(log => setHistoryLog(log))
+      .catch(() => {})
+      .finally(() => setHistoryLoading(false))
+  }
+
+  function handleHistoryToggle() {
+    if (!historyOpen) loadHistory()
+    setHistoryOpen(o => !o)
+  }
+
+  function handleVerifiedAndRefresh(normalizedUpdate, updatedProduct) {
+    onVerified?.(normalizedUpdate, updatedProduct)
+    if (historyOpen) setTimeout(loadHistory, 300)
+  }
+
+  function handleClearAndRefresh() {
+    onClear?.()
+    if (historyOpen) setTimeout(loadHistory, 300)
+  }
 
   return (
     <div className="rounded-[2rem] border border-[#c9a96e]/20 bg-[linear-gradient(135deg,#12110e,#090907)] overflow-hidden">
@@ -475,7 +502,7 @@ function PriceCard({ card, product, currentUser, hasOverride, syncStatus, onVeri
         <div className="shrink-0 flex flex-col items-end gap-2">
           {hasOverride && (
             <button
-              onClick={onClear}
+              onClick={handleClearAndRefresh}
               className="rounded-full border border-red-800/30 bg-red-950/20 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-950/40 transition-colors"
             >
               Clear Override
@@ -577,8 +604,55 @@ function PriceCard({ card, product, currentUser, hasOverride, syncStatus, onVeri
           product={product}
           currentUser={currentUser}
           hasOverride={hasOverride}
-          onVerified={onVerified}
+          onVerified={handleVerifiedAndRefresh}
         />
+
+        {/* Price History */}
+        <div className="border-t border-[#c9a96e]/10 pt-4">
+          <button
+            onClick={handleHistoryToggle}
+            className="flex w-full items-center justify-between rounded-xl border border-[#c9a96e]/12 bg-[#c9a96e]/03 px-4 py-2.5 text-left transition hover:border-[#c9a96e]/25 hover:bg-[#c9a96e]/06"
+          >
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]/40">Price History</span>
+            <span className="text-[#e8dcc0]/30 text-[10px]">{historyOpen ? '▲' : '▼'}</span>
+          </button>
+
+          {historyOpen && (
+            <div className="mt-3">
+              {historyLoading ? (
+                <div className="text-[11px] text-[#e8dcc0]/35 text-center py-4">Loading...</div>
+              ) : historyLog.length === 0 ? (
+                <div className="text-[11px] text-[#e8dcc0]/30 text-center py-4">No history recorded yet.</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {historyLog.map(entry => (
+                    <div key={entry.id} className="rounded-xl border border-[#c9a96e]/08 bg-[#0d0c09] px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className={`text-[8px] font-black uppercase tracking-[0.14em] ${entry.action === 'save' ? 'text-emerald-400' : 'text-red-400/70'}`}>
+                          {entry.action === 'save' ? '● Saved' : '× Cleared'}
+                        </span>
+                        <span className="text-[9px] text-[#e8dcc0]/25">{entry.saved_at.slice(0, 10)}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-[#e8dcc0]/45">
+                        {entry.new_price_nis != null && (
+                          <span className="font-mono font-black text-[#f5f5f0]">₪{entry.new_price_nis}</span>
+                        )}
+                        {entry.old_price_nis != null && entry.new_price_nis != null && entry.old_price_nis !== entry.new_price_nis && (
+                          <span className="text-[#e8dcc0]/30">was ₪{entry.old_price_nis}</span>
+                        )}
+                        {entry.supplier_name && <span>{entry.supplier_name}</span>}
+                        {entry.source_type && (
+                          <span className="text-[#e8dcc0]/30">{SOURCE_TYPE_LABELS[entry.source_type] ?? entry.source_type}</span>
+                        )}
+                      </div>
+                      <div className="text-[9px] text-[#e8dcc0]/25 mt-0.5">by {entry.saved_by}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

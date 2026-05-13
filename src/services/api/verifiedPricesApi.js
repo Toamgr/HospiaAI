@@ -12,3 +12,8 @@ export async function saveVerifiedPriceOverrideToServer(productId, normalizedUpd
 export async function deleteVerifiedPriceOverrideFromServer(productId) {
   return apiDelete(`/api/verified-price-overrides/${productId}`)
 }
+
+export async function fetchVerifiedPriceAuditLog(productId, limit = 20) {
+  const data = await apiGet(`/api/verified-price-audit-log?product_id=${encodeURIComponent(productId)}&limit=${limit}`)
+  return Array.isArray(data.log) ? data.log : []
+}
