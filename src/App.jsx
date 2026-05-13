@@ -205,7 +205,7 @@ export default function App() {
           />
         )}
 
-        <main className={cx('min-w-0 flex-1', role === 'employee' ? 'px-3 py-4 sm:px-5 lg:px-7 xl:px-8' : 'p-8 sm:p-12 lg:p-20 xl:p-32 2xl:p-40')}>
+        <main className={cx('min-w-0 flex-1', role === 'employee' ? 'px-3 py-4 sm:px-5 lg:px-7 xl:px-8' : 'p-5 sm:p-7 lg:p-10 xl:p-14 2xl:p-20')}>
           {showNotifications && (
             <NotificationPanel
               notifications={visibleNotifications}
