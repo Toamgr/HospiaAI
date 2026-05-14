@@ -2,6 +2,8 @@ import { useState, useMemo, useCallback, useRef } from 'react'
 import { requestCocktailProposal } from '../../services/cocktailService'
 import { buildCostSheet, getProductsForIngredient, getIngredientFallbackCpm } from '../../domain/hospitality/bar/cocktailLabPricingAdapter.js'
 import { getEffectiveProduct } from '../../domain/hospitality/bar/verifiedPriceStorage.js'
+import CocktailBuildExperience from './CocktailBuildExperience.jsx'
+import VerifiedPriceEntryPanel from './VerifiedPriceEntryPanel.jsx'
 
 // ─── Flavor & Cost Logic ─────────────────────────────────────────────────────
 
@@ -393,12 +395,23 @@ function ProductPicker({ suggestedProducts, onSelect, onCancel }) {
 
 // ─── Cost Row ─────────────────────────────────────────────────────────────────
 
-function CostRow({ ingredient, ml, cpm, total, isExplicitlyLinked, linkedProductName, cpmDelta, isLinking, suggestedProducts, onLink, onUnlink, onSelectProduct, onCancelLink }) {
+const CONF_STYLE = {
+  high:   { dot: 'bg-emerald-400/70', text: 'text-emerald-400/60', label: 'verified' },
+  medium: { dot: 'bg-amber-400/60',   text: 'text-amber-400/50',   label: 'est.' },
+  low:    { dot: 'bg-orange-400/60',  text: 'text-orange-400/50',  label: 'rough est.' },
+}
+
+function CostRow({ ingredient, ml, cpm, total, isExplicitlyLinked, linkedProductName, cpmDelta, isLinking, suggestedProducts, onLink, onUnlink, onSelectProduct, onCancelLink, confidence }) {
+  const conf = CONF_STYLE[confidence] || { dot: 'bg-[#e8dcc0]/20', text: 'text-[#e8dcc0]/30', label: 'est.' }
   return (
     <div className="border-b border-[#c9a96e]/08 py-2.5 text-xs">
       <div className="grid grid-cols-[1fr_40px_60px_60px] items-center gap-2">
         <div className="min-w-0">
           <span className="font-medium text-[#e8dcc0]">{ingredient}</span>
+          <span className={`ml-1.5 inline-flex items-center gap-0.5 ${conf.text}`}>
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${conf.dot}`} />
+            <span className="text-[8px] font-bold">{conf.label}</span>
+          </span>
           {isExplicitlyLinked && (
             <span className="ml-1.5 inline-flex items-center rounded-full border border-emerald-800/30 bg-emerald-950/30 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-emerald-400">Linked</span>
           )}
@@ -481,13 +494,61 @@ function StatusBadge({ type, children }) {
   )
 }
 
+function CostStatusBanner({ cost_status, verified_count, benchmark_count, assumption_count }) {
+  if (cost_status === 'all_verified') {
+    return (
+      <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-800/25 bg-emerald-950/15 px-3 py-2">
+        <span className="text-emerald-400 text-[10px] mt-0.5">✓</span>
+        <span className="text-[10px] text-emerald-300/70 leading-relaxed">All ingredient costs verified against supplier invoices.</span>
+      </div>
+    )
+  }
+  if (cost_status === 'mixed') {
+    const parts = []
+    if (verified_count > 0) parts.push(`${verified_count} verified`)
+    if (benchmark_count > 0) parts.push(`${benchmark_count} estimated`)
+    if (assumption_count > 0) parts.push(`${assumption_count} rough`)
+    return (
+      <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-800/25 bg-amber-950/15 px-3 py-2">
+        <span className="text-amber-400 text-[10px] mt-0.5">⚠</span>
+        <span className="text-[10px] text-amber-300/65 leading-relaxed">Mixed confidence ({parts.join(', ')}) — confirm unverified ingredients against supplier invoices.</span>
+      </div>
+    )
+  }
+  if (cost_status === 'cost_db_estimate') {
+    return (
+      <div className="mt-3 flex items-start gap-2 rounded-lg border border-orange-800/25 bg-orange-950/15 px-3 py-2">
+        <span className="text-orange-400 text-[10px] mt-0.5">⚠</span>
+        <span className="text-[10px] text-orange-300/65 leading-relaxed">Rough assumptions only — do not use for final pricing decisions without supplier validation.</span>
+      </div>
+    )
+  }
+  if (cost_status === 'unavailable') {
+    return (
+      <div className="mt-3 flex items-start gap-2 rounded-lg border border-[#e8dcc0]/10 bg-black/20 px-3 py-2">
+        <span className="text-[#e8dcc0]/30 text-[10px] mt-0.5">—</span>
+        <span className="text-[10px] text-[#e8dcc0]/35 leading-relaxed">Costing unavailable — map ingredients to products to enable pricing.</span>
+      </div>
+    )
+  }
+  // benchmark_estimate (default)
+  return (
+    <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-800/25 bg-amber-950/15 px-3 py-2">
+      <span className="text-amber-400 text-[10px] mt-0.5">⚠</span>
+      <span className="text-[10px] text-amber-300/65 leading-relaxed">Benchmark estimates — confirm against supplier invoices before using for pricing decisions.</span>
+    </div>
+  )
+}
+
 // ─── Generated Cocktail View ─────────────────────────────────────────────────
 
 function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval, onArchive, onRegenerate }) {
   const [adjust, setAdjust] = useState({ sweetness: 0, sourness: 0, abv: 0, carbonation: 0 })
   const [editName, setEditName] = useState(proposal.name || '')
   const [showCost, setShowCost] = useState(true)
+  const [showBuild, setShowBuild] = useState(false)
   const [approvedLocal, setApprovedLocal] = useState(false)
+  const [priceRefreshToken, setPriceRefreshToken] = useState(0)
 
   // ingredientLinks: keyed by ingredient INDEX (not name) to prevent duplicate-name collisions.
   // Initialized from product_id fields already on saved ingredient rows (backward-compatible:
@@ -528,7 +589,19 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
 
   const profile = useMemo(() => inferFlavorProfile(proposal, adjust), [proposal, adjust])
   const abv = useMemo(() => estimateABV(ings, adjust.abv * 1.2), [ings, adjust.abv])
-  const cost = useMemo(() => buildCostSheet(mergedIngs, proposal.targetPrice), [mergedIngs, proposal.targetPrice])
+  const cost = useMemo(() => buildCostSheet(mergedIngs, proposal.targetPrice), [mergedIngs, proposal.targetPrice, priceRefreshToken])
+
+  // Ingredients that have an explicit product link — used by VerifiedPriceEntryPanel.
+  const linkedIngredients = useMemo(() =>
+    Object.entries(ingredientLinks)
+      .map(([ingIdx, link]) => ({
+        product_id: link.product_id,
+        product_name: link.product_name || link.product_id,
+        ingredient: ings[Number(ingIdx)]?.ingredient || 'Ingredient',
+      }))
+      .filter(li => li.product_id),
+    [ingredientLinks, ings]
+  )
   const chips = useMemo(() => trainingChips(proposal, profile), [proposal, profile])
 
   // Merges current ingredient links back into the proposal before saving to localStorage.
@@ -710,6 +783,7 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
               <span className="text-right font-mono text-[#e8dcc0]/30">2 min</span>
               <span className="text-right font-mono text-[#e8dcc0]/30">—</span>
               <span className="text-right font-bold text-[#e8dcc0]/50">₪{cost.labor_cost_nis.toFixed(2)}</span>
+              <span className="col-span-4 text-[8px] text-[#e8dcc0]/25 leading-relaxed">assumption — 50 NIS/hr × 2 min</span>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-4 border-t border-[#c9a96e]/15 pt-4">
               <div>
@@ -718,23 +792,49 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
               </div>
               <div>
                 <div className="text-[9px] font-black uppercase tracking-widest text-[#e8dcc0]/40">Pour Cost %</div>
-                <div className={`mt-1 text-lg font-black ${cost.pourCost <= 22 ? 'text-emerald-400' : cost.pourCost <= 28 ? 'text-amber-300' : 'text-red-400'}`}>{cost.pourCost}%</div>
+                <div className={`mt-1 text-lg font-black ${
+                  cost.confidence_level === 'high'
+                    ? (cost.pourCost <= 22 ? 'text-emerald-400' : cost.pourCost <= 28 ? 'text-amber-300' : 'text-red-400')
+                    : 'text-[#e8dcc0]/50'
+                }`}>{cost.pourCost}%</div>
               </div>
               <div>
                 <div className="text-[9px] font-black uppercase tracking-widest text-[#e8dcc0]/40">Standard Price</div>
-                <div className="mt-1 text-lg font-black text-[#c9a96e]">₪{cost.suggested.toFixed(0)}</div>
+                <div className={`mt-1 text-lg font-black ${cost.confidence_level === 'high' ? 'text-[#c9a96e]' : 'text-amber-400/60'}`}>
+                  {cost.confidence_level !== 'high' && <span className="text-sm mr-0.5">~</span>}₪{cost.suggested.toFixed(0)}
+                </div>
               </div>
               <div>
                 <div className="text-[9px] font-black uppercase tracking-widest text-[#e8dcc0]/40">Luxury Price</div>
-                <div className="mt-1 text-lg font-black text-[#e8dcc0]">₪{cost.luxury.toFixed(0)}</div>
+                <div className={`mt-1 text-lg font-black ${cost.confidence_level === 'high' ? 'text-[#e8dcc0]' : 'text-amber-400/60'}`}>
+                  {cost.confidence_level !== 'high' && <span className="text-sm mr-0.5">~</span>}₪{cost.luxury.toFixed(0)}
+                </div>
               </div>
             </div>
-            <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-800/25 bg-amber-950/15 px-3 py-2">
-              <span className="text-amber-400 text-[10px] mt-0.5">⚠</span>
-              <span className="text-[10px] text-amber-300/65 leading-relaxed">Benchmark estimates — confirm against supplier invoices before finalizing menu pricing.</span>
-            </div>
+            <CostStatusBanner
+              cost_status={cost.cost_status}
+              verified_count={cost.verified_count}
+              benchmark_count={cost.benchmark_count}
+              assumption_count={cost.assumption_count}
+            />
+            <VerifiedPriceEntryPanel
+              linkedIngredients={linkedIngredients}
+              onSaved={() => setPriceRefreshToken(t => t + 1)}
+            />
           </div>
         )}
+      </div>
+
+      {/* Build Guide */}
+      <div className="rounded-[2rem] border border-[#c9a96e]/15 bg-[linear-gradient(135deg,#0f0e0b,#090907)] p-6">
+        <button className="flex w-full items-center justify-between gap-3" onClick={() => setShowBuild(v => !v)}>
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-[0.28em] text-[#c9a96e]">Build Guide</div>
+            <p className="mt-1 text-xs text-[#e8dcc0]/55">Step-by-step preparation sequence.</p>
+          </div>
+          <span className="rounded-full border border-[#c9a96e]/20 bg-black/20 px-3 py-1 text-[10px] font-black text-[#c9a96e]">{showBuild ? 'Hide' : 'Show'}</span>
+        </button>
+        {showBuild && <CocktailBuildExperience cocktail={proposal} />}
       </div>
 
       {/* Training Notes */}

@@ -66,7 +66,7 @@
       cocktailLab: 'Cocktail Lab',
       foodCostTables: 'Food Cost Tables',
       approvedCocktailsBar: 'Approved Cocktails',
-      cocktailLibrary: 'Cocktail Library',
+      cocktailLibrary: 'Cocktail Bible',
       inventoryOverview: 'Inventory Overview',
       barReports: 'Bar Reports',
       approvedCocktails: 'Approved Cocktails Library',

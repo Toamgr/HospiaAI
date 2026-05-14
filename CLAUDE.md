@@ -102,6 +102,24 @@ Rules:
 - This layer has no runtime behavior and must not be wired into pages, hooks, or services unless explicitly requested.
 - New bar product concepts (product types, pricing models, supplier intelligence, menu engineering rules) belong here first, not inside feature components.
 
+### Cocktail Lab — Costing Honesty + Interactive Build Guide
+
+**Complete as of 2026-05-13.** Full checkpoint: `/docs/architecture/HESTIA_COCKTAIL_LAB_EXPERIENCE_CHECKPOINT.md`
+
+The Cocktail Lab now has two live improvements:
+
+1. **Costing honesty** — `buildCostSheet()` in `cocktailLabPricingAdapter.js` computes `confidence_level` and `cost_status` from the actual row mix. The UI in `CocktailLabStudio.jsx` reflects these values: per-row confidence dots, conditional Standard/Luxury price prefixes, traffic-light gating, a source-aware warning banner, and a labeled labor assumption.
+
+2. **Interactive Build Guide** — `CocktailBuildExperience.jsx` + `cocktailBuildExperienceUtils.js` in `src/features/bar/`. Renders a step-by-step preparation sequence from available recipe data only. Integrated as a collapsible, non-blocking panel in `CocktailLabStudio` (defaults closed). No external APIs, no video, no fake data.
+
+Rules for future work in Cocktail Lab:
+- Do not display benchmark or assumption costs as verified.
+- Do not suppress `confidence_level` or `cost_status` from the UI.
+- Do not infer preparation method, glassware, or technique as fact when the recipe field is missing.
+- Do not add fake prices, fake products, or fake recipe steps to either file.
+- Do not wire external video or API services to the Build Guide.
+- Preserve source/confidence labeling in any new cost display surfaces.
+
 ### Technical identifiers — do not rename without a migration plan
 
 These still use the old "HOSPIA" name and must be migrated together:

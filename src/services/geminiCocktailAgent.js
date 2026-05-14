@@ -919,6 +919,7 @@ Revision rules:
 - If lowering cost or complexity, protect premium perception.
 - If changing flavor direction, preserve the menu role unless the manager explicitly asks to change it.
 - Measurements must be in ml.
+- The method field must begin with or include one of: shake, stir, build, blend, or throw — when the cocktail has a recognized preparation technique.
 - Return strict JSON only. No markdown.
 
 Required JSON shape:

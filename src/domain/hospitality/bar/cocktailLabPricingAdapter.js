@@ -197,6 +197,49 @@ export function getIngredientFallbackCpm(ingredientName) {
   return resolveByName(ingredientName).cpm
 }
 
+// ─── Computed metadata helpers ────────────────────────────────────────────────
+
+function computeConfidenceLevel(rows) {
+  if (rows.length === 0) return 'unknown'
+  if (rows.every(r => r.data_status === 'verified_source_backed')) return 'high'
+  if (rows.some(r => r.match_type === 'cost_db_estimate' || r.data_status === 'operational_assumption')) return 'low'
+  return 'medium'
+}
+
+function computeCostStatus(rows) {
+  if (rows.length === 0) return 'unavailable'
+  if (rows.every(r => r.data_status === 'verified_source_backed')) return 'all_verified'
+  if (rows.some(r => r.data_status === 'verified_source_backed')) return 'mixed'
+  if (rows.some(r => r.match_type === 'cost_db_estimate' || r.data_status === 'operational_assumption')) return 'cost_db_estimate'
+  return 'benchmark_estimate'
+}
+
+function computeWarnings(cost_status, hasMissingLinkedProduct, verified_count, benchmark_count, assumption_count) {
+  const warnings = []
+  if (hasMissingLinkedProduct) warnings.push('One or more linked product IDs not found — fallback pricing used.')
+  switch (cost_status) {
+    case 'all_verified': break
+    case 'mixed': {
+      const parts = []
+      if (verified_count > 0) parts.push(`${verified_count} verified`)
+      if (benchmark_count > 0) parts.push(`${benchmark_count} estimated`)
+      if (assumption_count > 0) parts.push(`${assumption_count} rough assumption${assumption_count !== 1 ? 's' : ''}`)
+      warnings.push(`Mixed cost confidence: ${parts.join(', ')} — confirm unverified ingredients against supplier invoices.`)
+      break
+    }
+    case 'benchmark_estimate':
+      warnings.push('Benchmark estimates — confirm against supplier invoices before using for pricing decisions.')
+      break
+    case 'cost_db_estimate':
+      warnings.push('Rough costing assumptions are present — do not use this as a final pricing decision.')
+      break
+    case 'unavailable':
+      warnings.push('Costing unavailable until ingredients are mapped to verified or benchmark products.')
+      break
+  }
+  return warnings
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 // Accepts either:
 //   buildCostSheet(ingredientsMlArray, targetPrice)      ← CocktailLabStudio call-site
@@ -218,6 +261,7 @@ export function buildCostSheet(ingredientsOrCocktail, targetPrice = null) {
       product_id: resolved.product_id,
       product_name: resolved.product_name,
       confidence: resolved.confidence,
+      data_status: resolved.data_status || 'benchmark_estimate',
       _missing_linked_product: resolved._missing_linked_product || false,
     }
   })
@@ -237,27 +281,33 @@ export function buildCostSheet(ingredientsOrCocktail, targetPrice = null) {
     ? Math.round((totalCost / targetPrice) * 100)
     : (suggested > 0 ? Math.round((totalCost / suggested) * 100) : 0)
 
-  const hasCostDbRows = rows.some(r => r.match_type === 'cost_db_estimate')
   const hasMissingLinkedProduct = rawRows.some(r => r._missing_linked_product)
-  const cost_status = rows.length === 0 ? 'no_ingredients' : 'benchmark_estimate'
-  const missing_data_warnings = [
-    'Pricing uses benchmark estimates — supplier validation required.',
-    ...(hasCostDbRows ? ['Some ingredients matched by category estimate only.'] : []),
-    ...(hasMissingLinkedProduct ? ['One or more linked product IDs not found — fallback pricing used.'] : []),
-  ]
+
+  const verified_count = rows.filter(r => r.data_status === 'verified_source_backed').length
+  const benchmark_count = rows.filter(r => r.data_status === 'benchmark_estimate').length
+  const assumption_count = rows.filter(r => r.data_status === 'operational_assumption').length
+  const unavailable_count = 0
+  const total_cost_rows = rows.length
+
+  const confidence_level = computeConfidenceLevel(rows)
+  const cost_status = computeCostStatus(rows)
+  const missing_data_warnings = computeWarnings(cost_status, hasMissingLinkedProduct, verified_count, benchmark_count, assumption_count)
 
   return {
-    // Backward-compatible fields (same keys, same types as old buildCostSheet)
     rows,
     totalCost,
     suggested,
     luxury,
     pourCost,
-    // New fields
     labor_cost_nis: LABOR_COST_NIS,
     total_production_cost_nis,
-    confidence_level: 'medium',
+    confidence_level,
     cost_status,
-    missing_data_warnings
+    missing_data_warnings,
+    verified_count,
+    benchmark_count,
+    assumption_count,
+    unavailable_count,
+    total_cost_rows,
   }
 }

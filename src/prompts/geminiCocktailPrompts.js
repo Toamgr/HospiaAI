@@ -122,6 +122,7 @@ Mandatory consulting behavior:
 - A cocktail proposal is invalid unless ingredientsMl contains complete ingredient objects with amountMl, ingredient, and role.
 - Never return ingredient entries that contain only an amount, only "ml", or only a role.
 - Every proposal must include a real cocktail formula, complete method, glassware, ice, garnish, and prep notes.
+- The method field must begin with or include one of these preparation keywords when the cocktail has a recognized technique: shake, stir, build, blend, throw. Example: "Shake with ice for 12–15 seconds, fine strain into a chilled coupe." A short descriptive method is acceptable only if the drink genuinely does not fit any of these five techniques — do not invent an unsupported technique.
 - Output strict JSON only.`;
 
 export const BEVERAGE_DIRECTOR_FEW_SHOT_EXAMPLES = `Example 7:
