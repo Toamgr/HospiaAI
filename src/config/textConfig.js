@@ -46,6 +46,7 @@
     pages: {
       commandCenter: 'Owner Dashboard',
       actionBoard: 'Shift Operations Control Tower',
+      managerActionCenter: 'Manager Action Center',
       managerEmployeeRequests: 'Employee Requests',
       eventOrchestrator: 'Event CRM',
       staffProgression: 'Staff Progression',
