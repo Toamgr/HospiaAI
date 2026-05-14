@@ -1,5 +1,10 @@
 import React, { useState } from 'react'
 import { apiPost } from '../../services/api/client'
+import {
+  loadManagerActionStatuses, loadManagerActionCarryForward,
+  deriveOperationalActions, enrichActions, getCarryForwardActions,
+  PRIORITY_STYLE, PRIORITY_LABEL,
+} from '../operations/operationalIntelligenceUtils'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -59,11 +64,20 @@ const STATUS_CONFIG = {
   critical:  { label: 'Critical — Address Before Service', border: 'border-red-800/50 bg-red-950/20',     text: 'text-red-400',    dot: 'bg-red-400' }
 }
 
-export default function PreShiftBriefing({ t, currentUser, actionItems = [], serviceIncidents = [], eventPlans = [], notes = [], shiftBrain }) {
+export default function PreShiftBriefing({ t, currentUser, actionItems = [], serviceIncidents = [], eventPlans = [], notes = [], reportArchive = [], shiftBrain }) {
   const [briefed, setBriefed] = useState({})
   const [checklistDone, setChecklistDone] = useState({})
   const [started, setStarted] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Manager-flagged carry-forward items from previous shift (reads localStorage set by ManagerActionCenter)
+  const managerCarryForward = (() => {
+    const statuses      = loadManagerActionStatuses()
+    const carryForwards = loadManagerActionCarryForward()
+    const derived       = deriveOperationalActions(actionItems, serviceIncidents, notes, reportArchive)
+    const enriched      = enrichActions(derived, statuses, carryForwards, serviceIncidents, actionItems)
+    return getCarryForwardActions(enriched)
+  })()
 
   const openActions = actionItems.filter(item => !item.done)
   const recentIncidents = serviceIncidents.filter(item => {
@@ -269,9 +283,31 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
         </div>
 
         {/* Intelligence panel */}
-        {shiftBrain && (
+        {(shiftBrain || managerCarryForward.length > 0) && (
           <div className="space-y-4">
-            {shiftBrain.recommendedFocus.length > 0 && (
+            {/* Manager-flagged carry-forward items from previous shift */}
+            {managerCarryForward.length > 0 && (
+              <div className="rounded-2xl border border-[#c9a96e]/20 bg-[#c9a96e]/5 p-5">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">
+                  Carry-Forward From Previous Shift ({managerCarryForward.length})
+                </div>
+                <div className="space-y-2.5">
+                  {managerCarryForward.slice(0, 8).map(a => (
+                    <div key={a.id} className="flex items-start gap-2">
+                      <span className={cx('shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.1em]', PRIORITY_STYLE[a.priority])}>
+                        {PRIORITY_LABEL[a.priority]}
+                      </span>
+                      <span className="text-xs leading-5 text-[#e8dcc0]">{a.title}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-[10px] leading-5 text-[#e8dcc0]/30">
+                  Flagged in Manager Action Center by the previous shift's manager.
+                </p>
+              </div>
+            )}
+
+            {shiftBrain && shiftBrain.recommendedFocus.length > 0 && (
               <div className="rounded-2xl border border-[#6b705c]/30 bg-[#14130f] p-5">
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Recommended Focus</div>
                 <ul className="space-y-2.5">
@@ -285,7 +321,7 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
               </div>
             )}
 
-            {shiftBrain.riskSignals.length > 0 && (
+            {shiftBrain && shiftBrain.riskSignals.length > 0 && (
               <div className="rounded-2xl border border-yellow-800/40 bg-yellow-950/10 p-5">
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500 mb-3">Risk Signals</div>
                 <ul className="space-y-2.5">
@@ -299,9 +335,9 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
               </div>
             )}
 
-            {shiftBrain.carryForwardItems.length > 0 && (
+            {shiftBrain && shiftBrain.carryForwardItems.length > 0 && (
               <div className="rounded-2xl border border-[#6b705c]/30 bg-[#14130f] p-5">
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Carry-Forward</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Stale Open Items</div>
                 <div className="space-y-2">
                   {shiftBrain.carryForwardItems.map(item => (
                     <div key={item.id} className="flex items-start justify-between gap-3">
@@ -315,7 +351,7 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
               </div>
             )}
 
-            {shiftBrain.managerChecklist.length > 0 && (
+            {shiftBrain && shiftBrain.managerChecklist.length > 0 && (
               <div className="rounded-2xl border border-[#6b705c]/30 bg-[#14130f] p-5">
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Manager Checklist</div>
                 <div className="space-y-2">
@@ -339,7 +375,7 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
               </div>
             )}
 
-            {shiftBrain.servicePatterns.length > 0 && (
+            {shiftBrain && shiftBrain.servicePatterns.length > 0 && (
               <div className="rounded-2xl border border-[#6b705c]/20 bg-[#14130f] p-4">
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">Service Patterns</div>
                 <div className="space-y-2">

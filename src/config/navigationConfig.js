@@ -5,7 +5,7 @@
   },
   operations: {
     roles: ['manager', 'bar_manager', 'admin'],
-    pages: ['preShiftBriefing', 'actionBoard', 'managerActionCenter', 'managerEmployeeRequests', 'operationalNotes', 'endOfDay', 'budgetRequest']
+    pages: ['preShiftBriefing', 'actionBoard', 'managerActionCenter', 'managerEmployeeRequests', 'operationalNotes', 'endOfShiftReview', 'endOfDay', 'budgetRequest']
   },
   employeeWorkflow: {
     roles: ['employee', 'admin'],
@@ -29,7 +29,7 @@
   },
   ownerIntelligence: {
     roles: ['owner', 'admin'],
-    pages: ['executiveOverview', 'budgetApprovals', 'ownerOperationalRequests', 'weeklySummary', 'businessMRI', 'profitLeaks', 'ownerReport', 'businessMemory', 'strategicRecommendations']
+    pages: ['executiveOverview', 'operationalPulse', 'budgetApprovals', 'ownerOperationalRequests', 'weeklySummary', 'businessMRI', 'profitLeaks', 'ownerReport', 'businessMemory', 'strategicRecommendations']
   },
   system: {
     roles: ['owner', 'admin'],
@@ -45,6 +45,7 @@ export const PAGE_META = {
   managerActionCenter: { area: 'operations', roles: ['manager', 'bar_manager', 'admin'], code: 'MC', section: 'Shift Control', description: 'Consolidated open actions, incidents, notes, and carry-forward items' },
   managerEmployeeRequests: { area: 'operations', roles: ['manager', 'bar_manager', 'admin'], code: 'ER', section: 'Shift Control', description: 'Review operational requests submitted by employees' },
   operationalNotes: { area: 'operations', roles: ['manager', 'bar_manager', 'admin'], code: 'ON', section: 'Shift Control', description: 'Pinned notes and manager memory' },
+  endOfShiftReview: { area: 'operations', roles: ['manager', 'bar_manager', 'admin'], code: 'ES', section: 'Shift Handoff', description: 'Close out the shift — capture hand-offs, complaints, and carry-forward items' },
   endOfDay: { area: 'operations', roles: ['manager', 'bar_manager', 'admin'], code: 'ED', section: 'Shift Handoff', description: 'EmailJS report and shift archive' },
   budgetRequest: { area: 'operations', roles: ['manager', 'bar_manager', 'admin'], code: 'BR', section: 'Manager Requests', description: 'Submit budget approval requests' },
   employeeHome: { area: 'employeeWorkflow', roles: ['employee', 'admin'], code: 'EH', section: 'Employee OS', description: 'Premium employee home screen' },
@@ -68,6 +69,7 @@ export const PAGE_META = {
   barReports: { area: 'barManagement', roles: ['manager', 'bar_manager', 'admin'], code: 'BR', section: 'Archive', description: 'Program performance, pipeline metrics, and recent approvals' },
   bottlePrices: { area: 'barManagement', roles: ['bar_manager', 'owner', 'admin'], code: 'BP', section: 'Pricing Intelligence', description: 'Restricted bottle pricing — authorized personnel only', requiresBottlePricesAccess: true },
   executiveOverview: { area: 'ownerIntelligence', roles: ['owner', 'admin'], code: 'EO', section: 'Executive View', description: 'Owner command summary' },
+  operationalPulse: { area: 'ownerIntelligence', roles: ['owner', 'admin'], code: 'OP', section: 'Executive View', description: 'Live operational load, shift review archive, and carry-forward patterns' },
   budgetApprovals: { area: 'ownerIntelligence', roles: ['owner', 'admin'], code: 'BA', section: 'Approvals', description: 'Approve, reject, or request budget detail' },
   ownerOperationalRequests: { area: 'ownerIntelligence', roles: ['owner', 'admin'], code: 'ORQ', section: 'Approvals', description: 'Owner inbox for manager-approved operational requests' },
   weeklySummary: { area: 'ownerIntelligence', roles: ['owner', 'admin'], code: 'WS', section: 'Approvals', description: 'Weekly intelligence email panel' },
