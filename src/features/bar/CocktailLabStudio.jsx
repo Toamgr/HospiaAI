@@ -2,52 +2,13 @@ import { useState, useMemo, useCallback, useRef } from 'react'
 import { requestCocktailProposal } from '../../services/cocktailService'
 import { buildCostSheet, getProductsForIngredient, getIngredientFallbackCpm } from '../../domain/hospitality/bar/cocktailLabPricingAdapter.js'
 import { getEffectiveProduct } from '../../domain/hospitality/bar/verifiedPriceStorage.js'
+import { computeFlavorProfile, FLAVOR_DIMS } from '../../domain/hospitality/bar/cocktailFlavorProfileUtils.js'
+import { recommendGlassware } from '../../domain/hospitality/bar/cocktailPresentationUtils.js'
+import { applyMicroAdjustment } from '../../domain/hospitality/bar/cocktailAdjustmentUtils.js'
 import CocktailBuildExperience from './CocktailBuildExperience.jsx'
 import VerifiedPriceEntryPanel from './VerifiedPriceEntryPanel.jsx'
 
-// ─── Flavor & Cost Logic ─────────────────────────────────────────────────────
-
-const FLAVOR_DIMS = ['Sweet', 'Sour', 'Bitter', 'Salty', 'Savory', 'Spicy', 'Smoky', 'Dry', 'Creamy']
-
-function inferFlavorProfile(cocktail, adjust = {}) {
-  const text = [
-    cocktail.conceptStory, cocktail.guestDescription, cocktail.garnish,
-    cocktail.method, cocktail.menuRole,
-    ...(cocktail.ingredientsMl || cocktail.ingredientObjects || []).map(i => i.ingredient || '')
-  ].join(' ').toLowerCase()
-
-  const ings = cocktail.ingredientsMl || cocktail.ingredientObjects || []
-  const mlOf = (pattern) => ings.filter(i => pattern.test((i.ingredient || '').toLowerCase())).reduce((s, i) => s + (i.amountMl || 0), 0)
-
-  const sweetMl = mlOf(/syrup|cordial|liqueur|sweet|sugar|honey|agave|triple|cointreau/)
-  const sourMl = mlOf(/lime|lemon|citrus|acid|verjus|grapefruit|yuzu/)
-  const spiritMl = mlOf(/gin|vodka|rum|tequila|mezcal|whisky|whiskey|brandy|cognac|pisco|arak/)
-
-  const base = {
-    Sweet: Math.min(10, Math.round(sweetMl / 4 + (/sweet|dessert|honey|peach|tropical/.test(text) ? 3 : 1))),
-    Sour: Math.min(10, Math.round(sourMl / 4 + (/tart|citrus|bright|sour/.test(text) ? 3 : 1))),
-    Bitter: /bitter|amaro|campari|aperol|vermouth|angostura|grapefruit bitters|negroni/.test(text) ? 6 : /dry|crisp/.test(text) ? 3 : 2,
-    Salty: /saline|salt|soy|miso|olive/.test(text) ? 5 : 1,
-    Savory: /savory|umami|miso|soy|sesame|shiso|cured|ferment/.test(text) ? 6 : 1,
-    Spicy: /ginger|pepper|chili|jalap|spic|cardamom/.test(text) ? 5 : 1,
-    Smoky: /mezcal|smoke|peat|char|lapsang/.test(text) ? 8 : /whisky|bourbon/.test(text) ? 3 : 1,
-    Dry: /dry vermouth|fino sherry|bone dry|brut|crisp|austere/.test(text) ? 7 : sweetMl > 20 ? 2 : 4,
-    Creamy: /cream|egg white|coconut|oat|silky|velvet|foam/.test(text) ? 7 : 1,
-  }
-
-  const adjustMult = (adjust.sweetness || 0) * 0.6
-  return {
-    Sweet: Math.max(1, Math.min(10, Math.round(base.Sweet + (adjust.sweetness || 0)))),
-    Sour: Math.max(1, Math.min(10, Math.round(base.Sour + (adjust.sourness || 0)))),
-    Bitter: Math.max(1, Math.min(10, Math.round(base.Bitter - adjustMult * 0.3))),
-    Salty: Math.max(1, Math.min(10, base.Salty)),
-    Savory: Math.max(1, Math.min(10, base.Savory)),
-    Spicy: Math.max(1, Math.min(10, base.Spicy)),
-    Smoky: Math.max(1, Math.min(10, base.Smoky)),
-    Dry: Math.max(1, Math.min(10, Math.round(base.Dry - (adjust.sweetness || 0) * 0.4))),
-    Creamy: Math.max(1, Math.min(10, base.Creamy)),
-  }
-}
+// ─── Cost Logic ───────────────────────────────────────────────────────────────
 
 function estimateABV(ingredientsMl = [], abvAdjust = 0) {
   const total = ingredientsMl.reduce((s, i) => s + (i.amountMl || 0), 0)
@@ -549,6 +510,10 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
   const [showBuild, setShowBuild] = useState(false)
   const [approvedLocal, setApprovedLocal] = useState(false)
   const [priceRefreshToken, setPriceRefreshToken] = useState(0)
+  const [workingIngs, setWorkingIngs] = useState(() =>
+    (proposal.ingredientsMl || proposal.ingredientObjects || []).map(i => ({ ...i }))
+  )
+  const [changeLog, setChangeLog] = useState([])
 
   // ingredientLinks: keyed by ingredient INDEX (not name) to prevent duplicate-name collisions.
   // Initialized from product_id fields already on saved ingredient rows (backward-compatible:
@@ -568,27 +533,28 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
     })
     return links
   })
-  // linkingIdx: the ings[] index of the row currently showing the picker, or null.
+  // linkingIdx: the workingIngs[] index of the row currently showing the picker, or null.
   const [linkingIdx, setLinkingIdx] = useState(null)
 
-  const ings = proposal.ingredientsMl || proposal.ingredientObjects || []
+  const hasAdjustment = adjust.sweetness !== 0 || adjust.sourness !== 0 || adjust.abv !== 0 || adjust.carbonation !== 0
 
   // mergedIngs injects product_id and related fields from local link state (index-keyed) into
   // the ingredient array before costing so the adapter can use Priority 0 resolution.
   const mergedIngs = useMemo(
-    () => ings.map((ing, i) => ingredientLinks[i] ? { ...ing, ...ingredientLinks[i] } : ing),
-    [ings, ingredientLinks]
+    () => workingIngs.map((ing, i) => ingredientLinks[i] ? { ...ing, ...ingredientLinks[i] } : ing),
+    [workingIngs, ingredientLinks]
   )
 
-  // nonZeroIndices: maps cost.rows[j] → original ings[] index. Needed because buildCostSheet
+  // nonZeroIndices: maps cost.rows[j] → workingIngs[] index. Needed because buildCostSheet
   // filters out 0-ml ingredients, so cost row j ≠ ings index j.
   const nonZeroIndices = useMemo(
-    () => ings.reduce((acc, ing, i) => { if ((ing.amountMl || 0) > 0) acc.push(i); return acc }, []),
-    [ings]
+    () => workingIngs.reduce((acc, ing, i) => { if ((ing.amountMl || 0) > 0) acc.push(i); return acc }, []),
+    [workingIngs]
   )
 
-  const profile = useMemo(() => inferFlavorProfile(proposal, adjust), [proposal, adjust])
-  const abv = useMemo(() => estimateABV(ings, adjust.abv * 1.2), [ings, adjust.abv])
+  const profile = useMemo(() => computeFlavorProfile({ ...proposal, ingredientsMl: workingIngs }), [proposal, workingIngs])
+  const glassRec = useMemo(() => recommendGlassware({ ...proposal, ingredientsMl: workingIngs }), [proposal, workingIngs])
+  const abv = useMemo(() => estimateABV(workingIngs, 0), [workingIngs])
   const cost = useMemo(() => buildCostSheet(mergedIngs, proposal.targetPrice), [mergedIngs, proposal.targetPrice, priceRefreshToken])
 
   // Ingredients that have an explicit product link — used by VerifiedPriceEntryPanel.
@@ -597,21 +563,29 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
       .map(([ingIdx, link]) => ({
         product_id: link.product_id,
         product_name: link.product_name || link.product_id,
-        ingredient: ings[Number(ingIdx)]?.ingredient || 'Ingredient',
+        ingredient: workingIngs[Number(ingIdx)]?.ingredient || 'Ingredient',
       }))
       .filter(li => li.product_id),
-    [ingredientLinks, ings]
+    [ingredientLinks, workingIngs]
   )
-  const chips = useMemo(() => trainingChips(proposal, profile), [proposal, profile])
+  const chips = useMemo(() => trainingChips({ ...proposal, ingredientsMl: workingIngs }, profile), [proposal, workingIngs, profile])
 
-  // Merges current ingredient links back into the proposal before saving to localStorage.
-  // Writes product_id and related fields directly onto each ingredientsMl entry by index.
+  // Merges current ingredient links back into the working recipe before saving to localStorage.
   const proposalWithLinks = (overrides = {}) => ({
     ...proposal,
     name: editName,
     ...overrides,
-    ingredientsMl: ings.map((ing, i) => ({ ...ing, ...(ingredientLinks[i] || {}) })),
+    ingredientsMl: workingIngs.map((ing, i) => ({ ...ing, ...(ingredientLinks[i] || {}) })),
   })
+
+  const handleApplyAdjustment = () => {
+    const result = applyMicroAdjustment({ ...proposal, ingredientsMl: workingIngs }, adjust)
+    if (result.applied) {
+      setWorkingIngs(result.cocktail.ingredientsMl)
+      setChangeLog(prev => [...result.changeLog, ...prev])
+    }
+    setAdjust({ sweetness: 0, sourness: 0, abv: 0, carbonation: 0 })
+  }
 
   const handleApprove = () => { setApprovedLocal(true); onApprove?.(proposalWithLinks()) }
 
@@ -632,10 +606,11 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
       {/* Visual + Profile */}
       <div className="grid gap-6 md:grid-cols-[200px_1fr]">
         <div className="flex flex-col items-center gap-4 rounded-[2rem] border border-[#c9a96e]/12 bg-black/25 p-5">
-          <CocktailVisual cocktail={proposal} profile={profile} />
+          <CocktailVisual cocktail={{ ...proposal, glassware: glassRec.glassware }} profile={profile} />
           <div className="text-center">
             <div className="text-[9px] font-black uppercase tracking-widest text-[#e8dcc0]/45">Glassware</div>
-            <div className="mt-1 text-xs font-bold text-[#e8dcc0]">{proposal.glassware || '—'}</div>
+            <div className="mt-1 text-xs font-bold text-[#e8dcc0]">{glassRec.glassware}</div>
+            <div className="mt-0.5 text-[8px] leading-4 text-[#e8dcc0]/30">{glassRec.reason}</div>
           </div>
         </div>
 
@@ -670,7 +645,8 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
 
           {/* Radar */}
           <div className="rounded-[2rem] border border-[#c9a96e]/12 bg-black/20 p-4">
-            <div className="mb-2 text-[9px] font-black uppercase tracking-widest text-[#e8dcc0]/45">Flavor Map</div>
+            <div className="mb-1 text-[9px] font-black uppercase tracking-widest text-[#e8dcc0]/45">Flavor Map</div>
+            <div className="mb-2 text-[8px] text-[#e8dcc0]/25">Estimated from recipe structure</div>
             <FlavorRadar profile={profile} />
           </div>
         </div>
@@ -680,7 +656,7 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
       <div className="rounded-[2rem] border border-[#c9a96e]/15 bg-[linear-gradient(135deg,#12110e,#0a0908)] p-6">
         <div className="mb-4 text-[10px] font-black uppercase tracking-[0.28em] text-[#c9a96e]">Recipe Spec Sheet</div>
         <div className="divide-y divide-[#c9a96e]/06">
-          {ings.filter(i => i.amountMl > 0).map((ing, i) => (
+          {workingIngs.filter(i => i.amountMl > 0).map((ing, i) => (
             <SpecRow key={i} ingredient={ing.ingredient} ml={ing.amountMl} role={ing.role} />
           ))}
         </div>
@@ -704,20 +680,40 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
       <div className="rounded-[2rem] border border-[#c9a96e]/15 bg-[linear-gradient(135deg,#0f0e0b,#090907)] p-6">
         <div className="mb-5">
           <div className="text-[10px] font-black uppercase tracking-[0.28em] text-[#c9a96e]">Adjust Cocktail</div>
-          <p className="mt-1 text-xs text-[#e8dcc0]/55">Tune the profile. The flavor map updates live. Save to regenerate.</p>
+          <p className="mt-1 text-xs text-[#e8dcc0]/55">Tune ingredient amounts directly — no regeneration. Flavor map and recipe update on apply.</p>
         </div>
+
+        {hasAdjustment && (
+          <div className="mb-4 rounded-xl border border-[#c9a96e]/20 bg-[#c9a96e]/05 px-4 py-2.5">
+            <p className="text-[10px] font-bold text-[#c9a96e]/80">Adjusting existing cocktail — preserving identity</p>
+          </div>
+        )}
+
         <div className="space-y-4">
           <AdjustSlider label="Sweetness" value={adjust.sweetness} onChange={v => setAdjust(a => ({ ...a, sweetness: v }))} />
           <AdjustSlider label="Sourness" value={adjust.sourness} onChange={v => setAdjust(a => ({ ...a, sourness: v }))} />
           <AdjustSlider label="ABV" value={adjust.abv} onChange={v => setAdjust(a => ({ ...a, abv: v }))} />
           <AdjustSlider label="Carbonation" value={adjust.carbonation} onChange={v => setAdjust(a => ({ ...a, carbonation: v }))} />
         </div>
+
         <button
-          onClick={() => onRegenerate?.(`Adjust: sweetness ${adjust.sweetness > 0 ? '+' : ''}${adjust.sweetness}, sourness ${adjust.sourness > 0 ? '+' : ''}${adjust.sourness}, ABV ${adjust.abv > 0 ? '+' : ''}${adjust.abv}, carbonation ${adjust.carbonation > 0 ? '+' : ''}${adjust.carbonation}`)}
-          className="mt-5 rounded-[1.2rem] border border-[#c9a96e]/30 bg-[#c9a96e]/10 px-6 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e] transition hover:bg-[#c9a96e]/20"
+          onClick={handleApplyAdjustment}
+          disabled={!hasAdjustment}
+          className="mt-5 rounded-[1.2rem] border border-[#c9a96e]/30 bg-[#c9a96e]/10 px-6 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#c9a96e] transition hover:bg-[#c9a96e]/20 disabled:cursor-not-allowed disabled:opacity-35"
         >
-          Save Changes
+          Apply Adjustment
         </button>
+
+        {changeLog.length > 0 && (
+          <div className="mt-4 rounded-xl border border-[#6b705c]/20 bg-black/20 px-4 py-3">
+            <div className="mb-2 text-[9px] font-black uppercase tracking-widest text-[#e8dcc0]/40">Change Log</div>
+            <ul className="space-y-1">
+              {changeLog.map((entry, i) => (
+                <li key={i} className="text-[10px] leading-5 text-[#e8dcc0]/55">{entry}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Food Cost Table */}
@@ -834,7 +830,7 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
           </div>
           <span className="rounded-full border border-[#c9a96e]/20 bg-black/20 px-3 py-1 text-[10px] font-black text-[#c9a96e]">{showBuild ? 'Hide' : 'Show'}</span>
         </button>
-        {showBuild && <CocktailBuildExperience cocktail={proposal} />}
+        {showBuild && <CocktailBuildExperience cocktail={{ ...proposal, ingredientsMl: workingIngs }} />}
       </div>
 
       {/* Training Notes */}
