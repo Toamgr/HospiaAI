@@ -144,6 +144,10 @@ export default function ActionBoard({
   onOwnerNote,
   shiftNotes      = [],
   shiftBrain,
+  users           = [],
+  assignedTasks   = [],
+  onAddAssignedTask,
+  onUpdateAssignedTask,
 }) {
   // ── Intelligence layer (derived from real operational data) ─────────────────
   const [statuses,      setStatuses]      = useState(() => loadManagerActionStatuses())
@@ -198,6 +202,28 @@ export default function ActionBoard({
   // ── Quick task board ────────────────────────────────────────────────────────
   const [newTask,        setNewTask]        = useState('')
   const [ownerNoteDraft, setOwnerNoteDraft] = useState('')
+
+  // ── Assign task to employee ──────────────────────────────────────────────────
+  const [assignTaskTitle,  setAssignTaskTitle]  = useState('')
+  const [assignTargets,    setAssignTargets]    = useState([])
+  const [assignPriority,   setAssignPriority]   = useState('normal')
+  const [assignDue,        setAssignDue]        = useState('')
+
+  const staffUsers = users.filter(u => u.role !== 'owner' && u.role !== 'admin' && u.username !== currentUser?.username)
+
+  function handleAssignTask() {
+    if (!assignTaskTitle.trim() || assignTargets.length === 0) return
+    onAddAssignedTask?.({
+      title:      assignTaskTitle.trim(),
+      assignedTo: assignTargets,
+      priority:   assignPriority,
+      dueDate:    assignDue || null
+    })
+    setAssignTaskTitle('')
+    setAssignTargets([])
+    setAssignPriority('normal')
+    setAssignDue('')
+  }
 
   const open              = actionItems.filter(item => !item.done)
   const openEmployeeTasks = employeeTasks.filter(task => task.status !== 'done')
@@ -426,6 +452,114 @@ export default function ActionBoard({
             <p className="text-sm leading-7 text-[#e8dcc0]/55">No tasks added yet. Use the input above to add a task for this shift.</p>
           )}
         </Card>
+
+        {/* ── Assign Task to Employee ──────────────────────────────────────── */}
+        <Card>
+          <div className="mb-5">
+            <Label>Assign Task to Employee</Label>
+            <h2 className="font-serif text-2xl font-black text-[#f5f5f0]">Target a specific employee</h2>
+          </div>
+          <div className="space-y-4">
+            <input
+              value={assignTaskTitle}
+              onChange={e => setAssignTaskTitle(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAssignTask()}
+              placeholder="Task description..."
+              className="w-full min-h-11 rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-4 text-sm text-[#f5f5f0] outline-none focus:border-[#c9a96e]"
+            />
+            <div className="grid gap-4 sm:grid-cols-[1fr_180px_160px_auto]">
+              <div>
+                <div className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-[#e8dcc0]/50">Assign to</div>
+                <div className="flex flex-wrap gap-2 rounded-xl border border-[#6b705c]/25 bg-[#1a1a1a] p-3 min-h-[2.75rem]">
+                  {staffUsers.length === 0 ? (
+                    <span className="text-xs text-[#e8dcc0]/35">No staff accounts found.</span>
+                  ) : staffUsers.map(u => (
+                    <label key={u.username} className="flex cursor-pointer items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={assignTargets.includes(u.username)}
+                        onChange={e => setAssignTargets(prev =>
+                          e.target.checked ? [...prev, u.username] : prev.filter(n => n !== u.username)
+                        )}
+                        className="accent-[#c9a96e]"
+                      />
+                      <span className="text-xs text-[#e8dcc0]">{u.username}</span>
+                      <span className="text-[9px] text-[#e8dcc0]/35 uppercase tracking-wider">{u.role}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-[#e8dcc0]/50">Priority</div>
+                <select
+                  value={assignPriority}
+                  onChange={e => setAssignPriority(e.target.value)}
+                  className="w-full min-h-11 rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-3 text-sm text-[#f5f5f0] outline-none focus:border-[#c9a96e]"
+                >
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              <div>
+                <div className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-[#e8dcc0]/50">Due (optional)</div>
+                <input
+                  type="date"
+                  value={assignDue}
+                  onChange={e => setAssignDue(e.target.value)}
+                  className="w-full min-h-11 rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-3 text-sm text-[#f5f5f0] outline-none focus:border-[#c9a96e]"
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  onClick={handleAssignTask}
+                  disabled={!assignTaskTitle.trim() || assignTargets.length === 0}
+                >
+                  Assign
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* ── Targeted Employee Tasks (manager tracking) ────────────────────── */}
+        {assignedTasks.length > 0 && (
+          <Card>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <Label>Targeted Employee Tasks</Label>
+                <h2 className="font-serif text-2xl font-black text-[#f5f5f0]">
+                  {assignedTasks.filter(t => t.status !== 'done').length} open
+                </h2>
+              </div>
+              <span className="rounded-full border border-[#c9a96e]/25 bg-[#c9a96e]/10 px-3 py-1 text-xs font-black text-[#c9a96e]">
+                {assignedTasks.length} total
+              </span>
+            </div>
+            <div className="space-y-2.5">
+              {assignedTasks.slice(0, 10).map(task => (
+                <div key={task.id} className="rounded-2xl border border-[#6b705c]/20 bg-[#1a1a1a] px-4 py-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-1.5">
+                    <span className="text-sm font-black text-[#f5f5f0]">{task.title}</span>
+                    <span className={cx(
+                      'rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em]',
+                      task.status === 'done'        ? 'border-emerald-800/50 text-emerald-200' :
+                      task.status === 'in_progress' ? 'border-amber-800/50 text-amber-200'    :
+                                                       'border-[#6b705c]/40 text-[#e8dcc0]/55'
+                    )}>
+                      {task.status === 'done' ? 'Done' : task.status === 'in_progress' ? 'In Progress' : 'Open'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-[10px] text-[#e8dcc0]/40">
+                    <span>→ {task.assignedTo?.join(', ')}</span>
+                    {task.dueDate && <span>Due: {task.dueDate}</span>}
+                    <span>{task.created_at?.slice(0, 10)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* ── Open Employee Event Tasks ─────────────────────────────────────── */}
         {employeeTasks.length > 0 && (

@@ -173,6 +173,11 @@ export default function CommandCenter({ t, currentUser, goToPage, reportArchive 
   const pipelineRevenue = eventPlans.reduce((sum, event) => sum + Number(event.projected_revenue || event.budget || 0), 0)
   const executionRate = actionItems.length ? Math.round(((actionItems.length - openActions.length) / actionItems.length) * 100) : 100
 
+  const thisMonth = new Date().toISOString().slice(0, 7)
+  const thisMonthReports = reportArchive.filter(r => (r.shift_date || r.submitted_at || '').startsWith(thisMonth))
+  const lastReport = reportArchive[0]
+  const lastReportLabel = lastReport?.shift_date || lastReport?.submitted_at?.slice(0, 10) || 'None yet'
+
   const HEADER_TITLE = {
     clear:     'Venue is operating cleanly tonight.',
     attention: 'Your venue has items requiring review before service.',
@@ -216,8 +221,10 @@ export default function CommandCenter({ t, currentUser, goToPage, reportArchive 
           </div>
         </Card>
 
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          <Metric label="Manager Execution Rate" value={`${executionRate}%`} sub={`${openActions.length} open actions`} />
+        <div className="grid gap-8 md:grid-cols-3 lg:grid-cols-6">
+          <Metric label="Shift Closeouts This Month" value={String(thisMonthReports.length)} sub={`${reportArchive.length} total archived`} />
+          <Metric label="Last Closeout" value={lastReportLabel} sub={lastReport?.manager_name || 'No reports yet'} />
+          <Metric label="Manager Execution" value={`${executionRate}%`} sub={`${openActions.length} open actions`} />
           <Metric label="Resolved Incidents" value={String(serviceIncidents.filter(i => i.resolved).length)} sub="All-time resolved" />
           <Metric label="Event Pipeline" value={formatMoney(pipelineRevenue)} sub={`${eventPlans.length} saved events`} />
           <Metric label="Event Enquiries" value={String(pendingEventEnquiries.length)} sub="Pending owner approval" />

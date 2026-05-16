@@ -127,6 +127,12 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
       return Array.isArray(saved) ? saved : INITIAL_OWNER_NOTES
     } catch { return INITIAL_OWNER_NOTES }
   })
+  const [assignedTasks, setAssignedTasks] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE.assignedTasks) || 'null')
+      return Array.isArray(saved) ? saved : []
+    } catch { return [] }
+  })
 
   useEffect(() => {
     localStorage.setItem(STORAGE.futureEvents, JSON.stringify(eventPlans))
@@ -159,6 +165,10 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
   useEffect(() => {
     localStorage.setItem(STORAGE.ownerNotes, JSON.stringify(ownerNotes))
   }, [ownerNotes])
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE.assignedTasks, JSON.stringify(assignedTasks))
+  }, [assignedTasks])
 
   const updateIncident = useCallback((incidentId, patch) => {
     setServiceIncidents(prev => prev.map(item => item.id === incidentId ? { ...item, ...patch } : item))
@@ -286,6 +296,31 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
     }
     return updated
   }, [currentUser?.username, pushNotification])
+
+  const addAssignedTask = useCallback(task => {
+    const saved = {
+      id: `at-${Date.now()}`,
+      status: 'open',
+      created_at: new Date().toISOString(),
+      createdBy: currentUser?.username || 'Manager',
+      ...task
+    }
+    setAssignedTasks(prev => [saved, ...prev].slice(0, 200))
+    pushNotification({
+      roles: ['employee', 'bar_manager', 'manager', 'admin'],
+      title: 'New task assigned',
+      body: `${saved.title}`,
+      type: 'assigned-task',
+      page: 'employeeHome'
+    })
+    return saved
+  }, [currentUser?.username, pushNotification])
+
+  const updateAssignedTask = useCallback((taskId, status) => {
+    setAssignedTasks(prev => prev.map(t =>
+      t.id === taskId ? { ...t, status, updatedAt: new Date().toISOString() } : t
+    ))
+  }, [])
 
   const sendOwnerNote = useCallback(body => {
     const note = { id: `owner-note-${Date.now()}`, from: currentUser?.username || 'Manager', body, created_at: new Date().toISOString() }
@@ -447,11 +482,14 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
     employeeTasks,
     employeeRequests,
     ownerNotes,
+    assignedTasks,
     saveEventPlan,
     approveEventEnquiry,
     submitServiceIncident,
     updateIncident,
     updateEmployeeTask,
+    addAssignedTask,
+    updateAssignedTask,
     submitBudgetRequest,
     respondBudgetRequest,
     submitEmployeeRequest,

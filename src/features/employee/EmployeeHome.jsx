@@ -79,9 +79,10 @@ function EmployeeBubbleModule({ module, onOpen }) {
   )
 }
 
-export default function EmployeeHome({ t, currentUser, goToPage, academyProgress = {}, employeeTasks = [], employeeRequests = [], approvedCocktails = [], cocktailPractice = {} }) {
+export default function EmployeeHome({ t, currentUser, goToPage, academyProgress = {}, employeeTasks = [], employeeRequests = [], approvedCocktails = [], cocktailPractice = {}, assignedTasks = [], onUpdateAssignedTask }) {
   const employeeName = currentUser?.username || 'Employee'
   const pendingTasks = employeeTasks.filter(task => task.status !== 'done')
+  const myAssignedTasks = assignedTasks.filter(task => task.assignedTo?.includes(employeeName) && task.status !== 'done')
   const practiced = Object.values(cocktailPractice[employeeName] || {}).filter(item => item?.practiced).length
   const practiceRate = approvedCocktails.length ? Math.round((practiced / approvedCocktails.length) * 100) : 0
   const visibleAcademies = getVisibleAcademies(currentUser)
@@ -101,9 +102,9 @@ export default function EmployeeHome({ t, currentUser, goToPage, academyProgress
   const experienceSections = [
     {
       title: 'Today Operations',
-      value: pendingTasks.length ? `${pendingTasks.length} open` : 'Clear',
-      body: pendingTasks[0]?.title || 'No urgent assigned work. Stay ready for live service signals.',
-      page: pendingTasks.length ? 'serviceRecovery' : 'courses'
+      value: myAssignedTasks.length ? `${myAssignedTasks.length} open` : 'Clear',
+      body: myAssignedTasks[0]?.title || 'No tasks assigned to you. Stay ready for live service signals.',
+      page: 'serviceRecovery'
     },
     {
       title: 'Continue Learning',
@@ -189,10 +190,54 @@ export default function EmployeeHome({ t, currentUser, goToPage, academyProgress
 
         <div className="mx-auto mt-4 flex max-w-4xl flex-wrap items-center justify-center gap-2">
           <EmployeeHomeSignal label="Today" value={todayLabel} />
-          <EmployeeHomeSignal label="Assigned Work" value={`${pendingTasks.length} open`} />
+          <EmployeeHomeSignal label="Assigned Work" value={`${myAssignedTasks.length} open`} />
           <EmployeeHomeSignal label="Cocktail Practice" value={`${practiceRate}%`} />
           <EmployeeHomeSignal label="Requests" value={String(myRequests.length)} />
         </div>
+
+        {myAssignedTasks.length > 0 && (
+          <div className="mx-auto mt-5 max-w-4xl w-full">
+            <div className="mb-3 text-[10px] font-black uppercase tracking-[0.26em] text-[#c9a96e]">
+              My Assigned Tasks — {myAssignedTasks.length} open
+            </div>
+            <div className="space-y-2">
+              {myAssignedTasks.map(task => (
+                <div key={task.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-[#6b705c]/20 bg-[#14130f] px-4 py-3">
+                  <span className={cx(
+                    'shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em]',
+                    task.priority === 'urgent' ? 'border-red-800/50 text-red-200' :
+                    task.priority === 'high'   ? 'border-amber-800/40 text-amber-200' :
+                                                  'border-[#6b705c]/30 text-[#e8dcc0]/55'
+                  )}>
+                    {task.priority || 'normal'}
+                  </span>
+                  <span className="flex-1 text-sm text-[#f5f5f0]">{task.title}</span>
+                  {task.dueDate && (
+                    <span className="text-[10px] text-[#e8dcc0]/35">{task.dueDate}</span>
+                  )}
+                  <div className="flex gap-2 shrink-0">
+                    {task.status === 'open' && (
+                      <button
+                        type="button"
+                        onClick={() => onUpdateAssignedTask?.(task.id, 'in_progress')}
+                        className="rounded-full border border-amber-800/35 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-300/75 hover:bg-amber-950/20 transition"
+                      >
+                        Start
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onUpdateAssignedTask?.(task.id, 'done')}
+                      className="rounded-full border border-emerald-800/35 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-300/75 hover:bg-emerald-950/20 transition"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mx-auto mt-3 grid max-w-6xl gap-2.5 md:grid-cols-2 xl:grid-cols-5">
           {experienceSections.map(section => (

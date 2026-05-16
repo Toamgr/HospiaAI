@@ -20,6 +20,7 @@
   archivedCocktails: 'hospia.archivedCocktails',
   cocktailPractice: 'hospia.cocktailPractice',
   ownerNotes: 'hospia.ownerNotes',
+  assignedTasks: 'hospia.assignedTasks',
   academyProgress: 'hospia.academyProgress',
   selectedAcademy: 'hospia.selectedAcademy',
   selectedLesson: 'hospia.selectedLesson'
