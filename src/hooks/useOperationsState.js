@@ -303,6 +303,7 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
       status: 'open',
       created_at: new Date().toISOString(),
       createdBy: currentUser?.username || 'Manager',
+      createdById: currentUser?.id || null,
       ...task
     }
     setAssignedTasks(prev => [saved, ...prev].slice(0, 200))

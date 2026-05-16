@@ -11,6 +11,7 @@ export function getInitialUser() {
     const canonical = savedUsers.find(user => user.username.toLowerCase() === saved?.username?.toLowerCase())
     if (canonical && validRoles.includes(canonical.role) && !canonical.disabled) {
       return {
+        id: canonical.id,
         username: canonical.username,
         role: canonical.role,
         venue: canonical.venue,
@@ -20,6 +21,7 @@ export function getInitialUser() {
     }
     if (saved?.username && validRoles.includes(saved.role)) {
       return {
+        id: saved.id || null,
         username: saved.username,
         role: saved.role,
         venue: saved.venue || 'Main Venue',

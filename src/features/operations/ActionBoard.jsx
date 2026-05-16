@@ -214,10 +214,11 @@ export default function ActionBoard({
   function handleAssignTask() {
     if (!assignTaskTitle.trim() || assignTargets.length === 0) return
     onAddAssignedTask?.({
-      title:      assignTaskTitle.trim(),
-      assignedTo: assignTargets,
-      priority:   assignPriority,
-      dueDate:    assignDue || null
+      title:         assignTaskTitle.trim(),
+      assignedToIds: assignTargets,
+      assignedTo:    assignTargets.map(id => staffUsers.find(u => u.id === id)?.username).filter(Boolean),
+      priority:      assignPriority,
+      dueDate:       assignDue || null
     })
     setAssignTaskTitle('')
     setAssignTargets([])
@@ -474,12 +475,12 @@ export default function ActionBoard({
                   {staffUsers.length === 0 ? (
                     <span className="text-xs text-[#e8dcc0]/35">No staff accounts found.</span>
                   ) : staffUsers.map(u => (
-                    <label key={u.username} className="flex cursor-pointer items-center gap-1.5">
+                    <label key={u.id} className="flex cursor-pointer items-center gap-1.5">
                       <input
                         type="checkbox"
-                        checked={assignTargets.includes(u.username)}
+                        checked={assignTargets.includes(u.id)}
                         onChange={e => setAssignTargets(prev =>
-                          e.target.checked ? [...prev, u.username] : prev.filter(n => n !== u.username)
+                          e.target.checked ? [...prev, u.id] : prev.filter(n => n !== u.id)
                         )}
                         className="accent-[#c9a96e]"
                       />

@@ -82,7 +82,11 @@ function EmployeeBubbleModule({ module, onOpen }) {
 export default function EmployeeHome({ t, currentUser, goToPage, academyProgress = {}, employeeTasks = [], employeeRequests = [], approvedCocktails = [], cocktailPractice = {}, assignedTasks = [], onUpdateAssignedTask }) {
   const employeeName = currentUser?.username || 'Employee'
   const pendingTasks = employeeTasks.filter(task => task.status !== 'done')
-  const myAssignedTasks = assignedTasks.filter(task => task.assignedTo?.includes(employeeName) && task.status !== 'done')
+  const myAssignedTasks = assignedTasks.filter(task => {
+    const matchById   = currentUser?.id && task.assignedToIds?.includes(currentUser.id)
+    const matchByName = task.assignedTo?.includes(employeeName)
+    return (matchById || matchByName) && task.status !== 'done'
+  })
   const practiced = Object.values(cocktailPractice[employeeName] || {}).filter(item => item?.practiced).length
   const practiceRate = approvedCocktails.length ? Math.round((practiced / approvedCocktails.length) * 100) : 0
   const visibleAcademies = getVisibleAcademies(currentUser)

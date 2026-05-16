@@ -119,6 +119,7 @@ export function authenticateUser(users, username, password) {
   if (!match) throw new Error('Invalid username or password.')
   if (match.disabled) throw new Error('This user has been disabled. Ask an owner or admin for access.')
   return {
+    id: match.id,
     username: match.username,
     role: match.role,
     venue: match.venue,
