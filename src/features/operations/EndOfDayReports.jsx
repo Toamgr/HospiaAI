@@ -1,118 +1,407 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
+import { cx } from '../../utils/format'
 import { loadEmailJS } from '../../utils/emailjs'
 import { EMAILJS } from '../../config/systemConfig'
-import { Card, Button, Label, Field, TextArea, Alert, Header } from '../../components/AppPrimitives'
+import { Card, Label, Header } from '../../components/AppPrimitives'
+import {
+  deriveOperationalActions, enrichActions,
+  getCarryForwardActions, getUrgentActions,
+  loadManagerActionStatuses, loadManagerActionCarryForward,
+  saveEndOfShiftReview,
+  PRIORITY_STYLE, PRIORITY_LABEL, SOURCE_LABEL,
+} from './operationalIntelligenceUtils'
 
-export default function EndOfDayReports({ t, reportArchive = [], onReportArchived }) {
-  const [sending, setSending] = useState(false)
-  const [status, setStatus] = useState(null)
-  const [formData, setFormData] = useState({
-    shift_date: new Date().toISOString().slice(0, 10),
-    manager_name: '',
-    shift_summary: '',
-    complaints: '',
-    service_recovery: '',
-    staff_issues: '',
-    sales_notes: '',
-    urgent_items: ''
-  })
+const TODAY = new Date().toISOString().slice(0, 10)
 
-  const updateField = useCallback((field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }, [])
+function SectionLabel({ children }) {
+  return (
+    <div className="text-[10px] font-black uppercase tracking-widest text-[#c9a96e] mb-2">
+      {children}
+    </div>
+  )
+}
 
-  async function sendEndOfDayReport(event) {
-    event.preventDefault()
-    setStatus(null)
+function ShiftTextArea({ value, onChange, rows = 3, placeholder }) {
+  return (
+    <textarea
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      rows={rows}
+      placeholder={placeholder}
+      className="w-full rounded-2xl border border-[#6b705c]/30 bg-[#14130f] px-4 py-3 text-sm text-[#f5f5f0] placeholder:text-[#e8dcc0]/25 focus:border-[#c9a96e]/50 focus:outline-none resize-none"
+    />
+  )
+}
+
+export default function EndOfDayReports({
+  t,
+  currentUser,
+  reportArchive    = [],
+  onReportArchived,
+  actionItems      = [],
+  serviceIncidents = [],
+  shiftNotes       = [],
+}) {
+  const [sending,      setSending]      = useState(false)
+  const [submitted,    setSubmitted]    = useState(false)
+  const [emailStatus,  setEmailStatus]  = useState(null)
+
+  // Form fields
+  const [shiftDate,       setShiftDate]       = useState(TODAY)
+  const [managerName,     setManagerName]     = useState(currentUser?.username || currentUser?.name || '')
+  const [shiftSummary,    setShiftSummary]    = useState('')
+  const [highlights,      setHighlights]      = useState('')
+  const [urgentItems,     setUrgentItems]     = useState('')
+  const [complaints,      setComplaints]      = useState('')
+  const [serviceRecovery, setServiceRecovery] = useState('')
+  const [staffIssues,     setStaffIssues]     = useState('')
+  const [salesNotes,      setSalesNotes]      = useState('')
+  const [generalNotes,    setGeneralNotes]    = useState('')
+  const [flagForOwner,    setFlagForOwner]    = useState(false)
+
+  // Operational intelligence
+  const enriched = useMemo(() => {
+    const statuses      = loadManagerActionStatuses()
+    const carryForwards = loadManagerActionCarryForward()
+    const derived       = deriveOperationalActions(actionItems, serviceIncidents, shiftNotes, reportArchive)
+    return enrichActions(derived, statuses, carryForwards, serviceIncidents, actionItems)
+  }, [actionItems, serviceIncidents, shiftNotes, reportArchive])
+
+  const carryForwardItems = useMemo(() => getCarryForwardActions(enriched), [enriched])
+  const urgentUnresolved  = useMemo(() => getUrgentActions(enriched),       [enriched])
+  const openCount         = enriched.filter(a => a.status !== 'resolved').length
+  const resolvedCount     = enriched.filter(a => a.status === 'resolved').length
+
+  const handleSubmit = useCallback(async (e) => {
+    e.preventDefault()
     setSending(true)
+    setEmailStatus(null)
 
+    const review = {
+      id:                  `eod-${Date.now()}`,
+      shift_date:          shiftDate,
+      manager_name:        managerName || currentUser?.username || 'Manager',
+      manager_role:        currentUser?.role || '',
+      shift_summary:       shiftSummary.trim(),
+      highlights:          highlights.trim(),
+      urgent_items:        urgentItems.trim(),
+      complaints:          complaints.trim(),
+      service_recovery:    serviceRecovery.trim(),
+      staff_issues:        staffIssues.trim(),
+      sales_notes:         salesNotes.trim(),
+      general_notes:       generalNotes.trim(),
+      flaggedForOwner:     flagForOwner,
+      carry_forward_count: carryForwardItems.length,
+      open_count:          openCount,
+      resolved_count:      resolvedCount,
+      submitted_at:        new Date().toISOString(),
+    }
+
+    // Persist to local archive regardless of email
+    saveEndOfShiftReview(review)
+
+    // EmailJS — best effort, non-blocking
     try {
       const emailjs = await loadEmailJS()
-
       await emailjs.send(
         EMAILJS.serviceId,
         EMAILJS.templateId,
         {
-          shift_date: formData.shift_date,
-          manager_name: formData.manager_name,
-          shift_summary: formData.shift_summary,
-          complaints: formData.complaints,
-          service_recovery: formData.service_recovery,
-          staff_issues: formData.staff_issues,
-          sales_notes: formData.sales_notes,
-          urgent_items: formData.urgent_items
+          shift_date:       review.shift_date,
+          manager_name:     review.manager_name,
+          shift_summary:    review.shift_summary,
+          complaints:       review.complaints,
+          service_recovery: review.service_recovery,
+          staff_issues:     review.staff_issues,
+          sales_notes:      review.sales_notes,
+          urgent_items:     review.urgent_items,
         },
         EMAILJS.publicKey
       )
-
-      await onReportArchived?.({ ...formData })
-      setStatus({ type: 'success', message: t.ui.reportSent })
-      setFormData({
-        shift_date: new Date().toISOString().slice(0, 10),
-        manager_name: '',
-        shift_summary: '',
-        complaints: '',
-        service_recovery: '',
-        staff_issues: '',
-        sales_notes: '',
-        urgent_items: ''
-      })
-    } catch (error) {
-      console.error('EmailJS failed:', error)
-      setStatus({ type: 'error', message: t.ui.reportError })
-    } finally {
-      setSending(false)
+      setEmailStatus('sent')
+    } catch {
+      setEmailStatus('failed')
     }
+
+    await onReportArchived?.(review)
+    setSending(false)
+    setSubmitted(true)
+  }, [
+    shiftDate, managerName, shiftSummary, highlights, urgentItems,
+    complaints, serviceRecovery, staffIssues, salesNotes, generalNotes,
+    flagForOwner, carryForwardItems.length, openCount, resolvedCount,
+    currentUser, onReportArchived,
+  ])
+
+  if (submitted) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="font-serif text-[5rem] font-black leading-none text-[#c9a96e]/20 mb-6">✓</div>
+        <div className="text-[10px] font-black uppercase tracking-[0.28em] text-[#c9a96e] mb-3">Shift Closed Out</div>
+        <h2 className="font-serif text-4xl font-black text-[#f5f5f0] mb-4">Review saved to archive.</h2>
+        <p className="text-[#e8dcc0]/60 text-sm max-w-md">
+          {emailStatus === 'sent' && 'Email report sent. '}
+          {emailStatus === 'failed' && 'Email send failed — report saved locally. '}
+          {flagForOwner ? 'Flagged for owner review. ' : ''}
+          {carryForwardItems.length > 0 && `${carryForwardItems.length} item${carryForwardItems.length !== 1 ? 's' : ''} carrying forward to next pre-shift.`}
+        </p>
+      </div>
+    )
   }
 
   return (
     <>
-      <Header eyebrow={t.pages.endOfDay} title={t.pages.endOfDay} body={t.copy.endOfDayBody} />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <Card>
-          <form onSubmit={sendEndOfDayReport} className="space-y-5">
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field id="shift_date" label={t.fields.shiftDate} type="date" value={formData.shift_date} onChange={value => updateField('shift_date', value)} />
-              <Field id="manager_name" label={t.fields.managerName} value={formData.manager_name} onChange={value => updateField('manager_name', value)} />
+      <Header
+        eyebrow="Shift Closeout"
+        title="End-of-Shift Review"
+        body="Close out this shift — handoff notes, carry-forward items, and archived email report."
+      />
+
+      {/* Operational snapshot */}
+      <div className="mb-6 grid gap-3 grid-cols-2 sm:grid-cols-4">
+        {[
+          { label: 'Still Open',    value: openCount,               danger: openCount > 0,              accent: false },
+          { label: 'Resolved',      value: resolvedCount,           accent: resolvedCount > 0,          danger: false },
+          { label: 'Carry Forward', value: carryForwardItems.length, accent: carryForwardItems.length > 0, danger: false },
+          { label: 'Urgent Open',   value: urgentUnresolved.length, danger: urgentUnresolved.length > 0, accent: false },
+        ].map(({ label, value, danger, accent }) => (
+          <div key={label} className={cx(
+            'rounded-2xl border p-4',
+            danger ? 'border-red-800/35 bg-red-950/10' : accent ? 'border-[#c9a96e]/15 bg-[#c9a96e]/5' : 'border-[#6b705c]/15 bg-[#14130f]'
+          )}>
+            <div className={cx(
+              'font-serif text-3xl font-black',
+              danger ? 'text-red-300' : accent ? 'text-[#c9a96e]' : 'text-[#f5f5f0]'
+            )}>{value}</div>
+            <div className="mt-1 text-[10px] font-black uppercase tracking-widest text-[#e8dcc0]/45">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-8 xl:grid-cols-[1fr_320px]">
+        {/* Main form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+
+          {urgentUnresolved.length > 0 && (
+            <div className="rounded-2xl border border-red-800/30 bg-red-950/10 px-4 py-3">
+              <div className="text-[10px] font-black uppercase tracking-widest text-red-300 mb-2">
+                Urgent Unresolved — Handoff Required
+              </div>
+              <ul className="space-y-1">
+                {urgentUnresolved.slice(0, 5).map(a => (
+                  <li key={a.id} className="text-xs leading-5 text-red-300/70">
+                    {SOURCE_LABEL[a.source] || a.source}: {a.title}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <TextArea id="shift_summary" label={t.fields.shiftSummary} value={formData.shift_summary} onChange={value => updateField('shift_summary', value)} />
-            <TextArea id="complaints" label={t.fields.complaints} value={formData.complaints} onChange={value => updateField('complaints', value)} />
-            <TextArea id="service_recovery" label={t.fields.serviceRecovery} value={formData.service_recovery} onChange={value => updateField('service_recovery', value)} />
-            <TextArea id="staff_issues" label={t.fields.staffIssues} value={formData.staff_issues} onChange={value => updateField('staff_issues', value)} />
-            <TextArea id="sales_notes" label={t.fields.salesNotes} value={formData.sales_notes} onChange={value => updateField('sales_notes', value)} />
-            <TextArea id="urgent_items" label={t.fields.urgentItems} value={formData.urgent_items} onChange={value => updateField('urgent_items', value)} />
+          )}
 
-            {status && <Alert type={status.type}>{status.message}</Alert>}
+          {/* Basic info */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <SectionLabel>Shift Date</SectionLabel>
+              <input
+                type="date"
+                value={shiftDate}
+                onChange={e => setShiftDate(e.target.value)}
+                className="w-full rounded-2xl border border-[#6b705c]/30 bg-[#14130f] px-4 py-3 text-sm text-[#f5f5f0] focus:border-[#c9a96e]/50 focus:outline-none"
+              />
+            </div>
+            <div>
+              <SectionLabel>Manager on Duty</SectionLabel>
+              <input
+                type="text"
+                value={managerName}
+                onChange={e => setManagerName(e.target.value)}
+                placeholder="Manager name"
+                className="w-full rounded-2xl border border-[#6b705c]/30 bg-[#14130f] px-4 py-3 text-sm text-[#f5f5f0] placeholder:text-[#e8dcc0]/25 focus:border-[#c9a96e]/50 focus:outline-none"
+              />
+            </div>
+          </div>
 
-            <Button type="submit" disabled={sending}>
-              {sending ? t.ui.submitting : t.ui.submitForm}
-            </Button>
-          </form>
-        </Card>
+          {/* Shift narrative */}
+          <div>
+            <SectionLabel>Shift Summary</SectionLabel>
+            <ShiftTextArea
+              value={shiftSummary}
+              onChange={setShiftSummary}
+              rows={3}
+              placeholder="Overall shift narrative — pace, volume, atmosphere, notable moments…"
+            />
+          </div>
+
+          <div>
+            <SectionLabel>Shift Highlights</SectionLabel>
+            <ShiftTextArea
+              value={highlights}
+              onChange={setHighlights}
+              rows={2}
+              placeholder="What went well? Staff performance, guest feedback, wins…"
+            />
+          </div>
+
+          {/* Issues */}
+          <div>
+            <SectionLabel>Urgent Items for Next Shift</SectionLabel>
+            <ShiftTextArea
+              value={urgentItems}
+              onChange={setUrgentItems}
+              rows={3}
+              placeholder="Anything that cannot wait — equipment failures, unresolved guest issues, staffing gaps…"
+            />
+          </div>
+
+          <div>
+            <SectionLabel>Guest Complaints / Incidents</SectionLabel>
+            <ShiftTextArea
+              value={complaints}
+              onChange={setComplaints}
+              rows={3}
+              placeholder="Guest complaints or service failures that require follow-up…"
+            />
+          </div>
+
+          <div>
+            <SectionLabel>Service Recovery Actions Taken</SectionLabel>
+            <ShiftTextArea
+              value={serviceRecovery}
+              onChange={setServiceRecovery}
+              rows={2}
+              placeholder="Comps issued, manager interventions, resolution steps…"
+            />
+          </div>
+
+          {/* Operations */}
+          <div>
+            <SectionLabel>Staff Issues</SectionLabel>
+            <ShiftTextArea
+              value={staffIssues}
+              onChange={setStaffIssues}
+              rows={2}
+              placeholder="Performance flags, lateness, conflicts, coaching needed…"
+            />
+          </div>
+
+          <div>
+            <SectionLabel>Sales & Revenue Notes</SectionLabel>
+            <ShiftTextArea
+              value={salesNotes}
+              onChange={setSalesNotes}
+              rows={2}
+              placeholder="Bar performance, upsell wins, covers, revenue notes…"
+            />
+          </div>
+
+          <div>
+            <SectionLabel>General Notes</SectionLabel>
+            <ShiftTextArea
+              value={generalNotes}
+              onChange={setGeneralNotes}
+              rows={3}
+              placeholder="Anything else worth noting — stock, training, supplier, atmosphere…"
+            />
+          </div>
+
+          {/* Flag for owner */}
+          <div className="flex items-center gap-3 rounded-2xl border border-[#6b705c]/20 bg-[#14130f] px-4 py-3">
+            <button
+              type="button"
+              onClick={() => setFlagForOwner(v => !v)}
+              className={cx(
+                'flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[10px] font-black transition',
+                flagForOwner
+                  ? 'border-[#c9a96e] bg-[#c9a96e] text-[#0d0c09]'
+                  : 'border-[#6b705c]/40 hover:border-[#c9a96e]'
+              )}
+            >
+              {flagForOwner ? '✓' : ''}
+            </button>
+            <div>
+              <div className="text-xs font-black text-[#f5f5f0]">Flag for owner review</div>
+              <div className="text-[10px] text-[#e8dcc0]/40">This review will appear in the Operational Pulse owner view.</div>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={sending}
+            className="w-full rounded-2xl bg-[#c9a96e] py-3 text-sm font-black uppercase tracking-widest text-[#0d0c09] transition hover:bg-[#e8d0a0] disabled:opacity-50"
+          >
+            {sending ? 'Saving…' : 'Submit Shift Closeout Report'}
+          </button>
+        </form>
+
+        {/* Sidebar */}
         <div className="space-y-4">
+          {/* Carry-forward preview */}
+          {carryForwardItems.length > 0 ? (
+            <Card>
+              <div className="text-[10px] font-black uppercase tracking-widest text-[#c9a96e] mb-3">
+                Items Carrying Forward ({carryForwardItems.length})
+              </div>
+              <div className="space-y-2.5">
+                {carryForwardItems.map(a => (
+                  <div key={a.id} className="flex items-start gap-2">
+                    <span className={cx('shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.1em]', PRIORITY_STYLE[a.priority])}>
+                      {PRIORITY_LABEL[a.priority]}
+                    </span>
+                    <span className="text-xs leading-5 text-[#e8dcc0]">{a.title}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-[10px] text-[#e8dcc0]/30">
+                These will appear in tomorrow's Pre-Shift Briefing carry-forward panel.
+              </p>
+            </Card>
+          ) : (
+            <Card>
+              <div className="text-[10px] font-black uppercase tracking-widest text-[#c9a96e] mb-2">Carry Forward</div>
+              <p className="text-xs text-[#e8dcc0]/45">
+                No items flagged for carry-forward. Flag items in Shift Control before closing out.
+              </p>
+            </Card>
+          )}
+
+          {/* Shift context */}
+          <div className="rounded-2xl border border-[#6b705c]/15 bg-[#14130f] px-4 py-3">
+            <div className="text-[10px] font-black uppercase tracking-widest text-[#e8dcc0]/40 mb-2">This Shift</div>
+            <div className="space-y-1 text-[10px] text-[#e8dcc0]/35">
+              <div>Manager: {currentUser?.username || currentUser?.name || '—'}</div>
+              <div>Date: {TODAY}</div>
+              <div>Actions resolved: {resolvedCount}</div>
+              <div>Still open: {openCount}</div>
+            </div>
+          </div>
+
+          {/* Archive count */}
           <Card className="border-[#c9a96e]/20 bg-[#1a1a1a]">
             <Label>Report Archive</Label>
             <div className="font-serif text-5xl font-black text-[#c9a96e]">{reportArchive.length}</div>
-            <p className="mt-2 text-sm leading-7 text-[#e8dcc0]">Successful EmailJS submissions are preserved locally as shift memory. This is the future database-backed archive.</p>
+            <p className="mt-2 text-sm leading-7 text-[#e8dcc0]">
+              Shift reviews saved locally as operational memory.
+            </p>
           </Card>
-          <Card>
-            <Label>Latest Reports</Label>
-            {reportArchive.length ? (
-              <div className="space-y-3">
-                {reportArchive.slice(0, 5).map(report => (
+
+          {/* Recent reports */}
+          {reportArchive.length > 0 && (
+            <Card>
+              <Label>Recent Reports</Label>
+              <div className="space-y-3 mt-2">
+                {reportArchive.slice(0, 4).map(report => (
                   <article key={report.id} className="rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4">
-                    <div className="mb-2 flex items-center justify-between gap-3">
+                    <div className="mb-1.5 flex items-center justify-between gap-3">
                       <span className="text-xs font-black text-[#e8dcc0]">{report.shift_date}</span>
-                      <span className="text-xs text-[#e8dcc0]">{report.manager_name || 'Manager'}</span>
+                      <span className="text-xs text-[#e8dcc0]/50">{report.manager_name || 'Manager'}</span>
                     </div>
-                    <p className="line-clamp-3 text-xs leading-6 text-[#e8dcc0]">{report.urgent_items || report.shift_summary || 'Report submitted without urgent items.'}</p>
+                    <p className="line-clamp-2 text-xs leading-5 text-[#e8dcc0]/55">
+                      {report.urgent_items || report.shift_summary || report.general_notes || 'Report submitted.'}
+                    </p>
                   </article>
                 ))}
               </div>
-            ) : (
-              <p className="text-sm leading-7 text-[#e8dcc0]">No submitted reports archived yet.</p>
-            )}
-          </Card>
+            </Card>
+          )}
         </div>
       </div>
     </>

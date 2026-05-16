@@ -6,7 +6,7 @@ export default function StrategicRecommendations({ t }) {
   const recs = [
     ['7 days', 'Issue recovery-first script mandate', 'NIS 8.4k monthly comp exposure', 'Require a documented recovery attempt before any compensation.'],
     ['14 days', 'Run beverage upsell training for floor and bar', 'NIS 6.2k monthly recoverable', 'Use Knowledge Library and Natural Upselling course as the training path.'],
-    ['This week', 'Resolve Dana P. At Risk status', 'Training investment protection', 'Create a coaching plan or role adjustment before norms decay.'],
+    ['This week', 'Address at-risk staff readiness', 'Training investment protection', 'Review Staff Progression for coaching flags and create targeted plans before norms decay.'],
     ['30 days', 'Adjust Friday kitchen and floor briefing', 'NIS 4.8k delay leak prevention', 'Move briefing earlier and monitor delay incidents over two weekends.']
   ]
 

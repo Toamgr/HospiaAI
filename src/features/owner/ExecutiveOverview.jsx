@@ -24,7 +24,7 @@ export default function ExecutiveOverview({ t, reportArchive = [], eventPlans = 
         <Metric label="Saved Events" value={String(eventPlans.length)} sub={latestEvent ? formatMoney(latestEvent.projected_profit || 0) : 'No event plans yet'} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card><Label>Top Owner Priorities</Label><List items={['Enforce recovery-first compensation policy.', 'Mandate beverage recommendation training for floor and bar.', 'Resolve Dana P. readiness risk before weekend.', 'Review Friday delay pattern with manager and kitchen lead.']} /></Card>
+        <Card><Label>Top Owner Priorities</Label><List items={['Enforce recovery-first compensation policy.', 'Mandate beverage recommendation training for floor and bar.', 'Review open incidents and EOD urgent items with manager before next shift.', 'Confirm event revenue pipeline and approve pending budget requests.']} /></Card>
         <Card><Label>{latestReport ? 'Latest End Of Day Signal' : t.copy.aiRecommendations}</Label><List items={latestReport ? [
           latestReport.shift_summary || 'No shift summary entered.',
           latestReport.complaints ? `Complaints: ${latestReport.complaints}` : 'No complaint detail entered.',

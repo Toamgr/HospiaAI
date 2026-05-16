@@ -17,7 +17,7 @@ function OwnerValueLedger({ totalEventProfit, reportSignals, eventPlans, reportA
     { label: 'Projected event profit pipeline', value: formatMoney(totalEventProfit), detail: `${eventPlans.length} saved Event Orchestrator plans` },
     { label: 'Operational risk signals captured', value: String(reportSignals), detail: `${reportArchive.length} End Of Day reports archived` },
     { label: 'Recoverable service leakage', value: 'NIS 12.9k', detail: 'Current modeled monthly opportunity' },
-    { label: 'Training risk under management', value: '2 staff', detail: 'At Risk / Needs Coaching status' }
+    { label: 'Staff progression tracked', value: String(reportArchive.length > 0 ? 'Active' : '—'), detail: 'See Staff Progression for coaching flags' }
   ]
 
   return (
@@ -54,7 +54,7 @@ export default function OwnerReport({ t, reportArchive = [], eventPlans = [] }) 
         <p className="mt-3 text-sm leading-7 text-[#e8dcc0]">Performance improved in farewell and first impression. Drag remains in upselling and delay communication.</p>
       </Card>
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card><Label>Owner Actions Required</Label><List items={['Approve recovery-first compensation policy.', 'Review Dana P. readiness plan.', 'Confirm beverage upsell training mandate.', 'Review Friday delay pattern with management.']} /></Card>
+        <Card><Label>Owner Actions Required</Label><List items={['Approve recovery-first compensation policy.', 'Confirm beverage upsell training mandate.', 'Review open EOD urgent items with manager.', 'Approve pending budget requests.']} /></Card>
         <Card><Label>Commercial Signals</Label><List items={['NIS 27.1k monthly leakage detected.', 'NIS 42.6k protected revenue tracked.', '7-shift reporting streak reached.', 'Two staff members create elevated weekend risk.']} /></Card>
       </div>
       <OwnerValueLedger totalEventProfit={totalEventProfit} reportSignals={reportSignals} eventPlans={eventPlans} reportArchive={reportArchive} />

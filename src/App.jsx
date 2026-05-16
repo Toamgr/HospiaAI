@@ -51,7 +51,7 @@ import { buildSessionUser, persistSession } from './services/authService'
 import { useUserManagement } from './hooks/useUserManagement'
 import { TEXT } from './config/textConfig'
 import { firstAllowedArea, firstAllowedPage } from './config/roleConfig'
-import { INITIAL_SHIFT_PROFILE, INITIAL_SUPPLY_RISKS } from './data/operations'
+import { INITIAL_SUPPLY_RISKS } from './data/operations'
 import { useNotificationState } from './hooks/useNotificationState'
 import { useSessionState } from './hooks/useSessionState'
 import { useNavigationState } from './hooks/useNavigationState'
@@ -248,7 +248,6 @@ export default function App() {
               employeeRequests,
               ownerNotes,
               supplyRisks: INITIAL_SUPPLY_RISKS,
-              shiftProfile: INITIAL_SHIFT_PROFILE,
               onEventPlanSaved: saveEventPlan,
               onApproveEventEnquiry: approveEventEnquiry,
               onBudgetRequest: submitBudgetRequest,
@@ -297,7 +296,7 @@ function PageRenderer({ t, page, goToPage, session, reports, operations, cocktai
   const { reportArchive, businessMemory, onReportArchived, onMemoryEvent } = reports
   const {
     eventPlans, actionItems, setActionItems, budgetRequests, serviceIncidents,
-    employeePerformance, employeeTasks, employeeRequests, ownerNotes, supplyRisks, shiftProfile,
+    employeePerformance, employeeTasks, employeeRequests, ownerNotes, supplyRisks,
     onEventPlanSaved, onApproveEventEnquiry, onBudgetRequest, onBudgetResponse,
     onServiceIncident, onUpdateIncident, onUpdateEmployeeTask, onSubmitEmployeeRequest,
     onManagerReviewEmployeeRequest, onOwnerReviewEmployeeRequest, onOwnerNote
@@ -313,7 +312,7 @@ function PageRenderer({ t, page, goToPage, session, reports, operations, cocktai
   const pages = {
     commandCenter: <CommandCenter t={t} currentUser={currentUser} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} businessMemory={businessMemory} budgetRequests={budgetRequests} employeeRequests={employeeRequests} serviceIncidents={serviceIncidents} actionItems={actionItems} notifications={visibleNotifications} onApproveEventEnquiry={onApproveEventEnquiry} shiftBrain={shiftBrain} />,
     preShiftBriefing: <PreShiftBriefing t={t} currentUser={currentUser} actionItems={actionItems} serviceIncidents={serviceIncidents} eventPlans={eventPlans} notes={shiftNotes} reportArchive={reportArchive} shiftBrain={shiftBrain} />,
-    actionBoard: <ActionBoard t={t} currentUser={currentUser} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} actionItems={actionItems} setActionItems={setActionItems} serviceIncidents={serviceIncidents} onUpdateIncident={onUpdateIncident} employeePerformance={employeePerformance} employeeTasks={employeeTasks} onUpdateEmployeeTask={onUpdateEmployeeTask} supplyRisks={supplyRisks} shiftProfile={shiftProfile} budgetRequests={budgetRequests} ownerNotes={ownerNotes} onOwnerNote={onOwnerNote} />,
+    actionBoard: <ActionBoard t={t} currentUser={currentUser} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} actionItems={actionItems} setActionItems={setActionItems} serviceIncidents={serviceIncidents} onUpdateIncident={onUpdateIncident} employeePerformance={employeePerformance} employeeTasks={employeeTasks} onUpdateEmployeeTask={onUpdateEmployeeTask} supplyRisks={supplyRisks} budgetRequests={budgetRequests} ownerNotes={ownerNotes} onOwnerNote={onOwnerNote} shiftNotes={shiftNotes} shiftBrain={shiftBrain} />,
     managerActionCenter: <ManagerActionCenter actionItems={actionItems} setActionItems={setActionItems} serviceIncidents={serviceIncidents} onUpdateIncident={onUpdateIncident} shiftNotes={shiftNotes} reportArchive={reportArchive} shiftBrain={shiftBrain} currentUser={currentUser} />,
     managerEmployeeRequests: <ManagerEmployeeRequests t={t} employeeRequests={employeeRequests} onReview={onManagerReviewEmployeeRequest} />,
     eventOrchestrator: <EventOrchestrator t={t} eventPlans={eventPlans} onEventPlanSaved={onEventPlanSaved} />,
@@ -324,7 +323,7 @@ function PageRenderer({ t, page, goToPage, session, reports, operations, cocktai
     employeeAchievements: <EmployeeAchievements currentUser={currentUser} academyProgress={academyProgress} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} employeeTasks={employeeTasks} />,
     serviceRecovery: <ServiceRecovery t={t} currentUser={currentUser} goToPage={goToPage} onServiceIncident={onServiceIncident} employeeTasks={employeeTasks} onUpdateEmployeeTask={onUpdateEmployeeTask} />,
     endOfShiftReview: <EndOfShiftReview actionItems={actionItems} serviceIncidents={serviceIncidents} shiftNotes={shiftNotes} reportArchive={reportArchive} currentUser={currentUser} onArchiveReport={onReportArchived} />,
-    endOfDay: <EndOfDayReports t={t} reportArchive={reportArchive} onReportArchived={onReportArchived} />,
+    endOfDay: <EndOfDayReports t={t} currentUser={currentUser} reportArchive={reportArchive} onReportArchived={onReportArchived} actionItems={actionItems} serviceIncidents={serviceIncidents} shiftNotes={shiftNotes} />,
     budgetRequest: <BudgetRequestPage t={t} onSubmit={onBudgetRequest} budgetRequests={budgetRequests} currentUser={currentUser} />,
     operationalNotes: <OperationalNotesFeature t={t} currentUser={currentUser} onNotesChange={setShiftNotes} shiftBrain={shiftBrain} />,
     simulation: <Simulation t={t} goToPage={goToPage} />,
