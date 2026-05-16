@@ -302,7 +302,7 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
                   ))}
                 </div>
                 <p className="mt-3 text-[10px] leading-5 text-[#e8dcc0]/30">
-                  Flagged in Manager Action Center by the previous shift's manager.
+                  Flagged in Shift Control by the previous shift's manager.
                 </p>
               </div>
             )}

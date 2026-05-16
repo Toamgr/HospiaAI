@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { cx, formatMoney } from '../../utils/format'
 import { Card, Button, Label, Header, Metric, List, SmallReportFact, Alert } from '../../components/AppPrimitives'
-import { PROFIT_LEAKS } from '../../data/businessMemory'
 import { EVENT_TIERS } from '../../data/events'
 
 const PULSE_CONFIG = {
@@ -229,8 +228,8 @@ export default function CommandCenter({ t, currentUser, goToPage, reportArchive 
           <OwnerIntelligenceCard title="Approved Operational Requests" count={pendingOperationalRequests.length} action="Open request inbox" onClick={() => goToPage('ownerOperationalRequests')} items={pendingOperationalRequests.slice(0, 4).map(item => `${item.category}: ${item.title} - ${item.urgency}`)} />
           <OwnerIntelligenceCard title="Upcoming Events Revenue Pipeline" count={eventPlans.length} action="Open event CRM" onClick={() => goToPage('eventOrchestrator')} items={eventPlans.slice(0, 4).map(event => `${event.eventDate || 'Date pending'} - ${event.name} - ${formatMoney(event.projected_revenue || event.budget || 0)}`)} />
           <OwnerIntelligenceCard title="Service Incident Trend Overview" count={unresolvedIncidents.length} items={serviceIncidents.slice(0, 4).map(item => `${item.severity} - ${item.issueType} - ${item.employeeName} - ${item.resolved ? 'resolved' : 'unresolved'}`)} />
-          <OwnerIntelligenceCard title="Weekly Profit Leak Detection" count={PROFIT_LEAKS.filter(item => item.risk !== 'low').length} action="Open profit leaks" onClick={() => goToPage('profitLeaks')} items={PROFIT_LEAKS.slice(0, 4).map(item => `${item.category}: ${formatMoney(item.monthly)}/mo`)} />
-          <OwnerIntelligenceCard title="Business Memory Critical Notes" count={businessMemory.length} action="Open memory" onClick={() => goToPage('businessMemory')} items={businessMemory.slice(0, 4).map(item => `${item.type}: ${item.title}`)} />
+          <OwnerIntelligenceCard title="EOD Report Archive" count={reportArchive.length} action="Open business memory" onClick={() => goToPage('businessMemory')} items={reportArchive.length ? reportArchive.slice(0, 4).map(r => `${r.shift_date || 'Recent'}: ${r.manager_name || 'Manager'} — ${r.urgent_items ? 'Urgent items flagged' : 'Submitted'}`) : ['No End Of Day reports archived yet.']} />
+          <OwnerIntelligenceCard title="Business Memory Critical Notes" count={businessMemory.length} action="Open memory" onClick={() => goToPage('businessMemory')} items={businessMemory.length ? businessMemory.slice(0, 4).map(item => `${item.type}: ${item.title}`) : ['No business memory events yet. Events are recorded from real shift activity.']} />
           <OwnerIntelligenceCard title="Manager Performance Snapshot" count={executionRate} items={[`${executionRate}% action execution`, `${reportArchive.length} EOD reports archived`, `${openActions.filter(item => item.priority === 'urgent').length} urgent tasks open`]} />
         </div>
       </div>

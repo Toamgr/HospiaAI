@@ -133,7 +133,7 @@ export default function OperationalPulse({
                 ))}
                 {pulse.carryForwardCount > pulse.carryForwardItems.length && (
                   <p className="text-[10px] text-[#e8dcc0]/30">
-                    +{pulse.carryForwardCount - pulse.carryForwardItems.length} more — see Manager Action Center
+                    +{pulse.carryForwardCount - pulse.carryForwardItems.length} more — see Shift Control
                   </p>
                 )}
               </div>

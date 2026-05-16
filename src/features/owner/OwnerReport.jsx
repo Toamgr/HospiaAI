@@ -16,7 +16,7 @@ function OwnerValueLedger({ totalEventProfit, reportSignals, eventPlans, reportA
   const ledger = [
     { label: 'Projected event profit pipeline', value: formatMoney(totalEventProfit), detail: `${eventPlans.length} saved Event Orchestrator plans` },
     { label: 'Operational risk signals captured', value: String(reportSignals), detail: `${reportArchive.length} End Of Day reports archived` },
-    { label: 'Recoverable service leakage', value: 'NIS 12.9k', detail: 'Current modeled monthly opportunity' },
+    { label: 'Operational signals captured', value: String(reportSignals > 0 ? reportSignals : '—'), detail: reportSignals > 0 ? 'Reports with urgent items or complaints' : 'No urgent signals recorded yet' },
     { label: 'Staff progression tracked', value: String(reportArchive.length > 0 ? 'Active' : '—'), detail: 'See Staff Progression for coaching flags' }
   ]
 
@@ -50,12 +50,28 @@ export default function OwnerReport({ t, reportArchive = [], eventPlans = [] }) 
       <Header eyebrow={t.pages.ownerReport} title="Owner Weekly Report" body="A boardroom-ready summary created from End Of Day reports, readiness data, profit leak signals, and business memory." />
       <Card className="mb-6 border-[#c9a96e]/20 bg-[#1a1a1a]">
         <div className="text-xs font-black uppercase tracking-[0.2em] text-[#c9a96e]">Executive Summary</div>
-        <h2 className="mt-3 font-serif text-4xl font-black text-[#f5f5f0]">Hospitality Score: 87/100. Recoverable value this month: NIS 12.9k.</h2>
-        <p className="mt-3 text-sm leading-7 text-[#e8dcc0]">Performance improved in farewell and first impression. Drag remains in upselling and delay communication.</p>
+        {reportArchive.length > 0 ? (
+          <>
+            <h2 className="mt-3 font-serif text-4xl font-black text-[#f5f5f0]">
+              {reportArchive.length} shift report{reportArchive.length !== 1 ? 's' : ''} archived. {reportSignals > 0 ? `${reportSignals} flagged urgent items or complaints.` : 'No urgent signals on record.'}
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-[#e8dcc0]">Report intelligence grows with every submitted End Of Day. Patterns will surface as the archive builds.</p>
+          </>
+        ) : (
+          <>
+            <h2 className="mt-3 font-serif text-4xl font-black text-[#f5f5f0]">No report data yet.</h2>
+            <p className="mt-3 text-sm leading-7 text-[#e8dcc0]">Submit End Of Day reports consistently to build your owner report intelligence. No scores are computed until data exists.</p>
+          </>
+        )}
       </Card>
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card><Label>Owner Actions Required</Label><List items={['Approve recovery-first compensation policy.', 'Confirm beverage upsell training mandate.', 'Review open EOD urgent items with manager.', 'Approve pending budget requests.']} /></Card>
-        <Card><Label>Commercial Signals</Label><List items={['NIS 27.1k monthly leakage detected.', 'NIS 42.6k protected revenue tracked.', '7-shift reporting streak reached.', 'Two staff members create elevated weekend risk.']} /></Card>
+        <Card><Label>Owner Actions Required</Label><List items={['Review pending budget approvals.', 'Review any EOD urgent items flagged by managers.', 'Approve pending event enquiries in the event pipeline.', 'Check operational requests inbox for escalated items.']} /></Card>
+        <Card><Label>Operational Signals</Label><List items={reportArchive.length > 0 ? [
+          `${reportArchive.length} End Of Day report${reportArchive.length !== 1 ? 's' : ''} archived.`,
+          eventPlans.length > 0 ? `${eventPlans.length} event plan${eventPlans.length !== 1 ? 's' : ''} in pipeline.` : 'No event plans saved yet.',
+          reportSignals > 0 ? `${reportSignals} report${reportSignals !== 1 ? 's' : ''} flagged urgent items or complaints.` : 'No urgent signals on record.',
+          totalEventProfit > 0 ? `${formatMoney(totalEventProfit)} projected event profit in pipeline.` : 'No event profit data yet.'
+        ] : ['No operational signals yet.', 'Submit End Of Day reports to start building your signal history.', 'Save events in the Event CRM to track pipeline revenue.', 'All figures will be derived from real venue activity.']} /></Card>
       </div>
       <OwnerValueLedger totalEventProfit={totalEventProfit} reportSignals={reportSignals} eventPlans={eventPlans} reportArchive={reportArchive} />
       <Card className="mt-4 border-[#c9a96e]/20">

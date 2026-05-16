@@ -6,11 +6,7 @@ export const INITIAL_SHIFT_PROFILE = {
   pressureLevel: 'High'
 }
 
-export const INITIAL_SUPPLY_RISKS = [
-  { item: 'Large clear ice', level: 'critical', detail: 'Only 42 units prepped; event requires 120.' },
-  { item: 'Fresh lime juice', level: 'high', detail: 'Batch expires before late service. Re-juice by 18:00.' },
-  { item: 'Premium tonic', level: 'medium', detail: 'Projected shortage if terrace opens.' }
-]
+export const INITIAL_SUPPLY_RISKS = []
 
 export const INITIAL_BUDGET_REQUESTS = []
 

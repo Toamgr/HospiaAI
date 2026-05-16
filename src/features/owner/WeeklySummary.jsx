@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { cx, formatMoney } from '../../utils/format'
 import { Card, Button, Label, Header, List, MiniFact, Alert } from '../../components/AppPrimitives'
-import { PROFIT_LEAKS } from '../../data/businessMemory'
 
 const SIGNAL_STATUS = {
   clear:     { dot: 'bg-emerald-400', text: 'text-emerald-400', label: 'Clear'     },
@@ -117,15 +116,19 @@ export default function WeeklySummary({ t, reportArchive = [], serviceIncidents 
     const openActions = actionItems.filter(item => !item.done)
     const eventRevenue = eventPlans.reduce((sum, item) => sum + Number(item.projected_revenue || item.budget || 0), 0)
     const execution = actionItems.length ? Math.round(((actionItems.length - openActions.length) / actionItems.length) * 100) : 100
+    const recentUrgent = reportArchive
+      .filter(r => r.urgent_items?.trim())
+      .slice(0, 3)
+      .map(r => `${r.shift_date || 'Recent'} — ${r.urgent_items.trim().slice(0, 80)}`)
     return {
       incidentCount: serviceIncidents.length,
       unresolved: unresolved.length,
       execution,
       pendingBudgets: pendingBudgets.length,
       eventRevenue,
-      topLeaks: PROFIT_LEAKS.slice(0, 3).map(item => `${item.category}: ${formatMoney(item.monthly)}/mo`)
+      recentUrgent
     }
-  }, [actionItems, budgetRequests, eventPlans, serviceIncidents])
+  }, [actionItems, budgetRequests, eventPlans, reportArchive, serviceIncidents])
 
   const [aiBrief, setAiBrief] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
@@ -184,8 +187,8 @@ export default function WeeklySummary({ t, reportArchive = [], serviceIncidents 
           <MiniFact label="EOD Reports" value={reportArchive.length} />
         </div>
         <div className="mt-8">
-          <Label>Top Profit Leaks</Label>
-          <List items={summary.topLeaks} />
+          <Label>Recent EOD Urgent Items</Label>
+          <List items={summary.recentUrgent.length ? summary.recentUrgent : ['No urgent items flagged in recent End Of Day reports.']} />
         </div>
       </Card>
     </>

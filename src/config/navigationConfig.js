@@ -1,7 +1,17 @@
 export const NAV_GROUPS = {
   command: {
     roles: ['owner', 'admin'],
-    pages: ['commandCenter']
+    // Single owner headquarters — all owner functions live here
+    pages: [
+      'commandCenter',
+      'operationalPulse',
+      'budgetApprovals',
+      'ownerOperationalRequests',
+      'weeklySummary',
+      'ownerReport',
+      'businessMemory',
+      'userManagement'
+    ]
   },
   operations: {
     roles: ['manager', 'bar_manager', 'admin'],
@@ -22,11 +32,11 @@ export const NAV_GROUPS = {
   },
   planning: {
     roles: ['manager', 'owner', 'admin'],
-    pages: [] // eventOrchestrator moved to operations; planning tab removed for all roles
+    pages: []
   },
   staffProgression: {
     roles: ['manager', 'bar_manager', 'admin'],
-    pages: [] // staffProgression moved to operations; standalone tab removed
+    pages: []
   },
   academy: {
     roles: ['employee', 'manager', 'bar_manager', 'admin'],
@@ -38,12 +48,11 @@ export const NAV_GROUPS = {
   },
   ownerIntelligence: {
     roles: ['owner', 'admin'],
-    // businessMRI, profitLeaks, strategicRecommendations hidden until wired to real data
-    pages: ['executiveOverview', 'operationalPulse', 'budgetApprovals', 'ownerOperationalRequests', 'weeklySummary', 'ownerReport', 'businessMemory']
+    pages: [] // Merged into command area — tab no longer appears in nav
   },
   system: {
     roles: ['owner', 'admin'],
-    pages: ['userManagement'] // settings hidden until it has real content
+    pages: [] // userManagement moved to command area — tab no longer appears in nav
   }
 }
 
@@ -54,8 +63,8 @@ export const PAGE_META = {
     area: 'command',
     roles: ['owner', 'admin'],
     code: 'CC',
-    section: 'Owner Command',
-    description: 'Strategic business intelligence homepage'
+    section: 'Home',
+    description: 'Owner operating intelligence homepage'
   },
 
   // ── Operations ─────────────────────────────────────────────────────────────
@@ -116,7 +125,7 @@ export const PAGE_META = {
     area: 'operations',
     roles: ['manager', 'bar_manager', 'admin'],
     code: 'BR',
-    section: 'Manager Requests',
+    section: 'Requests',
     description: 'Submit budget approval requests'
   },
   // Moved from planning tab into operations
@@ -279,55 +288,57 @@ export const PAGE_META = {
     requiresBottlePricesAccess: true
   },
 
-  // ── Owner Intelligence ─────────────────────────────────────────────────────
+  // ── Owner Command (consolidated — all owner functions live here) ──────────
+  // executiveOverview hidden: contains hardcoded estimates not wired to real data
   executiveOverview: {
     area: 'ownerIntelligence',
     roles: ['owner', 'admin'],
     code: 'EO',
     section: 'Executive View',
-    description: 'Owner command summary'
+    description: 'Owner command summary',
+    hiddenInNav: true
   },
   operationalPulse: {
-    area: 'ownerIntelligence',
+    area: 'command',
     roles: ['owner', 'admin'],
     code: 'OP',
-    section: 'Executive View',
+    section: 'Intelligence',
     description: 'Live operational load, shift review archive, and carry-forward patterns'
   },
   budgetApprovals: {
-    area: 'ownerIntelligence',
+    area: 'command',
     roles: ['owner', 'admin'],
     code: 'BA',
     section: 'Approvals',
     description: 'Approve, reject, or request budget detail'
   },
   ownerOperationalRequests: {
-    area: 'ownerIntelligence',
+    area: 'command',
     roles: ['owner', 'admin'],
     code: 'OR',
     section: 'Approvals',
     description: 'Owner inbox for manager-approved operational requests'
   },
   weeklySummary: {
-    area: 'ownerIntelligence',
+    area: 'command',
     roles: ['owner', 'admin'],
     code: 'WS',
     section: 'Reports',
     description: 'Weekly intelligence email panel'
   },
   ownerReport: {
-    area: 'ownerIntelligence',
+    area: 'command',
     roles: ['owner', 'admin'],
     code: 'WR',
     section: 'Reports',
     description: 'Weekly owner report'
   },
   businessMemory: {
-    area: 'ownerIntelligence',
+    area: 'command',
     roles: ['owner', 'admin'],
     code: 'BM',
     section: 'Memory',
-    description: 'Persistent business events'
+    description: 'Persistent business events and operational patterns'
   },
   // Hidden until wired to real operational data — files preserved
   businessMRI: {
@@ -355,17 +366,16 @@ export const PAGE_META = {
     hiddenInNav: true
   },
 
-  // ── System ────────────────────────────────────────────────────────────────
+  // ── System (merged into command area) ────────────────────────────────────
   userManagement: {
-    area: 'system',
+    area: 'command',
     roles: ['owner', 'admin'],
     code: 'UM',
     section: 'Workspace',
     description: 'Create users, assign roles, and disable access'
   },
-  // Hidden until settings has real content — file preserved
   settings: {
-    area: 'system',
+    area: 'command',
     roles: ['owner', 'admin'],
     code: 'SY',
     section: 'Workspace',

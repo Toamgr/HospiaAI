@@ -276,7 +276,7 @@ export default function LessonPlayer({ t, currentUser, goToPage, academyProgress
           </Card>
           <div className="flex flex-wrap gap-2">
             <Button variant="ghost" onClick={() => goToPage('courses')}>← Courses</Button>
-            <Button variant="secondary" onClick={() => goToPage('knowledgeLibrary')}>Ask Expert</Button>
+            <Button variant="secondary" onClick={() => goToPage('knowledgeLibrary')}>Knowledge Library</Button>
           </div>
         </div>
 

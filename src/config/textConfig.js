@@ -33,7 +33,7 @@
       system: 'System'
     },
     areaDescriptions: {
-      command: 'Owner-only business intelligence homepage',
+      command: 'Owner HQ — approvals, reports, memory, and workspace',
       operations: 'Shift control, events, staff coaching, and handoff',
       employeeWorkflow: 'Personal training, service, and reporting home',
       planning: 'Event CRM, calculators, run-of-show, and pipeline',
