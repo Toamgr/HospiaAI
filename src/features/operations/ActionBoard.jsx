@@ -209,7 +209,7 @@ export default function ActionBoard({
   const [assignPriority,   setAssignPriority]   = useState('normal')
   const [assignDue,        setAssignDue]        = useState('')
 
-  const staffUsers = users.filter(u => u.role !== 'owner' && u.role !== 'admin' && u.username !== currentUser?.username)
+  const staffUsers = users.filter(u => u.role === 'employee' && !u.disabled)
 
   function handleAssignTask() {
     if (!assignTaskTitle.trim() || assignTargets.length === 0) return
@@ -473,7 +473,7 @@ export default function ActionBoard({
                 <div className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-[#e8dcc0]/50">Assign to</div>
                 <div className="flex flex-wrap gap-2 rounded-xl border border-[#6b705c]/25 bg-[#1a1a1a] p-3 min-h-[2.75rem]">
                   {staffUsers.length === 0 ? (
-                    <span className="text-xs text-[#e8dcc0]/35">No staff accounts found.</span>
+                    <span className="text-xs text-[#e8dcc0]/35">No employee accounts found. Add employee users before assigning operational tasks.</span>
                   ) : staffUsers.map(u => (
                     <label key={u.id} className="flex cursor-pointer items-center gap-1.5">
                       <input

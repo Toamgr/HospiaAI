@@ -153,7 +153,7 @@ export default function EndOfDayReports({
     <>
       <Header
         eyebrow="Shift Closeout"
-        title="End-of-Shift Review"
+        title="Shift Closeout"
         body="Close out this shift — handoff notes, carry-forward items, and archived email report."
       />
 
