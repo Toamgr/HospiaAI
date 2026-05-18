@@ -27,10 +27,17 @@ function StatTile({ label, value, danger, accent }) {
 
 // ─── OperationalPulse ─────────────────────────────────────────────────────────
 export default function OperationalPulse({
-  actionItems      = [],
-  serviceIncidents = [],
-  shiftNotes       = [],
-  reportArchive    = [],
+  actionItems          = [],
+  serviceIncidents     = [],
+  shiftNotes           = [],
+  reportArchive        = [],
+  pulseData            = null,
+  trends               = [],
+  insight              = null,
+  isLoadingInsight     = false,
+  insightError         = null,
+  insightCooldownSeconds = 0,
+  onRequestInsight     = null,
 }) {
   const reviews = useMemo(() => loadEndOfShiftReviews(), [])
 
@@ -43,7 +50,10 @@ export default function OperationalPulse({
 
   const pulse = useMemo(() => getOperationalPulseSummary(enriched, reviews), [enriched, reviews])
 
-  if (!pulse.hasData) {
+  const dbShifts = pulseData?.total_closed_shifts ?? null
+  const hasEnoughData = dbShifts === null || dbShifts >= 3
+
+  if (!hasEnoughData) {
     return (
       <>
         <Header
@@ -54,9 +64,9 @@ export default function OperationalPulse({
         <Card>
           <div className="py-12 text-center">
             <div className="font-serif text-[5rem] font-black leading-none text-[#c9a96e]/[0.05] mb-4">◎</div>
-            <p className="text-sm font-bold text-[#e8dcc0]/55 mb-2">No operational data yet.</p>
+            <p className="text-sm font-bold text-[#e8dcc0]/55 mb-2">Not enough data yet.</p>
             <p className="mx-auto max-w-sm text-xs leading-6 text-[#e8dcc0]/30">
-              Operational Pulse populates as managers log actions, incidents, notes, and end-of-shift reviews.
+              Operational Pulse activates after 3 closed shifts. {dbShifts !== null ? `${dbShifts} closed so far.` : ''}
             </p>
           </div>
         </Card>
@@ -71,6 +81,17 @@ export default function OperationalPulse({
         title="Operational Pulse"
         body="Real-time operational load and shift review history. All figures are derived from manager activity — no fabricated metrics."
       />
+
+      {/* DB-sourced stats row */}
+      {pulseData && (
+        <div className="mb-4 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          <StatTile label="Closed Shifts"       value={pulseData.total_closed_shifts}   accent />
+          <StatTile label="Open Tasks (DB)"     value={pulseData.open_tasks}            danger={pulseData.open_tasks > 5} />
+          <StatTile label="Unresolved Incidents" value={pulseData.unresolved_incidents} danger={pulseData.unresolved_incidents > 0} />
+          <StatTile label="Incidents (30 Days)" value={pulseData.incidents_30d}         danger={pulseData.incidents_30d > 10} />
+          <StatTile label="Approved Cocktails"  value={pulseData.approved_cocktails}    accent />
+        </div>
+      )}
 
       {/* Load overview */}
       <div className="mb-6 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -251,6 +272,51 @@ export default function OperationalPulse({
           )}
         </div>
       </div>
+
+      {/* AI Insight */}
+      {onRequestInsight && (
+        <Card>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-[10px] font-black uppercase tracking-widest text-[#c9a96e]/60">
+              AI Operational Insight
+            </div>
+            <button
+              type="button"
+              disabled={isLoadingInsight || insightCooldownSeconds > 0}
+              onClick={onRequestInsight}
+              className={cx(
+                'rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-colors',
+                isLoadingInsight || insightCooldownSeconds > 0
+                  ? 'border-[#6b705c]/20 text-[#e8dcc0]/25 cursor-not-allowed'
+                  : 'border-[#c9a96e]/30 text-[#c9a96e] hover:border-[#c9a96e]/60'
+              )}
+            >
+              {isLoadingInsight
+                ? 'Generating…'
+                : insightCooldownSeconds > 0
+                  ? `Wait ${insightCooldownSeconds}s`
+                  : 'Generate Insight'}
+            </button>
+          </div>
+          {insightError && (
+            <p className="mb-2 text-xs text-red-300/70">{insightError}</p>
+          )}
+          {insight ? (
+            <div className="space-y-2">
+              <p className="text-xs leading-6 text-[#e8dcc0]/75">{insight.content}</p>
+              {insight.saved_at && (
+                <p className="text-[10px] text-[#e8dcc0]/25">
+                  Generated {new Date(insight.saved_at).toLocaleString()}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-[#e8dcc0]/30">
+              Generate an AI insight from live operational data. One request per minute.
+            </p>
+          )}
+        </Card>
+      )}
     </>
   )
 }

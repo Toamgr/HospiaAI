@@ -69,7 +69,21 @@ export default function SidePanel({ t, currentUser, role, area, page, collapsed,
                 )}
               </div>
             </div>
-            {role !== 'employee' && <Button variant="secondary" onClick={logout} className="mt-4 w-full">{t.app.logout}</Button>}
+            {role === 'admin' && (
+              <button
+                type="button"
+                onClick={() => goToPage('settings')}
+                className={cx(
+                  'mt-3 w-full rounded-xl border px-4 py-2.5 text-left transition-all duration-300',
+                  page === 'settings'
+                    ? 'border-[#c9a96e]/20 bg-[#c9a96e]/5 text-[#c9a96e]'
+                    : 'border-[#6b705c]/20 text-[#e8dcc0]/50 hover:border-[#6b705c]/35 hover:text-[#e8dcc0]/80'
+                )}
+              >
+                <span className="block text-[10px] font-black uppercase tracking-[0.14em]">⚙ Settings</span>
+              </button>
+            )}
+            {role !== 'employee' && <Button variant="secondary" onClick={logout} className="mt-3 w-full">{t.app.logout}</Button>}
           </div>
         </div>
       ) : (
@@ -90,6 +104,21 @@ export default function SidePanel({ t, currentUser, role, area, page, collapsed,
               {PAGE_META[item].code}
             </button>
           ))}
+          {role === 'admin' && (
+            <button
+              type="button"
+              onClick={() => goToPage('settings')}
+              title="Settings"
+              className={cx(
+                'mt-auto flex h-10 w-10 items-center justify-center rounded-xl border text-[10px] transition-all duration-300',
+                page === 'settings'
+                  ? 'border-[#c9a96e]/30 bg-[#c9a96e]/5 text-[#c9a96e]'
+                  : 'border-[#6b705c]/20 text-[#e8dcc0]/50 hover:bg-white/5 hover:text-[#e8dcc0]/80'
+              )}
+            >
+              ⚙
+            </button>
+          )}
         </div>
       )}
     </aside>

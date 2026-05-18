@@ -10,13 +10,13 @@ export default function LoginScreen({ t, onLogin }) {
   async function submit(event) {
     event.preventDefault()
     if (!username.trim() || !password) {
-      setError('Enter username and password.')
+      setError('Enter your username and password.')
       return
     }
     setError('')
     setSubmitting(true)
     try {
-      await onLogin({ username, password })
+      await onLogin({ username: username.trim(), password })
     } catch (loginError) {
       setError(loginError.message || t.app.invalid)
     } finally {
@@ -57,21 +57,27 @@ export default function LoginScreen({ t, onLogin }) {
           </div>
 
           <div className="space-y-4">
-            <input
-              value={username}
-              onChange={event => setUsername(event.target.value)}
-              placeholder="Username"
-              autoComplete="username"
-              className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-4 py-3 text-sm text-[#f5f5f0] outline-none transition placeholder:text-[#e8dcc0]/50 focus:border-[#c9a96e] focus:ring-2 focus:ring-[#c9a96e]/20"
-            />
-            <input
-              value={password}
-              onChange={event => setPassword(event.target.value)}
-              placeholder="Password"
-              type="password"
-              autoComplete="current-password"
-              className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-4 py-3 text-sm text-[#f5f5f0] outline-none transition placeholder:text-[#e8dcc0]/50 focus:border-[#c9a96e] focus:ring-2 focus:ring-[#c9a96e]/20"
-            />
+            <div>
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-[#e8dcc0]/45">Username</label>
+              <input
+                value={username}
+                onChange={event => setUsername(event.target.value)}
+                placeholder="Username"
+                autoComplete="username"
+                className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-4 py-3 text-sm text-[#f5f5f0] outline-none transition placeholder:text-[#e8dcc0]/50 focus:border-[#c9a96e] focus:ring-2 focus:ring-[#c9a96e]/20"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-[#e8dcc0]/45">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={event => setPassword(event.target.value)}
+                placeholder="Password"
+                autoComplete="current-password"
+                className="w-full rounded-xl border border-[#6b705c]/30 bg-[#1a1a1a] px-4 py-3 text-sm text-[#f5f5f0] outline-none transition placeholder:text-[#e8dcc0]/50 focus:border-[#c9a96e] focus:ring-2 focus:ring-[#c9a96e]/20"
+              />
+            </div>
           </div>
 
           {error && <Alert type="error">{error}</Alert>}

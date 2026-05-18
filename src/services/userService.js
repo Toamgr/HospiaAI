@@ -1,26 +1,15 @@
-import { USERS } from '../config/roleConfig.js'
-import { STORAGE, API_BASE } from '../config/systemConfig.js'
+import { STORAGE } from '../config/systemConfig.js'
 import { readStoredArray, writeStoredValue } from '../lib/storage.js'
 
+import { apiPost, apiGet } from './api/client'
+
 function syncUserToBackend(user) {
-  try {
-    fetch(`${API_BASE}/api/users`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-HOSPIA-Role': 'admin' },
-      body: JSON.stringify(user)
-    }).catch(() => {})
-  } catch {
-    // fire-and-forget — localStorage is source of truth
-  }
+  apiPost('/api/users', user).catch(() => {})
 }
 
-export async function syncUsersFromBackend(role = 'admin') {
+export async function syncUsersFromBackend() {
   try {
-    const res = await fetch(`${API_BASE}/api/users`, {
-      headers: { 'X-HOSPIA-Role': role }
-    })
-    if (!res.ok) return []
-    const data = await res.json()
+    const data = await apiGet('/api/users')
     return Array.isArray(data.users) ? data.users : []
   } catch {
     return []
@@ -44,30 +33,9 @@ export function normalizeUser(user = {}) {
   }
 }
 
-export function getSeedUsers() {
-  return USERS.map(normalizeUser)
-}
-
 export function loadUsers() {
   const saved = readStoredArray(STORAGE.users, [])
-  if (!saved.length) {
-    const seeded = getSeedUsers()
-    writeStoredValue(STORAGE.users, seeded)
-    return seeded
-  }
-
-  const seedUsers = getSeedUsers()
-  const normalized = saved.map(normalizeUser).map(user => {
-    const seed = seedUsers.find(item => item.username.toLowerCase() === user.username.toLowerCase())
-    if (!seed) return user
-    return {
-      ...user,
-      role: user.username.toLowerCase() === 'omer sadot' && user.role === 'manager' ? seed.role : user.role,
-      canManageCocktails: Boolean(user.canManageCocktails || seed.canManageCocktails || user.role === 'admin' || user.role === 'bar_manager')
-    }
-  })
-  const missingSeeds = seedUsers.filter(seed => !normalized.some(user => user.username.toLowerCase() === seed.username.toLowerCase()))
-  return [...normalized, ...missingSeeds]
+  return saved.map(normalizeUser)
 }
 
 export function persistUsers(users) {

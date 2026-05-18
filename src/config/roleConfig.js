@@ -16,15 +16,6 @@ export const MODULE_ACCESS_RULES = {
   admin: Object.keys(NAV_GROUPS)
 }
 
-export const USERS = [
-  { username: 'Peleg naim', password: '0000', role: 'employee' },
-  { username: 'Saar wax', password: '0000', role: 'employee' },
-  { username: 'Omer Sadot', password: '0000', role: 'bar_manager', canManageCocktails: true },
-  { username: 'Zohar Zach', password: '0000', role: 'manager' },
-  { username: 'Tal millo', password: '0357', role: 'owner' },
-  { username: 'Toam Griffel', password: '0000', role: 'admin', canManageCocktails: true }
-]
-
 export function getRole(userOrRole) {
   return typeof userOrRole === 'string' ? userOrRole : userOrRole?.role || ''
 }
@@ -39,16 +30,12 @@ export function userCanManageCocktails(userOrRole) {
   if (role === 'admin') return true
   if (typeof userOrRole === 'string') return false
   if (userOrRole?.canManageCocktails) return true
-  if (role === 'bar_manager') return true
-  const canonical = USERS.find(user => user.username.toLowerCase() === userOrRole?.username?.toLowerCase())
-  return Boolean(canonical?.canManageCocktails)
+  return role === 'bar_manager'
 }
 
-const BOTTLE_PRICES_ALLOWED = ['omer sadot', 'toam griffel', 'tal millo']
-
 export function canAccessBottlePrices(userOrRole) {
-  if (!userOrRole || typeof userOrRole === 'string') return false
-  return BOTTLE_PRICES_ALLOWED.includes(userOrRole.username?.toLowerCase())
+  const role = getRole(userOrRole)
+  return ['admin', 'owner', 'bar_manager'].includes(role)
 }
 
 export function canAccessPage(userOrRole, page) {

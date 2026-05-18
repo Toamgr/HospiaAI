@@ -1,45 +1,28 @@
 import { useEffect } from 'react'
-import { API_BASE } from '../config/systemConfig'
+import { apiGet } from '../services/api/client'
 import { syncUsersFromBackend, persistUsers } from '../services/userService'
 
-async function apiRequest(path, { method = 'GET', role, body } = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(role ? { 'X-HOSPIA-Role': role } : {})
-    },
-    ...(body ? { body: JSON.stringify(body) } : {})
-  })
-
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    throw new Error(data.error || `API request failed: ${response.status}`)
-  }
-  return data
-}
-
-export function useBackendSync({ role, setReportArchive, setBusinessMemory, setEventPlans, setActionItems, setUsers }) {
+export function useBackendSync({ role, setReportArchive, setBusinessMemory, setEventPlans, setActionItems, setUsers, setServiceIncidents }) {
   useEffect(() => {
     let active = true
     if (!['manager', 'bar_manager', 'owner', 'admin'].includes(role)) return undefined
 
-    const syncRole = ['manager', 'bar_manager', 'admin'].includes(role) ? role : 'manager'
-
     const requests = [
-      apiRequest('/api/shift-reports', { role }),
-      apiRequest('/api/event-plans', { role }),
-      apiRequest('/api/business-memory', { role })
+      apiGet('/api/shift-reports'),
+      apiGet('/api/event-plans'),
+      apiGet('/api/business-memory')
     ]
 
     if (['manager', 'bar_manager', 'admin'].includes(role)) {
-      requests.push(apiRequest('/api/actions', { role: syncRole }))
+      requests.push(apiGet('/api/actions'))
+      requests.push(apiGet('/api/incidents'))
     } else {
+      requests.push(Promise.resolve(null))
       requests.push(Promise.resolve(null))
     }
 
     Promise.allSettled(requests)
-      .then(([reportsResult, plansResult, memoryResult, actionsResult]) => {
+      .then(([reportsResult, plansResult, memoryResult, actionsResult, incidentsResult]) => {
         if (!active) return
         if (reportsResult.status === 'fulfilled' && Array.isArray(reportsResult.value.reports) && reportsResult.value.reports.length) {
           setReportArchive(prev => {
@@ -62,19 +45,32 @@ export function useBackendSync({ role, setReportArchive, setBusinessMemory, setE
             return merged
           })
         }
-        if (actionsResult?.status === 'fulfilled' && Array.isArray(actionsResult.value?.actions) && actionsResult.value.actions.length) {
+        if (actionsResult?.status === 'fulfilled' && Array.isArray(actionsResult.value?.actions)) {
           const backendActions = actionsResult.value.actions.map(a => ({
             ...a,
             status: a.done ? 'Completed' : (a.status || 'New'),
             priority: a.priority || 'Medium',
             comments: a.comments || []
           }))
-          setActionItems(prev => {
-            const merged = [...backendActions]
-            prev.forEach(local => {
-              if (!merged.some(b => b.id === local.id)) merged.push(local)
-            })
-            return merged
+          setActionItems(backendActions)
+        }
+        if (incidentsResult?.status === 'fulfilled' && Array.isArray(incidentsResult.value?.incidents) && incidentsResult.value.incidents.length) {
+          const backendIncidents = incidentsResult.value.incidents.map(i => ({
+            id: i.id,
+            issueType: i.type || 'service',
+            description: i.description || '',
+            guestTable: i.table_number || '',
+            resolved: Boolean(i.resolved),
+            employeeName: i.reported_by || 'Unknown',
+            severity: i.severity || 'medium',
+            shift_id: i.shift_id || null,
+            time: i.created_at ? new Date(i.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+            created_at: i.created_at || new Date().toISOString()
+          }))
+          setServiceIncidents(prev => {
+            const merged = [...backendIncidents]
+            prev.forEach(local => { if (!merged.some(b => b.id === local.id)) merged.push(local) })
+            return merged.slice(0, 120)
           })
         }
       })
@@ -84,7 +80,7 @@ export function useBackendSync({ role, setReportArchive, setBusinessMemory, setE
 
     // Sync users from backend — merge into localStorage, never overwrite local-only users
     if (['owner', 'admin'].includes(role)) {
-      syncUsersFromBackend(role).then(backendUsers => {
+      syncUsersFromBackend().then(backendUsers => {
         if (!active || !backendUsers.length) return
         setUsers(prev => {
           const merged = [...prev]

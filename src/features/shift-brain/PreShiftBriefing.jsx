@@ -64,11 +64,12 @@ const STATUS_CONFIG = {
   critical:  { label: 'Critical — Address Before Service', border: 'border-red-800/50 bg-red-950/20',     text: 'text-red-400',    dot: 'bg-red-400' }
 }
 
-export default function PreShiftBriefing({ t, currentUser, actionItems = [], serviceIncidents = [], eventPlans = [], notes = [], reportArchive = [], shiftBrain }) {
+export default function PreShiftBriefing({ t, currentUser, actionItems = [], serviceIncidents = [], eventPlans = [], notes = [], reportArchive = [], shiftBrain, activeShift, onOpenShift, onSaveBriefing }) {
   const [briefed, setBriefed] = useState({})
   const [checklistDone, setChecklistDone] = useState({})
   const [started, setStarted] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [shiftOpenError, setShiftOpenError] = useState(null)
 
   // Manager-flagged carry-forward items from previous shift (reads localStorage set by ManagerActionCenter)
   const managerCarryForward = (() => {
@@ -106,15 +107,42 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
 
   async function startShift() {
     setSaving(true)
+    setShiftOpenError(null)
     try {
-      await apiPost('/api/business-memory', {
-        type: 'note',
-        title: `Pre-shift briefing started by ${currentUser?.username || 'Manager'}`,
-        detail: `Briefed ${briefedCount}/${totalItems} items. Open actions: ${openActions.length}. Unresolved incidents: ${recentIncidents.length}. Status: ${shiftBrain?.summary?.operationalStatus || 'unknown'}.`,
-        date: TODAY
-      })
+      // Stage 1: open shift in DB (skip if already open)
+      let shift = activeShift
+      if (!shift && onOpenShift) {
+        try {
+          shift = await onOpenShift()
+        } catch (err) {
+          // A 409 means shift already open — that's fine, continue
+          if (!err.message?.includes('already open')) {
+            setShiftOpenError(err.message || 'Could not open shift in database.')
+            setSaving(false)
+            return
+          }
+        }
+      }
+
+      // Stage 2: save briefing to shift record
+      if (shift && onSaveBriefing) {
+        const briefingText = `Pre-shift briefing by ${currentUser?.username || 'Manager'}: ${briefedCount}/${totalItems} items acknowledged. Status: ${shiftBrain?.summary?.operationalStatus || 'clear'}. Open actions: ${openActions.length}. Unresolved incidents: ${recentIncidents.length}.`
+        await onSaveBriefing(briefingText)
+      }
+
+      // Best-effort business memory snapshot
+      try {
+        await apiPost('/api/business-memory', {
+          type: 'note',
+          title: `Pre-shift briefing started by ${currentUser?.username || 'Manager'}`,
+          detail: `Briefed ${briefedCount}/${totalItems} items. Open actions: ${openActions.length}. Unresolved incidents: ${recentIncidents.length}. Status: ${shiftBrain?.summary?.operationalStatus || 'unknown'}.`,
+          date: TODAY
+        })
+      } catch {
+        // silent — snapshot is best-effort
+      }
     } catch {
-      // silent — snapshot is best-effort
+      // silent — don't block shift start on unexpected errors
     }
     setStarted(true)
     setSaving(false)
@@ -161,6 +189,12 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {shiftOpenError && (
+        <div className="mb-4 rounded-2xl border border-red-800/40 bg-red-950/10 px-4 py-3 text-xs text-red-300">
+          {shiftOpenError}
         </div>
       )}
 

@@ -3,9 +3,9 @@ import { STORAGE, EMAILJS } from '../config/systemConfig'
 import { formatMoney } from '../utils/format'
 import { loadEmailJS } from '../utils/emailjs'
 import { generateExecutiveEventSummary } from '../prompts/eventPrompts'
-import { ACTION_BOARD_ITEMS } from '../data/businessMemory'
 import { INITIAL_FUTURE_EVENTS } from '../data/events'
 import { INITIAL_BUDGET_REQUESTS, INITIAL_SERVICE_INCIDENTS, INITIAL_EMPLOYEE_TASKS, INITIAL_OWNER_NOTES } from '../data/operations'
+import { apiPost, apiPatch } from '../services/api/client'
 
 function normalizeText(value) {
   return String(value || '').toLowerCase()
@@ -64,7 +64,7 @@ async function sendOwnerEnquiryApprovalEmail(eventPlan) {
   const payload = {
     event_summary: generateExecutiveEventSummary(eventPlan),
     status: eventPlan.status || 'ENQUIRY_APPROVED',
-    owner_name: 'Tal Millo',
+    owner_name: currentUser?.username || currentUser?.full_name || 'Owner',
     subject: 'HESTIA AI — New Event Enquiry Requires Owner Approval'
   }
 
@@ -78,19 +78,14 @@ async function sendOwnerEnquiryApprovalEmail(eventPlan) {
   )
 }
 
-export function useOperationsState({ currentUser, pushNotification, addBusinessMemoryEvent }) {
+export function useOperationsState({ currentUser, pushNotification, addBusinessMemoryEvent, activeShift }) {
   const [eventPlans, setEventPlans] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE.futureEvents) || 'null')
       return Array.isArray(saved) ? saved : INITIAL_FUTURE_EVENTS
     } catch { return INITIAL_FUTURE_EVENTS }
   })
-  const [actionItems, setActionItems] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE.actionItems) || 'null')
-      return Array.isArray(saved) ? saved : ACTION_BOARD_ITEMS
-    } catch { return ACTION_BOARD_ITEMS }
-  })
+  const [actionItems, setActionItems] = useState([])
   const [budgetRequests, setBudgetRequests] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE.budgetRequests) || 'null')
@@ -172,6 +167,7 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
 
   const updateIncident = useCallback((incidentId, patch) => {
     setServiceIncidents(prev => prev.map(item => item.id === incidentId ? { ...item, ...patch } : item))
+    apiPatch(`/api/incidents/${incidentId}`, patch).catch(() => {})
   }, [])
 
   const updateEmployeeTask = useCallback((taskId, status) => {
@@ -341,6 +337,17 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
     }
 
     setServiceIncidents(prev => [saved, ...prev].slice(0, 120))
+    apiPost('/api/incidents', {
+      id: saved.id,
+      type: saved.issueType || 'service',
+      description: saved.description || '',
+      table_number: saved.guestTable || '',
+      resolved: saved.resolved ? 1 : 0,
+      reported_by: saved.employeeName,
+      shift_date: now.toISOString().slice(0, 10),
+      severity: saved.severity || 'medium',
+      shift_id: activeShift?.id || null
+    }).catch(err => console.warn('Incident backend persistence failed:', err))
     setEmployeePerformance(prev => {
       const existing = prev[saved.employeeName] || { incidentCount: 0, categories: {}, unresolved: 0 }
       return {
@@ -369,7 +376,7 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
     }, ...prev].slice(0, 80))
     pushNotification({ roles: ['manager', 'admin'], title: 'New service incident', body: `${saved.employeeName} reported ${saved.issueType} at ${saved.guestTable}.`, type: 'incident', page: 'actionBoard' })
     return saved
-  }, [addBusinessMemoryEvent, currentUser?.role, currentUser?.username, pushNotification])
+  }, [activeShift, addBusinessMemoryEvent, currentUser?.role, currentUser?.username, pushNotification])
 
   const saveEventPlan = useCallback(async ({ name, config, calculations }) => {
     const isManagerEnquiry = currentUser?.role === 'manager' && config.eventStatus === 'Inquiry'
@@ -479,6 +486,7 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
     setActionItems,
     budgetRequests,
     serviceIncidents,
+    setServiceIncidents,
     employeePerformance,
     employeeTasks,
     employeeRequests,

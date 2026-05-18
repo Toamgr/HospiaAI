@@ -1,4 +1,4 @@
-import { API_BASE } from '../config/systemConfig'
+import { apiPost } from './api/client'
 import { buildShiftBrainSnapshot, generateOwnerBrief } from './shiftBrainService'
 
 export function buildWeeklyBusinessBrief(data = {}) {
@@ -45,16 +45,6 @@ export async function generateAIWeeklyBrief({ reports = [], incidents = [], acti
     urgentItems ? `Urgent items from shift reports: ${urgentItems}` : ''
   ].filter(Boolean).join('\n')
 
-  const response = await fetch(`${API_BASE}/api/analyze`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-HOSPIA-Role': role },
-    body: JSON.stringify({ complaintSummary: dataPrompt })
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to generate AI brief.')
-  }
-
-  const data = await response.json()
+  const data = await apiPost('/api/analyze', { complaintSummary: dataPrompt })
   return data.answer || ''
 }

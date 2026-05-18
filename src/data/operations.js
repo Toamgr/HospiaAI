@@ -1,10 +1,4 @@
-export const INITIAL_SHIFT_PROFILE = {
-  shiftType: 'Dinner Service',
-  expectedCovers: 184,
-  vipReservations: 4,
-  eventToday: true,
-  pressureLevel: 'High'
-}
+export const INITIAL_SHIFT_PROFILE = null
 
 export const INITIAL_SUPPLY_RISKS = []
 

@@ -41,10 +41,17 @@ export default function EndOfDayReports({
   actionItems      = [],
   serviceIncidents = [],
   shiftNotes       = [],
+  activeShift,
+  onCloseShift,
+  onSaveHandover,
 }) {
-  const [sending,      setSending]      = useState(false)
-  const [submitted,    setSubmitted]    = useState(false)
-  const [emailStatus,  setEmailStatus]  = useState(null)
+  const [sending,          setSending]          = useState(false)
+  const [submitted,        setSubmitted]        = useState(false)
+  const [emailStatus,      setEmailStatus]      = useState(null)
+  const [handoverDraft,    setHandoverDraft]    = useState('')
+  const [handoverSaving,   setHandoverSaving]   = useState(false)
+  const [handoverComplete, setHandoverComplete] = useState(false)
+  const [handoverError,    setHandoverError]    = useState(null)
 
   // Form fields
   const [shiftDate,       setShiftDate]       = useState(TODAY)
@@ -124,27 +131,108 @@ export default function EndOfDayReports({
     }
 
     await onReportArchived?.(review)
+
+    // Stage 4: close the active shift in SQLite
+    if (activeShift && onCloseShift) {
+      try {
+        await onCloseShift({ summary: shiftSummary.trim(), cover_count: null })
+      } catch {
+        // non-blocking — local report still saved
+      }
+    }
+
     setSending(false)
     setSubmitted(true)
   }, [
     shiftDate, managerName, shiftSummary, highlights, urgentItems,
     complaints, serviceRecovery, staffIssues, salesNotes, generalNotes,
     flagForOwner, carryForwardItems.length, openCount, resolvedCount,
-    currentUser, onReportArchived,
+    currentUser, onReportArchived, activeShift, onCloseShift,
   ])
 
+  async function submitHandover() {
+    if (!onSaveHandover) return
+    setHandoverSaving(true)
+    setHandoverError(null)
+    try {
+      await onSaveHandover(handoverDraft.trim())
+      setHandoverComplete(true)
+    } catch (err) {
+      setHandoverError(err.message || 'Could not save handover. Please try again.')
+    }
+    setHandoverSaving(false)
+  }
+
   if (submitted) {
+    if (handoverComplete) {
+      return (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="font-serif text-[5rem] font-black leading-none text-[#c9a96e]/20 mb-6">✓</div>
+          <div className="text-[10px] font-black uppercase tracking-[0.28em] text-[#c9a96e] mb-3">Handover Complete</div>
+          <h2 className="font-serif text-4xl font-black text-[#f5f5f0] mb-4">Shift handed over.</h2>
+          <p className="text-[#e8dcc0]/60 text-sm max-w-md">
+            The next manager will see your handover note when they open their shift.
+          </p>
+        </div>
+      )
+    }
+
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="font-serif text-[5rem] font-black leading-none text-[#c9a96e]/20 mb-6">✓</div>
-        <div className="text-[10px] font-black uppercase tracking-[0.28em] text-[#c9a96e] mb-3">Shift Closed Out</div>
-        <h2 className="font-serif text-4xl font-black text-[#f5f5f0] mb-4">Review saved to archive.</h2>
-        <p className="text-[#e8dcc0]/60 text-sm max-w-md">
-          {emailStatus === 'sent' && 'Email report sent. '}
-          {emailStatus === 'failed' && 'Email send failed — report saved locally. '}
-          {flagForOwner ? 'Flagged for owner review. ' : ''}
-          {carryForwardItems.length > 0 && `${carryForwardItems.length} item${carryForwardItems.length !== 1 ? 's' : ''} carrying forward to next pre-shift.`}
-        </p>
+      <div className="mx-auto max-w-2xl">
+        <div className="flex flex-col items-center py-16 text-center">
+          <div className="font-serif text-[5rem] font-black leading-none text-[#c9a96e]/20 mb-6">✓</div>
+          <div className="text-[10px] font-black uppercase tracking-[0.28em] text-[#c9a96e] mb-3">Shift Closed Out</div>
+          <h2 className="font-serif text-4xl font-black text-[#f5f5f0] mb-4">Review saved to archive.</h2>
+          <p className="text-[#e8dcc0]/60 text-sm max-w-md">
+            {emailStatus === 'sent' && 'Email report sent. '}
+            {emailStatus === 'failed' && 'Email send failed — report saved locally. '}
+            {flagForOwner ? 'Flagged for owner review. ' : ''}
+            {carryForwardItems.length > 0 && `${carryForwardItems.length} item${carryForwardItems.length !== 1 ? 's' : ''} carrying forward to next pre-shift.`}
+          </p>
+        </div>
+
+        {/* Stage 5 — Handover */}
+        {onSaveHandover && (
+          <div className="mt-4 rounded-2xl border border-[#c9a96e]/20 bg-[#14130f] p-6">
+            <div className="text-[10px] font-black uppercase tracking-[0.28em] text-[#c9a96e] mb-3">
+              Shift Handover — Step 5 of 5
+            </div>
+            <h3 className="font-serif text-2xl font-black text-[#f5f5f0] mb-2">Write a note for the next manager</h3>
+            <p className="text-sm text-[#e8dcc0]/60 mb-5">
+              This message will be available in the next pre-shift briefing. Include anything the next manager must know.
+            </p>
+
+            <textarea
+              value={handoverDraft}
+              onChange={e => setHandoverDraft(e.target.value)}
+              rows={5}
+              placeholder="e.g. The walk-in cooler is running warm — check temp before service. Table 8 had a complaint, customer may return tomorrow. Ice machine was slow, order extra bags…"
+              className="w-full rounded-2xl border border-[#6b705c]/30 bg-[#1a1a1a] px-4 py-3 text-sm text-[#f5f5f0] placeholder:text-[#e8dcc0]/25 focus:border-[#c9a96e]/50 focus:outline-none resize-none mb-4"
+            />
+
+            {handoverError && (
+              <p className="mb-3 text-xs text-red-300">{handoverError}</p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={submitHandover}
+                disabled={handoverSaving}
+                className="flex-1 rounded-2xl bg-[#c9a96e] py-3 text-sm font-black uppercase tracking-widest text-[#0d0c09] transition hover:bg-[#e8d0a0] disabled:opacity-50"
+              >
+                {handoverSaving ? 'Saving…' : 'Complete Handover'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setHandoverComplete(true)}
+                className="rounded-2xl border border-[#6b705c]/30 px-5 text-xs font-black uppercase tracking-widest text-[#e8dcc0]/50 hover:text-[#e8dcc0]/80 transition"
+              >
+                Skip
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

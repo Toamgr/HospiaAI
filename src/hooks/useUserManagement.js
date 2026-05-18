@@ -1,6 +1,5 @@
 import { useCallback } from 'react'
 import { createUser, updateUser, disableUser } from '../services/userService'
-import { persistSession } from '../services/authService'
 
 export function useUserManagement({ currentUser, users, setUsers, setCurrentUser, logout, pushNotification }) {
   const handleCreateUser = useCallback(payload => {
@@ -30,7 +29,6 @@ export function useUserManagement({ currentUser, users, setUsers, setCurrentUser
         canManageCocktails: Boolean(result.user.canManageCocktails || result.user.role === 'admin' || result.user.role === 'bar_manager')
       }
       setCurrentUser(refreshed)
-      persistSession(refreshed)
     }
     return result.user
   }, [currentUser, users])

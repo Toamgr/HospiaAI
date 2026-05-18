@@ -40,9 +40,7 @@ const env = import.meta.env || {}
 
 export const API_BASE = env.VITE_API_BASE || 'http://localhost:3001'
 
-export const ACCESS_CODES = {
-  EMP123: 'employee',
-  MNG123: 'manager',
-  OWN123: 'owner'
-}
+// TODO Phase 2 — remove this frontend code map; access validation must be server-side only.
+// AUDIT FLAG — access codes removed from frontend config. Login is now validated server-side via /api/session/login.
+export const ACCESS_CODES = {}
 

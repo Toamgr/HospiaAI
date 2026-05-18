@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { cx } from '../../utils/format'
-import { cocktailLibrary, ATLAS_MASTERCLASSES, ATLAS_TECHNIQUES, ATLAS_TRAINING_CARDS, ATLAS_PROFIT_INSIGHTS } from '../../data/cocktails'
+import { cocktailLibrary as STATIC_COCKTAIL_LIBRARY, ATLAS_MASTERCLASSES, ATLAS_TECHNIQUES, ATLAS_TRAINING_CARDS, ATLAS_PROFIT_INSIGHTS } from '../../data/cocktails'
+import { apiGet } from '../../services/api/client'
 import { Card, Button, Label } from '../../components/AppPrimitives'
 
 export default function KnowledgeLibrary({ t, lang, goToPage }) {
@@ -8,6 +9,23 @@ export default function KnowledgeLibrary({ t, lang, goToPage }) {
   const [query, setQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
   const [selectedCocktail, setSelectedCocktail] = useState(null)
+  const [cocktailLibrary, setCocktailLibrary] = useState(STATIC_COCKTAIL_LIBRARY)
+
+  useEffect(() => {
+    apiGet('/api/cocktails').then(data => {
+      if (Array.isArray(data.cocktails) && data.cocktails.length) {
+        const normalized = data.cocktails.map(c => ({
+          ...c,
+          family: c.category,
+          story: c.description,
+          glassware: c.glass_type,
+          tags: c.tags || [],
+          ingredients: c.ingredients || []
+        }))
+        setCocktailLibrary(normalized)
+      }
+    }).catch(() => {})
+  }, [])
 
   const atlasTabs = [
     { id: 'classics', label: 'Classics', subtitle: 'Cocktail canon' },
@@ -18,9 +36,9 @@ export default function KnowledgeLibrary({ t, lang, goToPage }) {
   ]
 
   const flavorTags = useMemo(() => {
-    const tags = new Set(cocktailLibrary.flatMap(cocktail => cocktail.tags))
+    const tags = new Set(cocktailLibrary.flatMap(cocktail => cocktail.tags || []))
     return ['All', ...Array.from(tags).sort()]
-  }, [])
+  }, [cocktailLibrary])
 
   const filteredCocktails = useMemo(() => {
     const q = query.toLowerCase().trim()

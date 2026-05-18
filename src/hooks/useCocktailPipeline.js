@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { STORAGE } from '../config/systemConfig'
+import { apiPost } from '../services/api/client'
 
 export function useCocktailPipeline({ currentUser, pushNotification, addBusinessMemoryEvent }) {
   const [cocktailDrafts, setCocktailDrafts] = useState(() => {
@@ -80,6 +81,17 @@ export function useCocktailPipeline({ currentUser, pushNotification, addBusiness
     }
     setApprovedCocktails(prev => [approved, ...prev.filter(item => item.id !== approved.id)].slice(0, 80))
     setCocktailDrafts(prev => prev.filter(item => item.id !== approved.id))
+    apiPost('/api/cocktails', {
+      name: approved.name,
+      category: approved.style || approved.category || null,
+      description: approved.description || approved.story || null,
+      base_spirit: approved.baseSpirit || null,
+      glass_type: approved.glassware || null,
+      garnish: approved.garnish || null,
+      method: approved.method || null,
+      tags: approved.tags || [],
+      ingredients: Array.isArray(approved.ingredients) ? approved.ingredients.map(i => typeof i === 'string' ? i : `${i.quantity || ''} ${i.name || ''}`.trim()) : []
+    }).catch(() => {})
     addBusinessMemoryEvent({
       type: 'note',
       title: `Cocktail approved: ${approved.name}`,

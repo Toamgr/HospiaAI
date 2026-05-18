@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
+import { apiPatch } from '../../services/api/client'
 import { requestCocktailProposal } from '../../services/cocktailService'
 import { buildCostSheet, getProductsForIngredient, getIngredientFallbackCpm } from '../../domain/hospitality/bar/cocktailLabPricingAdapter.js'
 import { getEffectiveProduct } from '../../domain/hospitality/bar/verifiedPriceStorage.js'
@@ -892,12 +893,26 @@ function EmptyStudio() {
 
 // ─── Main CocktailLabStudio ───────────────────────────────────────────────────
 
-export default function CocktailLabStudio({ cocktailDrafts = [], approvedCocktails = [], archivedCocktails = [], onSaveDraft, onSubmitApproval, onApprove, onReject }) {
+export default function CocktailLabStudio({ cocktailDrafts = [], approvedCocktails = [], archivedCocktails = [], onSaveDraft, onSubmitApproval, onApprove, onReject, eventContext = null, goToPage = null }) {
   const [prompt, setPrompt] = useState('')
   const [proposal, setProposal] = useState(null)
   const [generating, setGenerating] = useState(false)
   const [status, setStatus] = useState(null)
+  const [markingDone, setMarkingDone] = useState(false)
+  const [taskCompleted, setTaskCompleted] = useState(false)
   const textareaRef = useRef(null)
+
+  const handleMarkTaskDone = useCallback(async () => {
+    if (!eventContext?.eventId || !eventContext?.taskId) return
+    setMarkingDone(true)
+    try {
+      await apiPatch(`/api/events/${eventContext.eventId}/tasks/${eventContext.taskId}`, { status: 'done' })
+      setTaskCompleted(true)
+      setTimeout(() => goToPage?.('eventCRM'), 1500)
+    } catch {
+      setMarkingDone(false)
+    }
+  }, [eventContext, goToPage])
 
   const stats = useMemo(() => ({
     drafts: cocktailDrafts.filter(d => d.status === 'draft').length,
@@ -962,6 +977,28 @@ export default function CocktailLabStudio({ cocktailDrafts = [], approvedCocktai
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-8">
+      {/* Event context banner */}
+      {eventContext && (
+        <div className="flex items-center justify-between gap-4 rounded-[1.5rem] border border-[#c9a96e]/30 bg-[#c9a96e]/08 px-6 py-4">
+          <div>
+            <div className="text-[9px] font-black uppercase tracking-[0.28em] text-[#c9a96e]/70">Building cocktail menu for</div>
+            <div className="mt-1 text-sm font-bold text-[#f5f5f0]">{eventContext.eventName}</div>
+          </div>
+          {taskCompleted ? (
+            <span className="text-[11px] font-black text-emerald-400 tracking-wide">✓ Task marked complete</span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleMarkTaskDone}
+              disabled={markingDone}
+              className="rounded-[1rem] border border-[#c9a96e]/30 bg-[#c9a96e]/10 px-5 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#c9a96e] transition hover:bg-[#c9a96e]/20 disabled:opacity-50"
+            >
+              {markingDone ? 'Marking…' : 'Mark task complete'}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

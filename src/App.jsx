@@ -11,6 +11,8 @@ import BottlePrices from './features/bar/BottlePrices'
 import ActionBoard from './features/operations/ActionBoard'
 import ManagerActionCenter from './features/operations/ManagerActionCenter'
 import EventOrchestrator from './features/operations/EventOrchestrator'
+import EventBrain from './features/events/EventBrain'
+import EventCRM from './features/events/EventCRM'
 import EndOfDayReports from './features/operations/EndOfDayReports'
 import EndOfShiftReview from './features/operations/EndOfShiftReview'
 import BudgetRequestPage from './features/operations/BudgetRequestPage'
@@ -41,17 +43,20 @@ import WineKnowledge from './features/academy/WineKnowledge'
 import KnowledgeLibrary from './features/academy/KnowledgeLibrary'
 import UserManagement from './features/system/UserManagement'
 import Settings from './features/system/Settings'
+import SettingsPage from './features/settings/SettingsPage'
 import MissingPage from './features/system/MissingPage'
 import LoginScreen from './features/auth/LoginScreen'
 import TopNav from './features/shell/TopNav'
 import SidePanel from './features/shell/SidePanel'
 import NotificationPanel from './features/shell/NotificationPanel'
 import { cx } from './utils/format'
-import { buildSessionUser, persistSession } from './services/authService'
+import { isEnabled } from './config/featureFlags'
+import { clearSession } from './services/authService'
+import { loginWithCredentials } from './services/api/sessionApi'
+import { setAuthToken, clearAuthToken } from './services/api/client'
 import { useUserManagement } from './hooks/useUserManagement'
 import { TEXT } from './config/textConfig'
 import { firstAllowedArea, firstAllowedPage } from './config/roleConfig'
-import { INITIAL_SUPPLY_RISKS } from './data/operations'
 import { useNotificationState } from './hooks/useNotificationState'
 import { useSessionState } from './hooks/useSessionState'
 import { useNavigationState } from './hooks/useNavigationState'
@@ -60,14 +65,17 @@ import { useCocktailPipeline } from './hooks/useCocktailPipeline'
 import { useStaffAcademyState } from './hooks/useStaffAcademyState'
 import { useOperationsState } from './hooks/useOperationsState'
 import { useShiftBrainState } from './hooks/useShiftBrainState'
+import { useShiftState } from './hooks/useShiftState'
 import { useBackendSync } from './hooks/useBackendSync'
+import { useOwnerPulseState } from './hooks/useOwnerPulseState'
+import { useEventState } from './hooks/useEventState'
 
 
 export default function App() {
   const { lang, setLang, currentUser, setCurrentUser, role, users, setUsers, logout } = useSessionState()
   const t = TEXT.en
 
-  const { area, page, collapsed, setCollapsed, navigate, goToArea, goToPage } = useNavigationState({ currentUser })
+  const { area, page, collapsed, setCollapsed, navigate, goToArea, goToPage, pageContext } = useNavigationState({ currentUser })
   const {
     notifications,
     showNotifications,
@@ -81,10 +89,24 @@ export default function App() {
   const { reportArchive, setReportArchive, businessMemory, setBusinessMemory, addBusinessMemoryEvent } = useReportsState()
 
   const {
+    activeShift,
+    shiftStatus,
+    lastHandover,
+    carryForwardTasks,
+    shiftError,
+    openShift,
+    saveBriefing,
+    closeShift,
+    saveHandover,
+    addCarryForwardTask,
+    resolveTask
+  } = useShiftState({ currentUser })
+
+  const {
     eventPlans, setEventPlans,
     actionItems, setActionItems,
     budgetRequests,
-    serviceIncidents,
+    serviceIncidents, setServiceIncidents,
     employeePerformance,
     employeeTasks,
     employeeRequests,
@@ -103,7 +125,7 @@ export default function App() {
     managerReviewEmployeeRequest,
     ownerReviewEmployeeRequest,
     sendOwnerNote
-  } = useOperationsState({ currentUser, pushNotification, addBusinessMemoryEvent })
+  } = useOperationsState({ currentUser, pushNotification, addBusinessMemoryEvent, activeShift })
 
   const {
     cocktailDrafts,
@@ -121,19 +143,30 @@ export default function App() {
 
   const { shiftNotes, setShiftNotes, shiftBrain } = useShiftBrainState({ actionItems, serviceIncidents, eventPlans, ownerNotes })
 
-  useBackendSync({ role, setReportArchive, setBusinessMemory, setEventPlans, setActionItems, setUsers })
+  const { pulseData, trends, insight, isLoadingInsight, insightError, insightCooldownSeconds, requestInsight } = useOwnerPulseState({ currentUser })
+
+  const eventState = useEventState({ currentUser, pushNotification })
+
+  useBackendSync({ role, setReportArchive, setBusinessMemory, setEventPlans, setActionItems, setUsers, setServiceIncidents })
 
   const { handleCreateUser, handleUpdateUser, handleDisableUser } = useUserManagement({
     currentUser, users, setUsers, setCurrentUser, logout, pushNotification
   })
 
   async function login({ username, password }) {
-    const user = buildSessionUser(users, username, password)
-    const nextArea = firstAllowedArea(user)
-    const nextPage = firstAllowedPage(user, nextArea)
-    setCurrentUser(user)
+    const { token, user: apiUser } = await loginWithCredentials(username, password)
+    setAuthToken(token)
+    const sessionUser = {
+      id: apiUser.id,
+      username: apiUser.full_name,
+      full_name: apiUser.full_name,
+      role: apiUser.role,
+      canManageCocktails: ['admin', 'bar_manager'].includes(apiUser.role)
+    }
+    const nextArea = firstAllowedArea(sessionUser)
+    const nextPage = firstAllowedPage(sessionUser, nextArea)
+    setCurrentUser(sessionUser)
     navigate(nextArea, nextPage)
-    persistSession(user)
   }
 
   const archiveEndOfDayReport = useCallback(async report => {
@@ -225,6 +258,7 @@ export default function App() {
             t={t}
             page={page}
             goToPage={goToPage}
+            pageContext={pageContext}
             session={{
               currentUser,
               lang,
@@ -238,7 +272,14 @@ export default function App() {
               reportArchive,
               businessMemory,
               onReportArchived: archiveEndOfDayReport,
-              onMemoryEvent: addBusinessMemoryEvent
+              onMemoryEvent: addBusinessMemoryEvent,
+              pulseData,
+              trends,
+              insight,
+              isLoadingInsight,
+              insightError,
+              insightCooldownSeconds,
+              onRequestInsight: requestInsight
             }}
             operations={{
               eventPlans,
@@ -250,7 +291,12 @@ export default function App() {
               employeeTasks,
               employeeRequests,
               ownerNotes,
-              supplyRisks: INITIAL_SUPPLY_RISKS,
+              supplyRisks: [],
+              activeShift,
+              shiftStatus,
+              lastHandover,
+              carryForwardTasks,
+              shiftError,
               onEventPlanSaved: saveEventPlan,
               onApproveEventEnquiry: approveEventEnquiry,
               onBudgetRequest: submitBudgetRequest,
@@ -264,7 +310,13 @@ export default function App() {
               onSubmitEmployeeRequest: submitEmployeeRequest,
               onManagerReviewEmployeeRequest: managerReviewEmployeeRequest,
               onOwnerReviewEmployeeRequest: ownerReviewEmployeeRequest,
-              onOwnerNote: sendOwnerNote
+              onOwnerNote: sendOwnerNote,
+              onOpenShift: openShift,
+              onSaveBriefing: saveBriefing,
+              onCloseShift: closeShift,
+              onSaveHandover: saveHandover,
+              onAddCarryForwardTask: addCarryForwardTask,
+              onResolveTask: resolveTask
             }}
             cocktails={{
               cocktailDrafts,
@@ -290,6 +342,7 @@ export default function App() {
               setShiftNotes,
               shiftBrain
             }}
+            events={eventState}
           />
         </main>
       </div>
@@ -297,16 +350,20 @@ export default function App() {
   )
 }
 
-function PageRenderer({ t, page, goToPage, session, reports, operations, cocktails, academy, notifications }) {
+function PageRenderer({ t, page, goToPage, pageContext, session, reports, operations, cocktails, academy, notifications, events }) {
   const { currentUser, lang, role, users, onCreateUser, onUpdateUser, onDisableUser } = session
-  const { reportArchive, businessMemory, onReportArchived, onMemoryEvent } = reports
+  const { reportArchive, businessMemory, onReportArchived, onMemoryEvent,
+    pulseData, trends, insight, isLoadingInsight, insightError, insightCooldownSeconds, onRequestInsight } = reports
   const {
     eventPlans, actionItems, setActionItems, budgetRequests, serviceIncidents,
     employeePerformance, employeeTasks, employeeRequests, ownerNotes, supplyRisks,
+    activeShift, shiftStatus, lastHandover, carryForwardTasks, shiftError,
     onEventPlanSaved, onApproveEventEnquiry, onBudgetRequest, onBudgetResponse,
     onServiceIncident, onUpdateIncident, onUpdateEmployeeTask, onSubmitEmployeeRequest,
     onManagerReviewEmployeeRequest, onOwnerReviewEmployeeRequest, onOwnerNote,
-    assignedTasks, onAddAssignedTask, onUpdateAssignedTask
+    assignedTasks, onAddAssignedTask, onUpdateAssignedTask,
+    onOpenShift, onSaveBriefing, onCloseShift, onSaveHandover,
+    onAddCarryForwardTask, onResolveTask
   } = operations
   const {
     cocktailDrafts, approvedCocktails, archivedCocktails, cocktailPractice,
@@ -318,11 +375,13 @@ function PageRenderer({ t, page, goToPage, session, reports, operations, cocktai
 
   const pages = {
     commandCenter: <CommandCenter t={t} currentUser={currentUser} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} businessMemory={businessMemory} budgetRequests={budgetRequests} employeeRequests={employeeRequests} serviceIncidents={serviceIncidents} actionItems={actionItems} notifications={visibleNotifications} onApproveEventEnquiry={onApproveEventEnquiry} shiftBrain={shiftBrain} />,
-    preShiftBriefing: <PreShiftBriefing t={t} currentUser={currentUser} actionItems={actionItems} serviceIncidents={serviceIncidents} eventPlans={eventPlans} notes={shiftNotes} reportArchive={reportArchive} shiftBrain={shiftBrain} />,
+    preShiftBriefing: <PreShiftBriefing t={t} currentUser={currentUser} actionItems={actionItems} serviceIncidents={serviceIncidents} eventPlans={eventPlans} notes={shiftNotes} reportArchive={reportArchive} shiftBrain={shiftBrain} activeShift={activeShift} onOpenShift={onOpenShift} onSaveBriefing={onSaveBriefing} />,
     actionBoard: <ActionBoard t={t} currentUser={currentUser} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} actionItems={actionItems} setActionItems={setActionItems} serviceIncidents={serviceIncidents} onUpdateIncident={onUpdateIncident} employeePerformance={employeePerformance} employeeTasks={employeeTasks} onUpdateEmployeeTask={onUpdateEmployeeTask} supplyRisks={supplyRisks} budgetRequests={budgetRequests} ownerNotes={ownerNotes} onOwnerNote={onOwnerNote} shiftNotes={shiftNotes} shiftBrain={shiftBrain} users={users} assignedTasks={assignedTasks} onAddAssignedTask={onAddAssignedTask} onUpdateAssignedTask={onUpdateAssignedTask} />,
     managerActionCenter: <ManagerActionCenter actionItems={actionItems} setActionItems={setActionItems} serviceIncidents={serviceIncidents} onUpdateIncident={onUpdateIncident} shiftNotes={shiftNotes} reportArchive={reportArchive} shiftBrain={shiftBrain} currentUser={currentUser} />,
     managerEmployeeRequests: <ManagerEmployeeRequests t={t} employeeRequests={employeeRequests} onReview={onManagerReviewEmployeeRequest} />,
     eventOrchestrator: <EventOrchestrator t={t} eventPlans={eventPlans} onEventPlanSaved={onEventPlanSaved} />,
+    eventBrain: <EventBrain />,
+    eventCRM: <EventCRM {...events} currentUser={currentUser} goToPage={goToPage} />,
     staffProgression: <StaffProgression t={t} users={users} academyProgress={academyProgress} serviceIncidents={serviceIncidents} employeePerformance={employeePerformance} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} />,
     staffReadiness: <StaffReadiness t={t} goToPage={goToPage} />,
     employeeHome: <EmployeeHome t={t} currentUser={currentUser} goToPage={goToPage} academyProgress={academyProgress} employeeTasks={employeeTasks} employeeRequests={employeeRequests} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} assignedTasks={assignedTasks} onUpdateAssignedTask={onUpdateAssignedTask} />,
@@ -330,7 +389,7 @@ function PageRenderer({ t, page, goToPage, session, reports, operations, cocktai
     employeeAchievements: <EmployeeAchievements currentUser={currentUser} academyProgress={academyProgress} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} employeeTasks={employeeTasks} />,
     serviceRecovery: <ServiceRecovery t={t} currentUser={currentUser} goToPage={goToPage} onServiceIncident={onServiceIncident} employeeTasks={employeeTasks} onUpdateEmployeeTask={onUpdateEmployeeTask} />,
     endOfShiftReview: <EndOfShiftReview actionItems={actionItems} serviceIncidents={serviceIncidents} shiftNotes={shiftNotes} reportArchive={reportArchive} currentUser={currentUser} onArchiveReport={onReportArchived} />,
-    endOfDay: <EndOfDayReports t={t} currentUser={currentUser} reportArchive={reportArchive} onReportArchived={onReportArchived} actionItems={actionItems} serviceIncidents={serviceIncidents} shiftNotes={shiftNotes} />,
+    endOfDay: <EndOfDayReports t={t} currentUser={currentUser} reportArchive={reportArchive} onReportArchived={onReportArchived} actionItems={actionItems} serviceIncidents={serviceIncidents} shiftNotes={shiftNotes} activeShift={activeShift} onCloseShift={onCloseShift} onSaveHandover={onSaveHandover} />,
     budgetRequest: <BudgetRequestPage t={t} onSubmit={onBudgetRequest} budgetRequests={budgetRequests} currentUser={currentUser} />,
     operationalNotes: <OperationalNotesFeature t={t} currentUser={currentUser} onNotesChange={setShiftNotes} shiftBrain={shiftBrain} />,
     simulation: <Simulation t={t} goToPage={goToPage} />,
@@ -339,7 +398,7 @@ function PageRenderer({ t, page, goToPage, session, reports, operations, cocktai
     sopSheets: <SOPSheets t={t} goToPage={goToPage} />,
     knowledgeLibrary: <KnowledgeLibrary t={t} lang={lang} goToPage={goToPage} />,
     wineKnowledge: <WineKnowledge />,
-    cocktailLab: <CocktailLabStudio cocktailDrafts={cocktailDrafts} approvedCocktails={approvedCocktails} archivedCocktails={archivedCocktails} onSaveDraft={onSaveCocktailDraft} onSubmitApproval={onSubmitCocktailApproval} onApprove={onApproveCocktail} onReject={onRejectCocktailDraft} />,
+    cocktailLab: <CocktailLabStudio cocktailDrafts={cocktailDrafts} approvedCocktails={approvedCocktails} archivedCocktails={archivedCocktails} onSaveDraft={onSaveCocktailDraft} onSubmitApproval={onSubmitCocktailApproval} onApprove={onApproveCocktail} onReject={onRejectCocktailDraft} eventContext={pageContext} goToPage={goToPage} />,
     foodCostTables: <FoodCostTables cocktailDrafts={cocktailDrafts} approvedCocktails={approvedCocktails} />,
     approvedCocktailsBar: <ApprovedCocktailsTraining t={t} currentUser={currentUser} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} onMarkPracticed={onMarkCocktailPracticed} />,
     cocktailLibrary: <CocktailLibrary cocktailDrafts={cocktailDrafts} approvedCocktails={approvedCocktails} archivedCocktails={archivedCocktails} />,
@@ -348,18 +407,18 @@ function PageRenderer({ t, page, goToPage, session, reports, operations, cocktai
     bottlePrices: <BottlePrices currentUser={currentUser} />,
     approvedCocktails: <ApprovedCocktailsTraining t={t} currentUser={currentUser} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} onMarkPracticed={onMarkCocktailPracticed} />,
     learningProgress: <LearningProgress t={t} currentUser={currentUser} academyProgress={academyProgress} />,
-    executiveOverview: <ExecutiveOverview t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} />,
-    operationalPulse: <OperationalPulse actionItems={actionItems} serviceIncidents={serviceIncidents} shiftNotes={shiftNotes} reportArchive={reportArchive} />,
+    ...(isEnabled('ownerExecutiveOverview') && { executiveOverview: <ExecutiveOverview t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} /> }),
+    operationalPulse: <OperationalPulse actionItems={actionItems} serviceIncidents={serviceIncidents} shiftNotes={shiftNotes} reportArchive={reportArchive} pulseData={pulseData} trends={trends} insight={insight} isLoadingInsight={isLoadingInsight} insightError={insightError} insightCooldownSeconds={insightCooldownSeconds} onRequestInsight={onRequestInsight} />,
     budgetApprovals: <BudgetApprovals t={t} budgetRequests={budgetRequests} onRespond={onBudgetResponse} />,
     ownerOperationalRequests: <OwnerOperationalRequests t={t} employeeRequests={employeeRequests} onReview={onOwnerReviewEmployeeRequest} />,
-    weeklySummary: <WeeklySummary t={t} currentUser={currentUser} reportArchive={reportArchive} serviceIncidents={serviceIncidents} budgetRequests={budgetRequests} eventPlans={eventPlans} actionItems={actionItems} shiftBrain={shiftBrain} />,
-    businessMRI: <BusinessMRI t={t} />,
-    profitLeaks: <ProfitLeaks t={t} goToPage={goToPage} />,
+    ...(isEnabled('ownerWeeklySummary') && { weeklySummary: <WeeklySummary t={t} currentUser={currentUser} reportArchive={reportArchive} serviceIncidents={serviceIncidents} budgetRequests={budgetRequests} eventPlans={eventPlans} actionItems={actionItems} shiftBrain={shiftBrain} /> }),
+    ...(isEnabled('ownerBusinessMRI') && { businessMRI: <BusinessMRI t={t} /> }),
+    ...(isEnabled('ownerProfitLeaks') && { profitLeaks: <ProfitLeaks t={t} goToPage={goToPage} /> }),
     ownerReport: <OwnerReport t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} />,
     businessMemory: <BusinessMemoryPage t={t} reportArchive={reportArchive} businessMemory={businessMemory} />,
-    strategicRecommendations: <StrategicRecommendations t={t} />,
+    ...(isEnabled('ownerStrategicRecommendations') && { strategicRecommendations: <StrategicRecommendations t={t} /> }),
     userManagement: <UserManagement currentUser={currentUser} users={users} onCreateUser={onCreateUser} onUpdateUser={onUpdateUser} onDisableUser={onDisableUser} />,
-    settings: <Settings t={t} />
+    settings: <SettingsPage />
   }
 
   return pages[page] || <MissingPage t={t} page={page} />

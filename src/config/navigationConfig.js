@@ -1,16 +1,17 @@
 export const NAV_GROUPS = {
   command: {
     roles: ['owner', 'admin'],
-    // Single owner headquarters — all owner functions live here
+    // PHASE 2 — restore full owner nav after pre-seed milestone
     pages: [
-      'commandCenter',
+      // 'commandCenter',       // PHASE 2 — archived pre-seed
       'operationalPulse',
-      'budgetApprovals',
-      'ownerOperationalRequests',
-      'weeklySummary',
-      'ownerReport',
-      'businessMemory',
-      'userManagement'
+      // 'budgetApprovals',     // PHASE 2 — archived pre-seed
+      // 'ownerOperationalRequests', // PHASE 2 — archived pre-seed
+      // 'weeklySummary',       // PHASE 2 — archived pre-seed
+      // 'ownerReport',         // PHASE 2 — archived pre-seed
+      // 'businessMemory',      // PHASE 2 — archived pre-seed
+      // 'userManagement'       // PHASE 2 — archived pre-seed
+      'settings'
     ]
   },
   operations: {
@@ -22,6 +23,7 @@ export const NAV_GROUPS = {
       'operationalNotes',
       'endOfDay',
       'budgetRequest',
+      'eventCRM',
       'eventOrchestrator',
       'staffProgression'
     ]
@@ -128,13 +130,29 @@ export const PAGE_META = {
     section: 'Requests',
     description: 'Submit budget approval requests'
   },
+  eventBrain: {
+    area: 'operations',
+    roles: ['manager', 'owner', 'admin'],
+    code: 'EB',
+    section: 'Events',
+    description: 'HESTIA × Kahi — AI-powered resort event operations simulation',
+    hiddenInNav: true
+  },
+  eventCRM: {
+    area: 'operations',
+    roles: ['manager', 'owner', 'admin'],
+    code: 'EC',
+    section: 'Events',
+    description: 'Guest management, seating, check-in, and messaging'
+  },
+
   // Moved from planning tab into operations
   eventOrchestrator: {
     area: 'operations',
     roles: ['manager', 'owner', 'admin'],
     code: 'EV',
-    section: 'Events',
-    description: 'Future events, financial calculator, and pipeline'
+    section: 'Event Finance',
+    description: 'Event financial calculator and revenue pipeline'
   },
   // Moved from staffProgression tab into operations
   staffProgression: {
@@ -376,10 +394,9 @@ export const PAGE_META = {
   },
   settings: {
     area: 'command',
-    roles: ['owner', 'admin'],
-    code: 'SY',
-    section: 'Workspace',
-    description: 'Workspace preferences',
-    hiddenInNav: true
+    roles: ['admin'],
+    code: 'ST',
+    section: 'System',
+    description: 'User management and system configuration'
   }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { STORAGE } from '../config/systemConfig'
 import { UNIVERSITY_MANIFEST } from '../data/academy/universityManifest'
 import { getLessonKey, getVisibleAcademies } from '../utils/academy'
+import { apiPost } from '../services/api/client'
 
 export function useStaffAcademyState({ currentUser, goToPage }) {
   const [academyProgress, setAcademyProgress] = useState(() => {
@@ -48,7 +49,14 @@ export function useStaffAcademyState({ currentUser, goToPage }) {
         }
       }
     }))
-  }, [currentUser?.username])
+    if (currentUser?.id) {
+      apiPost('/api/staff-progress', {
+        user_id: currentUser.id,
+        academy_id: academyId,
+        lesson_id: lessonId
+      }).catch(() => {})
+    }
+  }, [currentUser?.username, currentUser?.id])
 
   return {
     academyProgress,

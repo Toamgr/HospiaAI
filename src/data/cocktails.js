@@ -1,4 +1,5 @@
-// HOSPIA AI - extracted static data. Values moved from App.jsx without behavior changes.
+// MIGRATED TO SQLITE — this file is kept as reference and fallback only. Do not add new cocktails here.
+// Live data is served from GET /api/cocktails (seeded from this file on first run).
 
 export const COCKTAIL_FILTERS = ['All', 'Spirits Masterclass', 'Cocktail Families', 'Technique Academy', 'Bartender Rituals', 'Guest Scripts', 'Spirit-forward', 'Bitter', 'Citrus', 'Refreshing', 'Sour', 'Tropical', 'Sparkling', 'Creamy', 'Herbal']
 
@@ -64,9 +65,10 @@ export const ATLAS_TRAINING_CARDS = [
 ]
 
 
+// DEMO ONLY — NIS figures are illustrative placeholders for training context. Replace with real venue data before production.
 export const ATLAS_PROFIT_INSIGHTS = [
-  { title: 'The Second Drink Leak', impact: 'NIS 4,200/mo', solution: 'Proactive offer when glass is 20% full.' },
-  { title: 'Silent Over-Pouring', impact: '12% Margin Loss', solution: 'Mandatory jigger use and brix calibration.' },
-  { title: 'Garnish Waste', impact: 'NIS 850/mo', solution: 'Prep-to-order for high-cost berries and exotic citrus.' },
-  { title: 'Premium Upsell Path', impact: '+18% Average Check', solution: 'Recommend by spirit story, not by price tag.' }
+  { _demo: true, title: 'The Second Drink Leak', impact: '—', solution: 'Proactive offer when glass is 20% full.' },
+  { _demo: true, title: 'Silent Over-Pouring', impact: '—', solution: 'Mandatory jigger use and brix calibration.' },
+  { _demo: true, title: 'Garnish Waste', impact: '—', solution: 'Prep-to-order for high-cost berries and exotic citrus.' },
+  { _demo: true, title: 'Premium Upsell Path', impact: '—', solution: 'Recommend by spirit story, not by price tag.' }
 ]
