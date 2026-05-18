@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { apiPost, apiPatch } from '../../../services/api/client'
 import { fetchCocktailMenu } from '../../../services/api/eventsApi'
-import { buildKnowledgeContext } from '../../../domain/hospitality/bar/cocktailKnowledgeBase/index.js'
-import { getPricingContextSummary } from '../../../domain/hospitality/bar/cocktailLabPricingAdapter.js'
+import { generateEventMenu, replaceEventCocktail, enrichCocktailsWithCost } from '../../../services/eventCocktailMenuService.js'
 
 const FLAVOR_PILLS = ['Citrus', 'Floral', 'Tropical', 'Herbal', 'Spicy', 'Smoky', 'Sweet', 'Bitter']
 const RESTRICTION_PILLS = ['No Gluten', 'No Nuts', 'Low ABV', 'Alcohol-Free Option', 'Kosher']
@@ -48,141 +47,6 @@ const COLOR_PRIORITY = [
   'gin', 'vodka', 'tequila', 'white wine', 'prosecco', 'champagne', 'coconut',
 ]
 
-// ─── Event Beverage Intelligence helpers ──────────────────────────────────────
-
-const PRICING_SIGNAL_RE = /cost|price|budget|cheap|expensive|afford|margin|₪|\bnis\b/i
-
-const FLAVOR_TO_SPIRIT_HINT = {
-  Citrus: ['gin', 'vodka', 'tequila'],
-  Floral: ['gin', 'elderflower'],
-  Tropical: ['rum', 'tequila'],
-  Herbal: ['gin', 'vermouth'],
-  Spicy: ['tequila', 'mezcal'],
-  Smoky: ['mezcal', 'whisky'],
-  Sweet: ['rum', 'liqueur'],
-  Bitter: ['campari', 'aperol'],
-}
-
-function inferEventPricingHints(flavors = []) {
-  const hints = new Set()
-  for (const f of flavors) for (const h of (FLAVOR_TO_SPIRIT_HINT[f] || [])) hints.add(h)
-  return [...hints]
-}
-
-function buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext }) {
-  const eventType = EVENT_TYPE_LABELS[event.event_type] || event.event_type || 'Event'
-  const guestCount = event.expected_guests
-  const flavorStr = form.flavors.length ? form.flavors.join(', ') : 'No strong preference'
-  const restrictionStr = form.restrictions.length ? form.restrictions.join(', ') : 'None'
-  const isHighVolume = guestCount >= 50
-  const isKosher = form.restrictions.includes('Kosher')
-  const hasLowABV = form.restrictions.includes('Low ABV') || form.restrictions.includes('Alcohol-Free Option')
-
-  const parts = [
-    'You are an elite Beverage Director creating an event cocktail menu for a serious hospitality operation.',
-    'Think across: flavor balance and differentiation, batchability, service speed, guest diversity,',
-    'perceived value, and zero-proof inclusion where needed. Do not produce generic or repetitive menus.',
-    'Return strict JSON only.',
-    '',
-    knowledgeContext || null,
-    knowledgeContext ? '' : null,
-    pricingContext || null,
-    pricingContext ? '' : null,
-    `Event: "${event.name}"`,
-    `Event type: ${eventType}`,
-    guestCount ? `Guest count: ${guestCount}` : null,
-    `Cocktails to create: ${form.cocktailCount}`,
-    `Flavor profile: ${flavorStr}`,
-    `Dietary restrictions / requirements: ${restrictionStr}`,
-    `Event vibe: ${form.vibe || 'Not specified'}`,
-    `Special notes: ${form.notes || 'None'}`,
-    '',
-    isHighVolume ? `HIGH-VOLUME SERVICE (${guestCount} guests): prioritize batchability, build time under 30 seconds per cocktail, pre-batch all non-citrus components, garnish must be pre-portionable. No fragile prep.` : null,
-    isHighVolume ? '' : null,
-    isKosher ? 'KOSHER REQUIRED: avoid wine-based vermouth/sherry unless kosher-certified, avoid cream liqueurs unless kosher-certified dairy, confirm bitters certification with supervising authority.' : null,
-    isKosher ? '' : null,
-    hasLowABV ? 'INCLUDE LOW-ABV / ZERO-PROOF: design at least one genuine low-ABV or zero-proof option with the same creativity as full-ABV cocktails. Use sherry, vermouth, fortified wine, or a split base. Do not use the word "mocktail".' : null,
-    hasLowABV ? '' : null,
-    'For liquid_color_hex use the dominant ingredient: Campari=#E8272A, Aperol=#FF6B35, Blue Curacao=#0096FF, Midori=#4CAF50, Espresso/Coffee=#2C1A0E, Rum=#C8860A, Whiskey/Bourbon=#B5651D, Gin/Vodka/Tequila=#F5F5DC, Red wine=#722F37, Rosé=#FFB7C5, White wine/Prosecco/Champagne=#F0E68C.',
-    '',
-    'Return ONLY valid JSON, no markdown, no code blocks:',
-    `{
-  "menu_name": "creative name for this cocktail menu",
-  "cocktails": [
-    {
-      "number": 1,
-      "name": "cocktail name",
-      "tagline": "one evocative sentence",
-      "base_spirit": "main spirit",
-      "ingredients": [{ "name": "ingredient name", "amount_ml": 45, "unit": "ml" }],
-      "method": "shaken or stirred or built or blended",
-      "garnish": "garnish description",
-      "glassware": "e.g. Coupe, Rocks, Highball, Nick & Nora, Collins, Shot",
-      "flavor_map": { "sweet": 5, "sour": 6, "bitter": 3, "salty": 1, "smoky": 0, "spicy": 0, "creamy": 1, "savory": 0 },
-      "flavor_notes": "2-3 flavor descriptors",
-      "allergen_notes": "any allergen info or null",
-      "pour_cost_estimate": "e.g. ₪18-22",
-      "liquid_color_hex": "#F5A623",
-      "batch_notes": "e.g. Pre-batch base + syrup, add citrus and shake per order — ~20 sec build",
-      "service_speed": "fast",
-      "operational_difficulty": 2,
-      "why_fits_event": "brief note on why this suits the event format",
-      "zero_proof_alternative": "suggested NA version or null",
-      "cost_confidence": "medium"
-    }
-  ]
-}`,
-  ]
-
-  return parts.filter(p => p !== null).join('\n')
-}
-
-function buildReplacementPrompt({ event, cocktail, index, otherNames, replaceInstruction, flavorStr, knowledgeContext }) {
-  const eventType = EVENT_TYPE_LABELS[event.event_type] || event.event_type || 'Event'
-  const guestCount = event.expected_guests
-  const isHighVolume = guestCount >= 50
-
-  const parts = [
-    'You are an elite Beverage Director replacing one cocktail in an existing event cocktail menu.',
-    '',
-    `Event: "${event.name}" (${eventType}${guestCount ? `, ${guestCount} guests` : ''})`,
-    `Cocktail being replaced: ${cocktail.name}`,
-    `Remaining menu: ${otherNames || 'none'}`,
-    `Replacement instruction: ${replaceInstruction}`,
-    `Event flavor profile: ${flavorStr}`,
-    '',
-    isHighVolume ? `HIGH-VOLUME: keep service speed under 30 seconds, minimal garnish complexity.` : null,
-    isHighVolume ? '' : null,
-    knowledgeContext || null,
-    knowledgeContext ? '' : null,
-    'Design the replacement to be differentiated from existing menu cocktails, operationally practical, and suited to the event format.',
-    'Return ONLY a single cocktail JSON object, no markdown:',
-    '',
-    `{
-  "number": ${index + 1},
-  "name": "new cocktail name",
-  "tagline": "one evocative sentence",
-  "base_spirit": "main spirit",
-  "ingredients": [{ "name": "ingredient name", "amount_ml": 45, "unit": "ml" }],
-  "method": "shaken or stirred or built or blended",
-  "garnish": "garnish description",
-  "glassware": "e.g. Coupe, Rocks, Highball, Nick & Nora, Collins, Shot",
-  "flavor_map": { "sweet": 5, "sour": 6, "bitter": 3, "salty": 1, "smoky": 0, "spicy": 0, "creamy": 1, "savory": 0 },
-  "flavor_notes": "2-3 flavor descriptors",
-  "allergen_notes": "any allergen info or null",
-  "pour_cost_estimate": "e.g. ₪18-22",
-  "liquid_color_hex": "#F5A623",
-  "batch_notes": null,
-  "service_speed": "fast",
-  "operational_difficulty": 2,
-  "why_fits_event": null,
-  "zero_proof_alternative": null,
-  "cost_confidence": "medium"
-}`,
-  ]
-
-  return parts.filter(p => p !== null).join('\n')
-}
 
 function resolveColor(cocktail) {
   if (cocktail.liquid_color_hex) return cocktail.liquid_color_hex
@@ -549,8 +413,12 @@ function CocktailCard({
       {cocktail.allergen_notes && cocktail.allergen_notes !== 'null' && (
         <p className="text-xs text-red-300/70 mt-1">{cocktail.allergen_notes}</p>
       )}
-      {cocktail.pour_cost_estimate && (
-        <p className="text-xs text-zinc-500 text-right mt-2">{cocktail.pour_cost_estimate}</p>
+      {cocktail._cost && cocktail._cost.cost_status !== 'unavailable' && cocktail._cost.suggested != null && (
+        <p className="text-xs text-zinc-500 text-right mt-2">
+          {cocktail._cost.confidence_level !== 'high' && <span className="text-zinc-600">~</span>}
+          ₪{cocktail._cost.suggested.toFixed(0)}
+          <span className="ml-1 text-zinc-600 text-[10px]">est. price</span>
+        </p>
       )}
       {cocktail.service_speed && (
         <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-2 ${
@@ -593,7 +461,10 @@ export default function CocktailMenuBuilder({ event, tasks, onUpdateTask }) {
     fetchCocktailMenu(event.id)
       .then(data => {
         if (data.menu) {
-          setMenu(data.menu)
+          setMenu({
+            ...data.menu,
+            cocktails: enrichCocktailsWithCost(data.menu.cocktails || []),
+          })
           setApproved(data.menu.status === 'approved')
         }
       })
@@ -611,37 +482,22 @@ export default function CocktailMenuBuilder({ event, tasks, onUpdateTask }) {
     setGenerating(true)
     setShowForm(false)
 
-    const combinedText = `${event.event_type || ''} event ${event.expected_guests || ''} guests ${form.flavors.join(' ')} ${form.restrictions.join(' ')} ${form.vibe || ''} ${form.notes || ''}`
-    const knowledgeForm = { kosherRequirement: form.restrictions.includes('Kosher') ? 'kosher' : '', serviceContext: event.event_type }
-    const knowledgeContext = buildKnowledgeContext(combinedText, knowledgeForm)
-    const pricingContext = PRICING_SIGNAL_RE.test(combinedText)
-      ? getPricingContextSummary(inferEventPricingHints(form.flavors))
-      : ''
-
-    const prompt = buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext })
-
     try {
-      const res = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'AI request failed')
+      const { menu: generatedMenu, isFallback, fallbackReason } = await generateEventMenu({ event, form })
 
-      const rawText = data.answer || ''
-      const cleaned = rawText.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1').trim()
-      const parsed = JSON.parse(cleaned)
-
-      if (!parsed.cocktails || !Array.isArray(parsed.cocktails) || !parsed.cocktails.length) {
-        throw new Error('AI returned an unexpected format. Please try again.')
+      if (isFallback) {
+        setMenu(generatedMenu)
+        setError(fallbackReason || 'AI was unavailable. A placeholder draft is shown below — regenerate when the service recovers.')
+      } else {
+        const saved = await apiPost(`/api/events/${event.id}/cocktail-menu`, {
+          menu_name: generatedMenu.menu_name,
+          cocktails: generatedMenu.cocktails,
+        })
+        setMenu({
+          ...saved.menu,
+          cocktails: enrichCocktailsWithCost(saved.menu.cocktails || []),
+        })
       }
-
-      const saved = await apiPost(`/api/events/${event.id}/cocktail-menu`, {
-        menu_name: parsed.menu_name,
-        cocktails: parsed.cocktails
-      })
-      setMenu(saved.menu)
     } catch (err) {
       setError(err.message || 'Failed to generate menu. Please try again.')
       setShowForm(true)
@@ -671,37 +527,25 @@ export default function CocktailMenuBuilder({ event, tasks, onUpdateTask }) {
     setReplacingLoading(true)
     setReplaceError(null)
 
-    const cocktail = menu.cocktails[index]
-    const otherNames = menu.cocktails
-      .filter((_, i) => i !== index)
-      .map(c => c.name)
-      .join(', ')
-    const flavorStr = form.flavors.length ? form.flavors.join(', ') : 'not specified'
-
-    const replaceText = `event ${event.event_type || ''} ${replaceInstruction} ${flavorStr}`
-    const replaceKnowledgeContext = buildKnowledgeContext(replaceText, { kosherRequirement: '' })
-
-    const prompt = buildReplacementPrompt({ event, cocktail, index, otherNames, replaceInstruction, flavorStr, knowledgeContext: replaceKnowledgeContext })
-
     try {
-      const res = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
+      const { cocktail: newCocktail, isFallback, fallbackReason } = await replaceEventCocktail({
+        event, menu, index, replaceInstruction, form,
       })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'AI request failed')
 
-      const rawText = data.answer || ''
-      const cleaned = rawText.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1').trim()
-      const newCocktail = JSON.parse(cleaned)
+      if (isFallback) {
+        setReplaceError(fallbackReason || 'AI was unavailable. Please try again in a moment.')
+        return
+      }
 
-      const updatedCocktails = menu.cocktails.map((c, i) => i === index ? { ...newCocktail, number: index + 1 } : c)
+      const updatedCocktails = menu.cocktails.map((c, i) => i === index ? newCocktail : c)
       const saved = await apiPost(`/api/events/${event.id}/cocktail-menu`, {
         menu_name: menu.menu_name,
-        cocktails: updatedCocktails
+        cocktails: updatedCocktails,
       })
-      setMenu(saved.menu)
+      setMenu({
+        ...saved.menu,
+        cocktails: enrichCocktailsWithCost(saved.menu.cocktails || []),
+      })
       setApproved(false)
       setReplacingIndex(null)
       setReplaceInstruction('')
@@ -839,6 +683,14 @@ export default function CocktailMenuBuilder({ event, tasks, onUpdateTask }) {
         {/* Menu cards */}
         {menu && !generating && (
           <>
+            {menu._fallback && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-800/30 bg-amber-950/15 px-3 py-2">
+                <span className="text-amber-400 text-[10px] mt-0.5">⚠</span>
+                <span className="text-[10px] text-amber-400/80 leading-relaxed">
+                  AI was unavailable — this is a placeholder draft. Review each cocktail and regenerate when the service recovers.
+                </span>
+              </div>
+            )}
             {menu.menu_name && (
               <p className="text-xs text-zinc-500 uppercase tracking-widest">{menu.menu_name}</p>
             )}

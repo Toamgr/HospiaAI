@@ -3,12 +3,18 @@
 // Each module is a compact distillation of world-class bar intelligence.
 
 import { COCKTAIL_ARCHITECTURE, TASTE_BALANCE, FLAVOR_PAIRING, ADVANCED_TECHNIQUES } from './flavorScience.js'
-import { BCG_MATRIX, PRICING_FORMULAS, MENU_SIZE, INGREDIENT_EFFICIENCY } from './menuEngineering.js'
+import {
+  BCG_MATRIX, PRICING_FORMULAS, MENU_SIZE, INGREDIENT_EFFICIENCY,
+  FULL_COGS_FORMULA, INVENTORY_METRICS, MENU_ROLE_CLASSIFICATION, VENUE_ARCHITECTURE_MATRIX
+} from './menuEngineering.js'
 import { GUEST_DECISION_SCIENCE, DESCRIPTION_LANGUAGE, PSYCHOLOGICAL_PRICING, BARTENDER_AS_INTERFACE } from './menuPsychology.js'
 import { DOMINANT_TRENDS, CLASSIC_REVIVAL_CYCLE } from './trendIntelligence.js'
-import { RECIPE_STANDARDIZATION, PREP_SHELF_LIFE, WASTE_COST_CONTROL, BATCHING_FOR_EVENTS } from './barOperations.js'
+import { RECIPE_STANDARDIZATION, PREP_SHELF_LIFE, WASTE_COST_CONTROL, BATCHING_FOR_EVENTS, TRAINING_STAGES } from './barOperations.js'
 import { BAR_LEONE_MODEL, TWO_PHILOSOPHIES, TEN_LAWS } from './venuePhilosophy.js'
-import { KOSHER_COCKTAIL_RULES } from './kosherIntelligence.js'
+import { KOSHER_COCKTAIL_RULES, PASSOVER_KOSHER_RULES } from './kosherIntelligence.js'
+import { CLASSICS_DATABASE } from './classicsDatabase.js'
+import { ZERO_PROOF_DESIGN_PRINCIPLES, ZERO_PROOF_TOOLKIT, RESPONSIBLE_SERVICE } from './zeroProofIntelligence.js'
+import { OPERATIONAL_FEASIBILITY_SCORING } from './operationalScoring.js'
 
 function containsAny(text, terms) {
   const lower = text.toLowerCase()
@@ -35,6 +41,11 @@ function detectTopics(prompt = '', form = {}) {
     pricingFormulas: containsAny(text, ['pour cost', 'cogs', 'target price', 'contribution margin', 'pricing formula', 'how to price', 'cost percentage']),
     advancedTech: containsAny(text, ['clarif', 'fat wash', 'sous vide', 'foam', 'carbonat', 'ferment', 'smoke', 'char', 'infus']),
     descriptionWriting: containsAny(text, ['write description', 'guest facing', 'menu copy', 'how to describe', 'sensory language']),
+    classics: containsAny(text, ['margarita', 'negroni', 'old fashioned', 'espresso martini', 'mojito', 'daiquiri', 'manhattan', 'paloma', 'gimlet', 'french 75', 'penicillin', 'piña colada', 'pina colada', 'moscow mule', 'whiskey sour', 'boulevardier', 'paper plane', 'bloody mary', 'cosmopolitan', 'classic cocktail', 'classic recipe', 'riff on', 'variation of', 'modernize', 'update the recipe']),
+    zeroProof: containsAny(text, ['zero proof', 'zero-proof', 'non-alcoholic', 'na drink', 'no abv', 'no-abv', 'alcohol-free', 'mocktail', 'sober', 'dry january', 'na menu', 'without alcohol']),
+    operationalFeasibility: containsAny(text, ['feasibility', 'how hard', 'how difficult', 'can we make', 'rush hour', 'service speed', 'scale this', 'high volume prep', 'operational score', 'can the team', 'will this work']),
+    passover: (form.kosherRequirement || '').toLowerCase().includes('passover') || text.includes('passover'),
+    venueType: containsAny(text, ['small restaurant', 'cocktail bar', 'hotel bar', 'rooftop', 'beach bar', 'event venue', 'wedding venue', 'kosher restaurant', 'resort', 'desert resort']),
   }
 }
 
@@ -67,11 +78,18 @@ export function buildKnowledgeContext(prompt = '', form = {}) {
   if (t.menuEngineering || t.pricingFormulas) {
     sections.push(BCG_MATRIX)
     sections.push(PRICING_FORMULAS)
+    sections.push(FULL_COGS_FORMULA)
     sections.push(INGREDIENT_EFFICIENCY)
+    sections.push(INVENTORY_METRICS)
   }
 
   if (t.menuEngineering) {
     sections.push(MENU_SIZE)
+    sections.push(MENU_ROLE_CLASSIFICATION)
+  }
+
+  if (t.menuEngineering || t.venueType) {
+    sections.push(VENUE_ARCHITECTURE_MATRIX)
   }
 
   if (t.menuPsychology || t.descriptionWriting) {
@@ -92,10 +110,25 @@ export function buildKnowledgeContext(prompt = '', form = {}) {
     sections.push(CLASSIC_REVIVAL_CYCLE)
   }
 
+  if (t.classics) {
+    sections.push(CLASSICS_DATABASE)
+  }
+
+  if (t.zeroProof) {
+    sections.push(ZERO_PROOF_DESIGN_PRINCIPLES)
+    sections.push(ZERO_PROOF_TOOLKIT)
+    sections.push(RESPONSIBLE_SERVICE)
+  }
+
+  if (t.operationalFeasibility) {
+    sections.push(OPERATIONAL_FEASIBILITY_SCORING)
+  }
+
   if (t.barOperations) {
     sections.push(RECIPE_STANDARDIZATION)
     sections.push(PREP_SHELF_LIFE)
     sections.push(WASTE_COST_CONTROL)
+    sections.push(TRAINING_STAGES)
   }
 
   if (t.eventBatching) {
@@ -108,9 +141,13 @@ export function buildKnowledgeContext(prompt = '', form = {}) {
     sections.push(TEN_LAWS)
   }
 
-  // Kosher: only inject when explicitly flagged
+  // Kosher and Passover: only inject when explicitly flagged — never by default
   if (t.kosher) {
     sections.push(KOSHER_COCKTAIL_RULES)
+  }
+
+  if (t.passover) {
+    sections.push(PASSOVER_KOSHER_RULES)
   }
 
   if (sections.length === 0) return ''
