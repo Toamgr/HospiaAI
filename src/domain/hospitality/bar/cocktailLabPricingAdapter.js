@@ -197,6 +197,42 @@ export function getIngredientFallbackCpm(ingredientName) {
   return resolveByName(ingredientName).cpm
 }
 
+// Returns a compact pricing reference summary for AI prompt injection.
+// Given an array of ingredient name hints (e.g. ['gin', 'vermouth', 'campari']),
+// returns up to 10 relevant products from the seed as a readable text block.
+// Only called when the manager prompt contains cost/pricing signals.
+export function getPricingContextSummary(ingredientHints = []) {
+  if (!ingredientHints.length) return ''
+
+  const seen = new Set()
+  const rows = []
+
+  for (const hint of ingredientHints) {
+    if (rows.length >= 10) break
+    const products = getProductsForIngredient(hint)
+    for (const p of products) {
+      if (rows.length >= 10) break
+      if (seen.has(p.product_id)) continue
+      if (!p.bottle_size_ml) continue
+
+      // Prefer verified venue price via getEffectiveProduct; fall back to seed benchmark.
+      const effective = getEffectiveProduct(p.product_id)
+      const isVerified = effective && effective.data_status === 'verified_source_backed' && effective.actual_venue_price_nis != null
+      const price = isVerified ? effective.actual_venue_price_nis : p.benchmark_price_nis
+
+      if (!price) continue  // skip if no price exists anywhere
+
+      seen.add(p.product_id)
+      const cpm = (price / p.bottle_size_ml).toFixed(3)
+      const label = isVerified ? 'verified venue price' : 'est. benchmark'
+      rows.push(`${p.brand} ${p.product_name} ${p.bottle_size_ml}ml — ₪${price} (₪${cpm}/ml, ${label})`)
+    }
+  }
+
+  if (!rows.length) return ''
+  return `Venue bottle pricing reference (mix of verified venue prices and benchmark estimates):\n${rows.join('\n')}`
+}
+
 // ─── Computed metadata helpers ────────────────────────────────────────────────
 
 function computeConfidenceLevel(rows) {

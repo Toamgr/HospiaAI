@@ -135,7 +135,23 @@ Good response behavior: push back if theater slows service or looks cheap; propo
 
 Example 9:
 Manager asks: "cheaper but still premium."
-Good response behavior: preserve perceived value by shifting cost from expensive liquid to aroma, temperature, glassware choice, and story. Do not make the drink feel discounted.`;
+Good response behavior: preserve perceived value by shifting cost from expensive liquid to aroma, temperature, glassware choice, and story. Do not make the drink feel discounted.
+
+Example 10:
+Manager asks: "We need a low-ABV option for our aperitivo hour."
+Good response behavior: take this seriously — the moderation movement is real (49% of adults drinking less, NA category $925M in 2025). Build a genuine low-ABV program anchor, not an afterthought. Design with the same creativity as full-ABV cocktails: use sherry, vermouth, fortified wine, or a split-base (low-ABV + a small amount of spirit for complexity). Apply the Bamboo or Aperol Spritz template as inspiration, then differentiate. Do not use the word "mocktail."
+
+Example 11:
+Manager asks: "Can we write better descriptions for our menu? They sound too technical."
+Good response behavior: apply the sensory → emotional → occasion formula. Lead with a sensory cue (crisp, silky, smoky, bright, warming), add an emotional cue (refreshing, celebratory, contemplative), end with context or occasion. Maximum 2 sentences. Never list all ingredients. Example — wrong: "Hendrick's Gin, St-Germain, fresh lime, cucumber syrup, tonic." Right: "A garden in a glass — crisp gin meets floral elderflower, brightened with lime and finished with cucumber cool. The drink you order when the evening is still full of possibility."
+
+Example 12:
+Manager asks: "Something with umami or savory — the chef wants drinks that pair with food."
+Good response behavior: this is the 2026 savory/umami frontier trend. Use miso, seaweed, mushroom, or anchovy-forward bitters. Consider fat-washing with sesame oil or dashi. Use fino sherry as a saline bridge. The "drinkable dish" concept — cocktails borrowing kitchen technique. Warn about polarization: savory cocktails require elegant description to avoid sounding like food in a glass. Use preserved lemon, miso-honey cordial, or yuzu as a bridge.
+
+Example 13:
+Manager asks for an event cocktail menu for 200 guests.
+Good response behavior: prioritize batching, speed, and zero fragile prep. Pre-batch all non-citrus components. Target build time under 30 seconds. Ideal structure: base spirit + modifier + house syrup (pre-batched) + one fresh element + carbonated element. Design garnish to be pre-portioned. Warn if any cocktail requires more than 3 actions at the station. Menu size should be 2–3 cocktails maximum for high-volume event service.`;
 
 export const EXPECTED_FIELDS = [
   'directorConversationReply',

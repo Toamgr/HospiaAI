@@ -1,4 +1,6 @@
 import { FEW_SHOT_EXAMPLES, BEVERAGE_DIRECTOR_SYSTEM_PROMPT, BEVERAGE_DIRECTOR_FEW_SHOT_EXAMPLES, EXPECTED_FIELDS } from '../prompts/geminiCocktailPrompts.js'
+import { buildKnowledgeContext } from '../domain/hospitality/bar/cocktailKnowledgeBase/index.js'
+import { getPricingContextSummary } from '../domain/hospitality/bar/cocktailLabPricingAdapter.js'
 
 function stripMarkdownFences(text = '') {
   return text
@@ -655,12 +657,43 @@ function summarizeCocktails(items = []) {
   });
 }
 
+const PRICING_SIGNAL_PATTERNS = [
+  /cost|price|cogs|pour cost|margin|budget|cheap|expensive|afford|₪|\bnis\b/i
+]
+
+function hasPricingSignals(prompt = '', form = {}) {
+  const text = `${prompt} ${form.targetPrice || ''} ${form.targetCogs || ''}`.toLowerCase()
+  return PRICING_SIGNAL_PATTERNS.some(p => p.test(text))
+}
+
+// Infers ingredient category hints from the manager prompt for pricing context lookup.
+function inferPricingIngredientHints(prompt = '', form = {}) {
+  const text = `${prompt} ${form.baseSpirit || ''} ${form.secondarySpirit || ''}`.toLowerCase()
+  const hints = []
+  const checks = [
+    ['gin', /\bgin\b/], ['vodka', /\bvodka\b/], ['tequila', /\btequila\b/],
+    ['mezcal', /\bmezcal\b/], ['whisky', /\bwhisky\b|\bwhiskey\b|\bbourbon\b/],
+    ['rum', /\brum\b/], ['arak', /\barak\b/], ['vermouth', /\bvermouth\b/],
+    ['campari', /\bcampari\b|\baperif/], ['cointreau', /\bcointreau\b|\btriple sec\b|\btriple.sec\b/],
+    ['liqueur', /\bamaro\b|\bliqueur\b|\belderflower\b/],
+  ]
+  for (const [hint, pattern] of checks) {
+    if (pattern.test(text)) hints.push(hint)
+    if (hints.length >= 5) break
+  }
+  return hints
+}
+
 function buildCocktailPrompt({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, variation = '', previousProposal = null }) {
   const approvedList = summarizeCocktails(approvedCocktails);
   const draftList = summarizeCocktails(cocktailDrafts);
   const menuEngineering = analyzeMenuEngineering(approvedCocktails)
   const requestCritique = critiqueManagerRequest(agentPrompt, form, menuEngineering)
   const overrepresented = normalizeValue(menuAnalysis?.overrepresented?.join(', ') || menuAnalysis?.warnings?.join('; ') || menuEngineering.overrepresented?.join('; ') || 'None');
+  const knowledgeContext = buildKnowledgeContext(agentPrompt, form)
+  const pricingContext = hasPricingSignals(agentPrompt, form)
+    ? getPricingContextSummary(inferPricingIngredientHints(agentPrompt, form))
+    : ''
   const previousSummary = previousProposal ? `Previous proposal summary for follow-up editing:
 - Name: ${normalizeValue(previousProposal.name)}
 - Role: ${normalizeValue(previousProposal.menuRole)}
@@ -734,7 +767,7 @@ Menu balance analysis:
 - Menu warnings: ${menuAnalysis?.warnings?.join('; ') || 'None'}
 - Overrepresented warning: ${overrepresented}
 
-${previousSummary ? `${previousSummary}\n\n` : ''}Variation request: ${variation || 'None'}
+${knowledgeContext ? `${knowledgeContext}\n\n` : ''}${pricingContext ? `${pricingContext}\n\n` : ''}${previousSummary ? `${previousSummary}\n\n` : ''}Variation request: ${variation || 'None'}
 
 Director conversation mode:
 - If this is a follow-up to a previous proposal, first respond in directorConversationReply with a short consultant critique of the previous version and exactly what you are changing.
@@ -878,6 +911,10 @@ function buildCompactRevisionPrompt({ agentPrompt, form, menuAnalysis, variation
   const changeRequest = normalizeValue(variation || agentPrompt || 'Improve the previous proposal.')
   const menuGaps = menuAnalysis?.menuGapNotes?.slice(0, 5).join('; ') || 'None supplied'
   const menuWarnings = menuAnalysis?.warnings?.slice(0, 5).join('; ') || 'None supplied'
+  const knowledgeContext = buildKnowledgeContext(changeRequest, form)
+  const pricingContext = hasPricingSignals(changeRequest, form)
+    ? getPricingContextSummary(inferPricingIngredientHints(changeRequest, form))
+    : ''
 
   return `HESTIA COMPACT REVISION MODE.
 
@@ -921,7 +958,7 @@ Revision rules:
 - Measurements must be in ml.
 - The method field must begin with or include one of: shake, stir, build, blend, or throw — when the cocktail has a recognized preparation technique.
 - Return strict JSON only. No markdown.
-
+${knowledgeContext ? `\n${knowledgeContext}` : ''}${pricingContext ? `\n${pricingContext}` : ''}
 Required JSON shape:
 ${compactResponseSchema()}`;
 }
