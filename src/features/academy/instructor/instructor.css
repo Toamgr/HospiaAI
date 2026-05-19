@@ -1,4 +1,4 @@
-/* Shared kicker label */
+/* ── Shared kicker label ─────────────────────────────────────────────────── */
 .avi-kicker {
   color: #c9a96e;
   font-size: 11px;
@@ -7,7 +7,34 @@
   text-transform: uppercase;
 }
 
-/* ── Transcript panel ────────────────────────────────────────────────────── */
+/* ── Instructor view header ─────────────────────────────────────────────── */
+.avi-instructorHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.avi-personaLabel {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #f7f1e4;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 4px 0 0;
+  letter-spacing: -0.01em;
+}
+
+.avi-personaBadge {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(232, 220, 192, 0.45);
+}
+
+/* ── Transcript / narration panel ────────────────────────────────────────── */
 .avi-panel {
   border: 1px solid rgba(201, 169, 110, 0.18);
   background: rgba(18, 17, 14, 0.86);
@@ -28,7 +55,7 @@
   margin: 8px 0 0;
   font-family: Georgia, 'Times New Roman', serif;
   color: #f7f1e4;
-  font-size: 26px;
+  font-size: 22px;
   letter-spacing: 0;
 }
 
@@ -41,7 +68,10 @@
 .avi-section h3 {
   margin: 0 0 12px;
   color: #f7f1e4;
-  font-size: 17px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .avi-transcriptText {
@@ -62,80 +92,95 @@
   padding-left: 20px;
 }
 
-/* ── Embedded video player ───────────────────────────────────────────────── */
-.avi-videoShell {
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  border: 1px solid rgba(232, 220, 192, 0.14);
-  border-radius: 8px;
-  background: #050505;
-}
-
-.avi-videoShell iframe {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
-.avi-videoLink {
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
-  border-radius: 999px;
-  background: rgba(9, 8, 6, 0.78);
-  color: #f7f1e4;
-  font-size: 12px;
-  font-weight: 800;
-  padding: 8px 12px;
-  text-decoration: none;
-}
-
-.avi-videoFallback {
-  display: grid;
-  min-height: 320px;
-  place-content: center;
-  border: 1px solid rgba(246, 194, 107, 0.32);
-  border-radius: 8px;
-  background: rgba(246, 194, 107, 0.08);
-  text-align: center;
-}
-
-.avi-videoFallback span {
-  color: #f6c26b;
-  font-weight: 900;
-}
-
-.avi-videoFallback p {
+/* ── Reflective prompt textarea ─────────────────────────────────────────── */
+.avi-reflectionPrompt {
+  margin-top: 8px;
+  border: 1px solid rgba(201, 169, 110, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
   color: #e8dcc0;
-  line-height: 1.7;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.6;
+  padding: 8px 10px;
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+  box-sizing: border-box;
+  transition: border-color 160ms ease;
 }
 
-/* ── Talking head (browser TTS) ──────────────────────────────────────────── */
+.avi-reflectionPrompt::placeholder {
+  color: rgba(232, 220, 192, 0.35);
+}
+
+.avi-reflectionPrompt:focus {
+  outline: none;
+  border-color: rgba(201, 169, 110, 0.5);
+}
+
+/* ── Talking head stage ──────────────────────────────────────────────────── */
 .avi-localInstructor {
-  border: 1px solid rgba(232, 220, 192, 0.14);
+  border: 1px solid rgba(201, 169, 110, 0.2);
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(8, 8, 7, 0.9), rgba(28, 23, 16, 0.86));
+  background: linear-gradient(135deg, rgba(8, 8, 7, 0.95), rgba(28, 23, 16, 0.9));
   padding: 22px;
 }
 
 .avi-localInstructorStage {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
   gap: 22px;
-  align-items: center;
+  align-items: start;
 }
 
-.avi-localInstructorCopy p {
-  color: #e8dcc0;
-  line-height: 1.7;
+.avi-localInstructorCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
+.avi-personaName {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #f7f1e4;
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.avi-personaAcademy {
+  color: #c9a96e;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* The active sentence caption — shown next to the avatar when speaking */
+.avi-spokenCaption {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-left: 2px solid #c9a96e;
+  background: rgba(201, 169, 110, 0.06);
+  border-radius: 0 6px 6px 0;
+  color: #f7f1e4;
+  font-size: 15px;
+  line-height: 1.65;
+  min-height: 44px;
+}
+
+.avi-spokenCaption.isEmpty {
+  color: rgba(232, 220, 192, 0.35);
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* Avatar portrait placeholder */
 .avi-avatar {
   position: relative;
   display: grid;
-  min-height: 220px;
+  min-height: 200px;
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(201, 169, 110, 0.2);
@@ -223,45 +268,51 @@
 .avi-avatar.isSpeaking .avi-speechWaves span:nth-child(2) { animation-delay: 120ms; }
 .avi-avatar.isSpeaking .avi-speechWaves span:nth-child(3) { animation-delay: 240ms; }
 
-.avi-ttsWarning {
-  margin-top: 14px;
-  border: 1px solid rgba(246, 194, 107, 0.32);
-  border-radius: 8px;
-  padding: 12px;
-  color: #f6c26b;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.avi-ttsControls {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+/* ── Playback controls ───────────────────────────────────────────────────── */
+.avi-controls {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 20px;
 }
 
-.avi-ttsControls button {
-  min-height: 40px;
-  padding: 8px;
+.avi-controlBtn {
+  min-height: 38px;
+  padding: 8px 14px;
   border: 1px solid rgba(232, 220, 192, 0.16);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
   color: #f7f1e4;
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  transition: border-color 140ms ease, background 140ms ease;
 }
 
-.avi-ttsControls button:disabled {
+.avi-controlBtn:hover:not(:disabled) {
+  border-color: rgba(201, 169, 110, 0.38);
+  background: rgba(201, 169, 110, 0.07);
+}
+
+.avi-controlBtn:disabled {
   cursor: default;
-  opacity: 0.46;
+  opacity: 0.38;
 }
 
+.avi-controlBtn.isPrimary {
+  border-color: rgba(201, 169, 110, 0.35);
+  background: rgba(201, 169, 110, 0.1);
+  color: #e8d0a0;
+}
+
+/* ── Progress bar ────────────────────────────────────────────────────────── */
 .avi-progressBar {
   overflow: hidden;
-  height: 8px;
+  height: 3px;
   margin-top: 18px;
   border-radius: 999px;
-  background: rgba(232, 220, 192, 0.12);
+  background: rgba(232, 220, 192, 0.1);
 }
 
 .avi-progressBar span {
@@ -269,53 +320,131 @@
   height: 100%;
   border-radius: inherit;
   background: #c9a96e;
-  transition: width 220ms ease;
+  /* Use transform instead of width to avoid layout thrash */
+  transform-origin: left;
+  transition: transform 300ms ease;
 }
 
 .avi-progressMeta {
-  margin-top: 8px;
-  color: rgba(232, 220, 192, 0.64);
-  font-size: 12px;
-  font-weight: 800;
+  margin-top: 6px;
+  color: rgba(232, 220, 192, 0.45);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
+/* ── Guided narration sentence list ─────────────────────────────────────── */
 .avi-sentenceList {
   display: grid;
-  gap: 8px;
-  margin-top: 18px;
-  max-height: 300px;
-  overflow: auto;
+  gap: 6px;
+  margin-top: 14px;
+  max-height: 320px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
 }
 
 .avi-sentenceList button {
-  padding: 12px;
+  padding: 11px 14px;
   text-align: left;
-  border: 1px solid rgba(232, 220, 192, 0.16);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #e8dcc0;
+  border: 1px solid rgba(232, 220, 192, 0.1);
+  border-left: 3px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(232, 220, 192, 0.65);
   cursor: pointer;
-  font-weight: 700;
-  line-height: 1.55;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.6;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
 }
 
+.avi-sentenceList button:hover:not(.isCurrent) {
+  border-color: rgba(232, 220, 192, 0.18);
+  color: #e8dcc0;
+}
+
+/* Active sentence — brass left border, warm highlight */
 .avi-sentenceList button.isCurrent {
-  border-color: rgba(201, 169, 110, 0.52);
-  background: rgba(201, 169, 110, 0.12);
+  border-left-color: #c9a96e;
+  border-color: rgba(201, 169, 110, 0.3);
+  background: rgba(201, 169, 110, 0.08);
   color: #f7f1e4;
+  font-weight: 600;
 }
 
+/* ── Reader mode (no voice) ──────────────────────────────────────────────── */
+.avi-readerMode {
+  border: 1px solid rgba(201, 169, 110, 0.18);
+  border-radius: 8px;
+  background: rgba(18, 17, 14, 0.8);
+  padding: 28px;
+}
+
+.avi-readerCaption {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #c9a96e;
+  margin-bottom: 16px;
+}
+
+.avi-readerContent {
+  display: grid;
+  gap: 18px;
+}
+
+.avi-readerSection {
+  border-top: 1px solid rgba(232, 220, 192, 0.1);
+  padding-top: 16px;
+}
+
+.avi-readerSection:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.avi-readerSectionLabel {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(232, 220, 192, 0.45);
+  margin-bottom: 8px;
+}
+
+.avi-readerText {
+  color: #e8dcc0;
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 0;
+}
+
+/* ── Editorial-needed state ──────────────────────────────────────────────── */
+.avi-editorialState {
+  border: 1px solid rgba(201, 169, 110, 0.18);
+  border-radius: 8px;
+  background: rgba(18, 17, 14, 0.8);
+  padding: 28px;
+  text-align: center;
+  color: rgba(232, 220, 192, 0.6);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 980px) {
   .avi-localInstructorStage {
     grid-template-columns: 1fr;
   }
 
-  .avi-ttsControls {
+  .avi-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
+/* ── Keyframe animations ─────────────────────────────────────────────────── */
 @keyframes avi-mouth {
   0%, 100% { height: 8px; }
   50% { height: 22px; }
@@ -329,4 +458,38 @@
 @keyframes avi-wave {
   0%, 100% { height: 10px; opacity: 0.28; }
   50% { height: 30px; opacity: 0.92; }
+}
+
+/* ── Reduced motion — disable all animations and transitions ─────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .avi-avatar.isSpeaking .avi-avatarMouth {
+    animation: none;
+    height: 14px;
+  }
+
+  .avi-avatar.isSpeaking .avi-avatarHalo {
+    animation: none;
+  }
+
+  .avi-avatar.isSpeaking .avi-speechWaves span {
+    animation: none;
+    height: 16px;
+    opacity: 0.5;
+  }
+
+  .avi-progressBar span {
+    transition: none;
+  }
+
+  .avi-sentenceList button {
+    transition: none;
+  }
+
+  .avi-controlBtn {
+    transition: none;
+  }
+
+  .avi-sentenceList {
+    scroll-behavior: auto;
+  }
 }

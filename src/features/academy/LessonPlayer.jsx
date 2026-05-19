@@ -5,7 +5,6 @@ import { getVisibleAcademies, getUserLessonProgress, isLessonComplete, isLessonU
 import LessonInstructorView from './LessonInstructorView'
 import { buildInstructorScript } from './services/academyInstructorScriptService'
 import { resolveInstructorPersona } from './services/academyInstructorPersonaResolver'
-import academyInstructorVideoMap from './data/academyInstructorVideoMap'
 
 // ─── Field value renderer ──────────────────────────────────────────────────────
 function FieldBody({ value }) {
@@ -234,8 +233,6 @@ export default function LessonPlayer({ t, currentUser, goToPage, academyProgress
     }
   }, [lesson, unlocked, hasContent])
 
-  const videoMeta = lesson?.id ? (academyInstructorVideoMap[lesson.id] ?? null) : null
-
   const step = steps[stepIndex] ?? null
   const totalSteps = steps.length
   const isFirst = stepIndex === 0
@@ -321,14 +318,17 @@ export default function LessonPlayer({ t, currentUser, goToPage, academyProgress
                   variant="secondary"
                   onClick={() => setShowInstructor(v => !v)}
                 >
-                  {showInstructor ? 'Close AI Instructor' : 'Watch with AI Instructor'}
+                  {showInstructor
+                    ? 'Close'
+                    : instructorScript?.instructorName
+                      ? `Voice with ${instructorScript.instructorName}`
+                      : 'Voice with Instructor'}
                 </Button>
               </div>
             )}
           </Card>
 
-          {/* DEV ONLY — remove before production */}
-          {showInstructor && <LessonInstructorView script={instructorScript} videoMeta={videoMeta} />}
+          {showInstructor && <LessonInstructorView script={instructorScript} />}
 
           {!unlocked ? (
             <Card className="border-amber-500/25 bg-amber-950/10">

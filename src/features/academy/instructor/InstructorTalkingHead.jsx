@@ -1,12 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
-function splitIntoSentences(transcript = []) {
-  const text = Array.isArray(transcript) ? transcript.join(' ') : String(transcript || '')
+function splitIntoSentences(input = []) {
+  const text = Array.isArray(input) ? input.join(' ') : String(input || '')
   const matches = text.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || []
-  return matches.map(sentence => sentence.trim()).filter(Boolean)
+  return matches.map(s => s.trim()).filter(Boolean)
 }
 
-export default function InstructorTalkingHead({ transcript = [], title = 'HESTIA Instructor' }) {
+export default function InstructorTalkingHead({
+  transcript = [],
+  personaName = 'Rafael',
+  academyLabel = 'Bar Academy',
+  voiceProfile = null,
+  onSentenceChange = null,
+  onSupportedChange = null,
+}) {
   const sentences = useMemo(() => splitIntoSentences(transcript), [transcript])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [speaking, setSpeaking] = useState(false)
@@ -16,17 +23,34 @@ export default function InstructorTalkingHead({ transcript = [], title = 'HESTIA
   const manualStopRef = useRef(false)
 
   useEffect(() => {
-    setSupported(
+    const isSupported =
       typeof window !== 'undefined' &&
       'speechSynthesis' in window &&
       'SpeechSynthesisUtterance' in window
-    )
+    setSupported(isSupported)
+    onSupportedChange?.(isSupported)
     return () => {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel()
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      manualStopRef.current = true
+      window.speechSynthesis.cancel()
+    }
+    setSpeaking(false)
+    setPaused(false)
+    setCurrentIndex(0)
+    activeIndexRef.current = 0
+  }, [transcript])
+
+  useEffect(() => {
+    onSentenceChange?.(currentIndex)
+  }, [currentIndex, onSentenceChange])
 
   function speakAt(index) {
     if (!supported || !sentences.length) return
@@ -39,9 +63,10 @@ export default function InstructorTalkingHead({ transcript = [], title = 'HESTIA
     window.speechSynthesis.cancel()
 
     const utterance = new SpeechSynthesisUtterance(sentences[safeIndex])
-    utterance.rate = 0.9
-    utterance.pitch = 0.92
-    utterance.volume = 1
+    utterance.rate = voiceProfile?.rate ?? 0.88
+    utterance.pitch = voiceProfile?.pitch ?? 0.92
+    utterance.volume = voiceProfile?.volume ?? 1
+
     utterance.onend = () => {
       if (manualStopRef.current) return
       const nextIndex = activeIndexRef.current + 1
@@ -83,7 +108,10 @@ export default function InstructorTalkingHead({ transcript = [], title = 'HESTIA
     setPaused(false)
   }
 
-  function restart() { speakAt(0) }
+  function restart() {
+    stop()
+    setTimeout(() => speakAt(0), 60)
+  }
 
   function goToSentence(index) {
     stop()
@@ -92,11 +120,13 @@ export default function InstructorTalkingHead({ transcript = [], title = 'HESTIA
     setCurrentIndex(safeIndex)
   }
 
-  const progress = sentences.length ? Math.round(((currentIndex + 1) / sentences.length) * 100) : 0
+  const progress = sentences.length ? (currentIndex + 1) / sentences.length : 0
+  const activeSentence = sentences[currentIndex] || ''
 
   return (
-    <section className="avi-localInstructor" aria-label="AI instructor speaking avatar">
+    <section className="avi-localInstructor" aria-label={`Voice with ${personaName}`}>
       <div className="avi-localInstructorStage">
+        {/* Portrait placeholder — warm amber face with halo and speech indicator */}
         <div className={speaking ? 'avi-avatar isSpeaking' : 'avi-avatar'}>
           <div className="avi-avatarHalo" />
           <div className="avi-avatarFace">
@@ -114,48 +144,80 @@ export default function InstructorTalkingHead({ transcript = [], title = 'HESTIA
         </div>
 
         <div className="avi-localInstructorCopy">
-          <span className="avi-kicker">Browser TTS instructor</span>
-          <h2>{title}</h2>
-          <p>
-            Uses the browser Web Speech API to narrate the lesson transcript.
-            The animation indicates speaking state only — it is not real lip-sync.
-          </p>
-          {!supported && (
-            <div className="avi-ttsWarning" role="status">
-              Speech synthesis is not available in this browser.
+          <div className="avi-personaAcademy">{academyLabel}</div>
+          <h2 className="avi-personaName">{personaName}</h2>
+
+          {/* Active sentence caption */}
+          {supported ? (
+            <div className={`avi-spokenCaption${activeSentence ? '' : ' isEmpty'}`}>
+              {activeSentence || (speaking ? '…' : 'Press Play to begin.')}
+            </div>
+          ) : (
+            <div className="avi-spokenCaption isEmpty">
+              Reading with {personaName} today. Voice is not available in this browser.
             </div>
           )}
         </div>
       </div>
 
-      <div className="avi-ttsControls" aria-label="Instructor speech controls">
-        <button type="button" onClick={play} disabled={!supported || speaking || !sentences.length}>Play</button>
-        <button type="button" onClick={pause} disabled={!supported || !speaking}>Pause</button>
-        <button type="button" onClick={resume} disabled={!supported || !paused}>Resume</button>
-        <button type="button" onClick={stop} disabled={!supported || (!speaking && !paused)}>Stop</button>
-        <button type="button" onClick={restart} disabled={!supported || !sentences.length}>Restart</button>
-        <button type="button" onClick={() => goToSentence(currentIndex - 1)} disabled={currentIndex === 0}>Previous</button>
-        <button type="button" onClick={() => goToSentence(currentIndex + 1)} disabled={currentIndex >= sentences.length - 1}>Next</button>
-      </div>
-
-      <div className="avi-progressBar" aria-label={`Lesson speech progress ${progress}%`}>
-        <span style={{ width: `${progress}%` }} />
-      </div>
-      <div className="avi-progressMeta">
-        Sentence {sentences.length ? currentIndex + 1 : 0} of {sentences.length}
-      </div>
-
-      <div className="avi-sentenceList">
-        {sentences.map((sentence, index) => (
+      {/* Controls — only shown when voice is available */}
+      {supported && (
+        <div className="avi-controls" aria-label="Playback controls">
+          {!speaking && !paused && (
+            <button
+              type="button"
+              className="avi-controlBtn isPrimary"
+              onClick={play}
+              disabled={!sentences.length}
+            >
+              Play
+            </button>
+          )}
+          {speaking && (
+            <button type="button" className="avi-controlBtn isPrimary" onClick={pause}>
+              Pause
+            </button>
+          )}
+          {paused && (
+            <button type="button" className="avi-controlBtn isPrimary" onClick={resume}>
+              Resume
+            </button>
+          )}
           <button
-            key={`${index}-${sentence.slice(0, 24)}`}
             type="button"
-            className={index === currentIndex ? 'isCurrent' : ''}
-            onClick={() => goToSentence(index)}
+            className="avi-controlBtn"
+            onClick={restart}
+            disabled={!sentences.length}
           >
-            {sentence}
+            Restart
           </button>
-        ))}
+          <button
+            type="button"
+            className="avi-controlBtn"
+            onClick={() => goToSentence(currentIndex - 1)}
+            disabled={currentIndex === 0}
+            aria-label="Previous sentence"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            className="avi-controlBtn"
+            onClick={() => goToSentence(currentIndex + 1)}
+            disabled={currentIndex >= sentences.length - 1}
+            aria-label="Next sentence"
+          >
+            Forward
+          </button>
+        </div>
+      )}
+
+      {/* Progress bar */}
+      <div className="avi-progressBar" aria-label={`Narration progress ${Math.round(progress * 100)}%`}>
+        <span style={{ transform: `scaleX(${progress})` }} />
+      </div>
+      <div className="avi-progressMeta" aria-live="polite">
+        {sentences.length ? `${currentIndex + 1} of ${sentences.length}` : '—'}
       </div>
     </section>
   )
