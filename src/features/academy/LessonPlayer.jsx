@@ -2,6 +2,10 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { cx } from '../../utils/format'
 import { Card, Button, Label, Header } from '../../components/AppPrimitives'
 import { getVisibleAcademies, getUserLessonProgress, isLessonComplete, isLessonUnlocked, lessonHasExpandedContent } from '../../utils/academy'
+import LessonInstructorView from './LessonInstructorView'
+import { buildInstructorScript } from './services/academyInstructorScriptService'
+import { resolveInstructorPersona } from './services/academyInstructorPersonaResolver'
+import academyInstructorVideoMap from './data/academyInstructorVideoMap'
 
 // ─── Field value renderer ──────────────────────────────────────────────────────
 function FieldBody({ value }) {
@@ -198,6 +202,7 @@ function StepDots({ total, current }) {
 // ─── LessonPlayer ──────────────────────────────────────────────────────────────
 export default function LessonPlayer({ t, currentUser, goToPage, academyProgress = {}, selectedAcademyId, selectedLessonId, onOpenLesson, onCompleteLesson }) {
   const [stepIndex, setStepIndex] = useState(0)
+  const [showInstructor, setShowInstructor] = useState(false)
 
   const visibleAcademies = useMemo(() => getVisibleAcademies(currentUser), [currentUser])
   const completedLessons = getUserLessonProgress(academyProgress, currentUser)
@@ -211,13 +216,26 @@ export default function LessonPlayer({ t, currentUser, goToPage, academyProgress
   const nextLesson = academy?.lessons?.[lessonIndex + 1]
   const nextUnlocked = nextLesson && isLessonComplete(completedLessons, academy.id, lesson?.id)
 
-  // Reset to step 0 whenever the lesson changes
-  useEffect(() => { setStepIndex(0) }, [selectedLessonId])
+  // Reset to step 0 and close instructor whenever the lesson changes
+  useEffect(() => { setStepIndex(0); setShowInstructor(false) }, [selectedLessonId])
 
   const steps = useMemo(
     () => (hasContent && lesson ? buildSteps(lesson) : []),
     [lesson, hasContent]
   )
+
+  const instructorScript = useMemo(() => {
+    if (!lesson || !unlocked || !hasContent) return null
+    try {
+      const persona = resolveInstructorPersona(lesson)
+      return buildInstructorScript(lesson, persona)
+    } catch {
+      return null
+    }
+  }, [lesson, unlocked, hasContent])
+
+  const videoMeta = lesson?.id ? (academyInstructorVideoMap[lesson.id] ?? null) : null
+
   const step = steps[stepIndex] ?? null
   const totalSteps = steps.length
   const isFirst = stepIndex === 0
@@ -297,7 +315,20 @@ export default function LessonPlayer({ t, currentUser, goToPage, academyProgress
                 </span>
               )}
             </div>
+            {instructorScript && (
+              <div className="mt-4 pt-4 border-t border-[#c9a96e]/15">
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowInstructor(v => !v)}
+                >
+                  {showInstructor ? 'Close AI Instructor' : 'Watch with AI Instructor'}
+                </Button>
+              </div>
+            )}
           </Card>
+
+          {/* DEV ONLY — remove before production */}
+          {showInstructor && <LessonInstructorView script={instructorScript} videoMeta={videoMeta} />}
 
           {!unlocked ? (
             <Card className="border-amber-500/25 bg-amber-950/10">
