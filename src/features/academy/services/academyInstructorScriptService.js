@@ -182,6 +182,7 @@ export function buildInstructorScript(lesson, persona) {
     instructorName: persona.name || 'Instructor',
     academyLabel: persona.academyLabel || 'HESTIA Academy',
     instructorTone: persona.tone || '',
+    voiceProfile: persona.voice_profile || null,
     segments,
     sentences,
     keyTakeaways,

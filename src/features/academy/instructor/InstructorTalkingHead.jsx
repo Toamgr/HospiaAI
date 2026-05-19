@@ -6,11 +6,43 @@ function splitIntoSentences(input = []) {
   return matches.map(s => s.trim()).filter(Boolean)
 }
 
+function readResumeIndex(lessonId, maxIndex) {
+  if (!lessonId) return 0
+  try {
+    const raw = localStorage.getItem(`hospia.academy.instructor.${lessonId}.v1.lastSentenceIndex`)
+    if (raw === null) return 0
+    const idx = parseInt(raw, 10)
+    if (isNaN(idx) || idx < 0) return 0
+    return Math.min(idx, maxIndex)
+  } catch {
+    return 0
+  }
+}
+
+function writeResumeIndex(lessonId, index) {
+  if (!lessonId) return
+  try {
+    localStorage.setItem(`hospia.academy.instructor.${lessonId}.v1.lastSentenceIndex`, String(index))
+  } catch {
+    // localStorage unavailable in this context
+  }
+}
+
+function pickVoice(voices) {
+  if (!voices.length) return null
+  const en = voices.filter(v => v.lang.startsWith('en'))
+  if (!en.length) return null
+  // Prefer calm/male-name voices for bar persona; fall back to first English voice
+  const preferred = en.find(v => /\b(david|mark|alex|arthur|james)\b/i.test(v.name))
+  return preferred || en[0]
+}
+
 export default function InstructorTalkingHead({
   transcript = [],
   personaName = 'Rafael',
   academyLabel = 'Bar Academy',
   voiceProfile = null,
+  lessonId = '',
   onSentenceChange = null,
   onSupportedChange = null,
 }) {
@@ -19,9 +51,11 @@ export default function InstructorTalkingHead({
   const [speaking, setSpeaking] = useState(false)
   const [paused, setPaused] = useState(false)
   const [supported, setSupported] = useState(true)
+  const [voices, setVoices] = useState([])
   const activeIndexRef = useRef(0)
   const manualStopRef = useRef(false)
 
+  // Mount: detect TTS support, load voice list, register voiceschanged
   useEffect(() => {
     const isSupported =
       typeof window !== 'undefined' &&
@@ -29,14 +63,23 @@ export default function InstructorTalkingHead({
       'SpeechSynthesisUtterance' in window
     setSupported(isSupported)
     onSupportedChange?.(isSupported)
-    return () => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+
+    if (isSupported) {
+      function loadVoices() {
+        const v = window.speechSynthesis.getVoices()
+        if (v.length) setVoices(v)
+      }
+      loadVoices()
+      window.speechSynthesis.addEventListener('voiceschanged', loadVoices)
+      return () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', loadVoices)
         window.speechSynthesis.cancel()
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Lesson change: stop playback, restore resume position for this lesson
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       manualStopRef.current = true
@@ -44,13 +87,16 @@ export default function InstructorTalkingHead({
     }
     setSpeaking(false)
     setPaused(false)
-    setCurrentIndex(0)
-    activeIndexRef.current = 0
-  }, [transcript])
+    const resumeIndex = readResumeIndex(lessonId, Math.max(sentences.length - 1, 0))
+    setCurrentIndex(resumeIndex)
+    activeIndexRef.current = resumeIndex
+  }, [transcript, lessonId])
 
+  // Sync active sentence to parent and persist position
   useEffect(() => {
+    writeResumeIndex(lessonId, currentIndex)
     onSentenceChange?.(currentIndex)
-  }, [currentIndex, onSentenceChange])
+  }, [currentIndex, lessonId, onSentenceChange])
 
   function speakAt(index) {
     if (!supported || !sentences.length) return
@@ -66,6 +112,9 @@ export default function InstructorTalkingHead({
     utterance.rate = voiceProfile?.rate ?? 0.88
     utterance.pitch = voiceProfile?.pitch ?? 0.92
     utterance.volume = voiceProfile?.volume ?? 1
+
+    const voice = pickVoice(voices)
+    if (voice) utterance.voice = voice
 
     utterance.onend = () => {
       if (manualStopRef.current) return
@@ -126,15 +175,11 @@ export default function InstructorTalkingHead({
   return (
     <section className="avi-localInstructor" aria-label={`Voice with ${personaName}`}>
       <div className="avi-localInstructorStage">
-        {/* Portrait placeholder — warm amber face with halo and speech indicator */}
+        {/* Portrait — dignified dark silhouette with brass initial */}
         <div className={speaking ? 'avi-avatar isSpeaking' : 'avi-avatar'}>
           <div className="avi-avatarHalo" />
           <div className="avi-avatarFace">
-            <div className="avi-avatarEyes">
-              <span />
-              <span />
-            </div>
-            <div className="avi-avatarMouth" />
+            <div className="avi-avatarInitial">{personaName ? personaName[0] : '?'}</div>
           </div>
           <div className="avi-speechWaves">
             <span />

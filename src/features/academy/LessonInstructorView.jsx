@@ -7,7 +7,7 @@ import './instructor/instructor.css'
 function ReaderMode({ script }) {
   return (
     <div className="avi-readerMode" role="region" aria-label="Reading with Rafael today">
-      <div className="avi-readerCaption">Reading with {script.instructorName} today</div>
+      <div className="avi-readerCaption">Reading with {script.instructorName} today.</div>
       <div className="avi-readerContent">
         {script.segments
           .filter(s => s.type === 'source-derived' && s.text)
@@ -46,7 +46,7 @@ function ReaderMode({ script }) {
   )
 }
 
-export default function LessonInstructorView({ script }) {
+export default function LessonInstructorView({ script, lessonId = '' }) {
   const [showTranscript, setShowTranscript] = useState(true)
   const [showTakeaways, setShowTakeaways] = useState(true)
   const [showQuestions, setShowQuestions] = useState(false)
@@ -106,7 +106,8 @@ export default function LessonInstructorView({ script }) {
           transcript={script.sentences}
           personaName={script.instructorName}
           academyLabel={script.academyLabel || 'HESTIA Academy'}
-          voiceProfile={null}
+          voiceProfile={script.voiceProfile}
+          lessonId={lessonId}
           onSentenceChange={handleSentenceChange}
           onSupportedChange={handleSupportedChange}
         />

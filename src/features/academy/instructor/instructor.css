@@ -186,7 +186,7 @@
   border: 1px solid rgba(201, 169, 110, 0.2);
   border-radius: 8px;
   background:
-    radial-gradient(circle at center, rgba(201, 169, 110, 0.16), transparent 56%),
+    radial-gradient(circle at center, rgba(201, 169, 110, 0.1), transparent 56%),
     #080806;
 }
 
@@ -194,49 +194,37 @@
   position: absolute;
   width: 132px;
   height: 132px;
-  border: 1px solid rgba(201, 169, 110, 0.38);
+  border: 1px solid rgba(201, 169, 110, 0.32);
   border-radius: 50%;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
+/* Dignified dark portrait shape with brass initial — no cartoon face */
 .avi-avatarFace {
   position: relative;
   display: grid;
   width: 94px;
   height: 118px;
-  justify-items: center;
-  align-content: center;
-  gap: 22px;
-  border: 1px solid rgba(232, 220, 192, 0.18);
+  place-items: center;
+  border: 1px solid rgba(201, 169, 110, 0.22);
   border-radius: 48px 48px 34px 34px;
-  background: linear-gradient(180deg, #d8bf8a, #8a6c3e);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+  background: linear-gradient(170deg, #1e1710 0%, #0e0c08 100%);
+  box-shadow: 0 18px 56px rgba(0, 0, 0, 0.5);
+  transition: border-color 300ms ease;
 }
 
-.avi-avatarEyes {
-  display: flex;
-  gap: 24px;
+.avi-avatarInitial {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 46px;
+  font-weight: 700;
+  color: #c9a96e;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  opacity: 0.8;
 }
 
-.avi-avatarEyes span {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #15110b;
-}
-
-.avi-avatarMouth {
-  width: 34px;
-  height: 8px;
-  border-radius: 999px;
-  background: #231408;
-  transition: height 160ms ease, transform 160ms ease;
-}
-
-.avi-avatar.isSpeaking .avi-avatarMouth {
-  height: 18px;
-  transform: scaleX(0.78);
-  animation: avi-mouth 520ms ease-in-out infinite;
+.avi-avatar.isSpeaking .avi-avatarFace {
+  border-color: rgba(201, 169, 110, 0.42);
 }
 
 .avi-avatar.isSpeaking .avi-avatarHalo {
@@ -344,28 +332,20 @@
   scroll-behavior: smooth;
 }
 
-.avi-sentenceList button {
+.avi-sentenceList div {
   padding: 11px 14px;
-  text-align: left;
   border: 1px solid rgba(232, 220, 192, 0.1);
   border-left: 3px solid transparent;
   border-radius: 6px;
   background: transparent;
   color: rgba(232, 220, 192, 0.65);
-  cursor: pointer;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.6;
-  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
-}
-
-.avi-sentenceList button:hover:not(.isCurrent) {
-  border-color: rgba(232, 220, 192, 0.18);
-  color: #e8dcc0;
 }
 
 /* Active sentence — brass left border, warm highlight */
-.avi-sentenceList button.isCurrent {
+.avi-sentenceList div.isCurrent {
   border-left-color: #c9a96e;
   border-color: rgba(201, 169, 110, 0.3);
   background: rgba(201, 169, 110, 0.08);
@@ -445,11 +425,6 @@
 }
 
 /* ── Keyframe animations ─────────────────────────────────────────────────── */
-@keyframes avi-mouth {
-  0%, 100% { height: 8px; }
-  50% { height: 22px; }
-}
-
 @keyframes avi-halo {
   0%, 100% { transform: scale(1); opacity: 0.45; }
   50% { transform: scale(1.12); opacity: 0.88; }
@@ -462,11 +437,6 @@
 
 /* ── Reduced motion — disable all animations and transitions ─────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .avi-avatar.isSpeaking .avi-avatarMouth {
-    animation: none;
-    height: 14px;
-  }
-
   .avi-avatar.isSpeaking .avi-avatarHalo {
     animation: none;
   }
@@ -481,11 +451,15 @@
     transition: none;
   }
 
-  .avi-sentenceList button {
+  .avi-sentenceList div {
     transition: none;
   }
 
   .avi-controlBtn {
+    transition: none;
+  }
+
+  .avi-avatarFace {
     transition: none;
   }
 

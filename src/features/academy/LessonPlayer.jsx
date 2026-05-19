@@ -328,7 +328,7 @@ export default function LessonPlayer({ t, currentUser, goToPage, academyProgress
             )}
           </Card>
 
-          {showInstructor && <LessonInstructorView script={instructorScript} />}
+          {showInstructor && <LessonInstructorView script={instructorScript} lessonId={lesson?.id || ''} />}
 
           {!unlocked ? (
             <Card className="border-amber-500/25 bg-amber-950/10">
