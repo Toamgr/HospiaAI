@@ -715,7 +715,7 @@ function actionRow(row) {
   };
 }
 
-async function askGemini(prompt) {
+async function askGemini(prompt, { jsonMode = false } = {}) {
   const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === 'PASTE_KEY_HERE') {
     throw new Error("Missing VITE_GEMINI_API_KEY in .env.");
@@ -723,12 +723,21 @@ async function askGemini(prompt) {
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
 
+  // In JSON mode the prompt already contains its own system context, so skip the
+  // general SYSTEM preamble (which is conversational and conflicts with JSON-only output).
+  const fullPrompt = jsonMode ? prompt : `${SYSTEM}\n\n${prompt}`;
+
+  const body = {
+    contents: [{ parts: [{ text: fullPrompt }] }],
+  };
+  if (jsonMode) {
+    body.generationConfig = { responseMimeType: "application/json" };
+  }
+
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: `${SYSTEM}\n\n${prompt}` }] }]
-    })
+    body: JSON.stringify(body)
   });
 
   const data = await response.json();
@@ -743,11 +752,12 @@ async function askGemini(prompt) {
 app.post("/api/gemini", async (req, res) => {
   try {
     const prompt = String(req.body?.prompt || "").trim();
+    const jsonMode = Boolean(req.body?.json_mode);
     if (!prompt) {
       return res.status(400).json({ error: "Prompt is required." });
     }
 
-    const answer = await askGemini(prompt);
+    const answer = await askGemini(prompt, { jsonMode });
     res.json({ answer });
   } catch (error) {
     console.log("GEMINI PROXY ERROR:", error);

@@ -36,13 +36,30 @@ function stripMarkdownFences(text = '') {
   return text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1').trim()
 }
 
+function extractJsonSubstring(text) {
+  const start = text.search(/[{[]/)
+  if (start === -1) return null
+  const opener = text[start]
+  const closer = opener === '{' ? '}' : ']'
+  let depth = 0, inString = false, escape = false
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]
+    if (escape) { escape = false; continue }
+    if (ch === '\\' && inString) { escape = true; continue }
+    if (ch === '"') { inString = !inString; continue }
+    if (inString) continue
+    if (ch === opener) depth++
+    else if (ch === closer && --depth === 0) return text.slice(start, i + 1)
+  }
+  return null
+}
+
 function parseStrictJson(raw) {
   const cleaned = stripMarkdownFences(String(raw || ''))
-  if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) {
-    throw new Error('AI response was not valid JSON.')
-  }
+  const jsonStr = extractJsonSubstring(cleaned)
+  if (!jsonStr) throw new Error('AI response was not valid JSON.')
   try {
-    return JSON.parse(cleaned)
+    return JSON.parse(jsonStr)
   } catch {
     throw new Error('AI response could not be parsed as JSON.')
   }
@@ -341,7 +358,7 @@ export async function generateEventMenu({ event, form }) {
     const res = await fetch('/api/gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, json_mode: true }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(formatServiceError(data, 'AI request failed. Please try again.'))
@@ -380,7 +397,7 @@ export async function replaceEventCocktail({ event, menu, index, replaceInstruct
     const res = await fetch('/api/gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, json_mode: true }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(formatServiceError(data, 'AI replacement request failed. Please try again.'))
