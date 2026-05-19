@@ -43,6 +43,7 @@ export default function InstructorTalkingHead({
   academyLabel = 'Bar Academy',
   instructorTitle = '',
   voiceProfile = null,
+  portraitSrc = null,
   lessonId = '',
   onSentenceChange = null,
   onSupportedChange = null,
@@ -180,12 +181,22 @@ export default function InstructorTalkingHead({
         <div className={speaking ? 'avi-avatar isSpeaking' : 'avi-avatar'}>
           <div className="avi-avatarHalo" />
           <div className="avi-avatarFace">
-            {instructorTitle && (
-              <div className="avi-portraitKicker">{instructorTitle}</div>
+            {portraitSrc ? (
+              <img
+                src={portraitSrc}
+                alt={personaName}
+                className="avi-portraitImage"
+              />
+            ) : (
+              <>
+                {instructorTitle && (
+                  <div className="avi-portraitKicker">{instructorTitle}</div>
+                )}
+                <div className="avi-portraitName">{personaName}</div>
+                <div className="avi-portraitRule" aria-hidden="true" />
+                <div className="avi-portraitAcademy">{academyLabel}</div>
+              </>
             )}
-            <div className="avi-portraitName">{personaName}</div>
-            <div className="avi-portraitRule" aria-hidden="true" />
-            <div className="avi-portraitAcademy">{academyLabel}</div>
             {/* Speech activity indicator — pinned to card bottom */}
             <div className="avi-speechWaves">
               <span />

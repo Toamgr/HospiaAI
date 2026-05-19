@@ -108,6 +108,7 @@ export default function LessonInstructorView({ script, lessonId = '' }) {
           academyLabel={script.academyLabel || 'HESTIA Academy'}
           instructorTitle={script.instructorTitle || ''}
           voiceProfile={script.voiceProfile}
+          portraitSrc={script.portraitSrc || null}
           lessonId={lessonId}
           onSentenceChange={handleSentenceChange}
           onSupportedChange={handleSupportedChange}

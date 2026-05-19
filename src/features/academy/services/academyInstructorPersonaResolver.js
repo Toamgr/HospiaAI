@@ -12,6 +12,10 @@ export const BAR_RAFAEL = {
   display_title: 'Maître Bartender',
   short_bio: 'Bar craft instructor.',
   signature_phrase: 'Behind every great bar is a calm professional.',
+  // Portrait asset slot. Leave null until a real asset is ready.
+  // Expected: square or 3:4 portrait ratio, min 300px, recommended 600px,
+  // JPEG or WebP, dark-background-safe, no white halo, no stock/AI face.
+  portrait_src: null,
   greeting_phrases: [
     'Welcome behind the bar.',
     'Good to have you here.',
