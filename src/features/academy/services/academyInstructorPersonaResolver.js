@@ -9,6 +9,7 @@ export const BAR_RAFAEL = {
   academyId: 'bar-academy',
   academyLabel: 'Bar Academy',
   tone: 'elegant, calm, precise, luxury bar hospitality',
+  display_title: 'Maître Bartender',
   short_bio: 'Bar craft instructor.',
   signature_phrase: 'Behind every great bar is a calm professional.',
   greeting_phrases: [
@@ -31,7 +32,7 @@ export const BAR_RAFAEL = {
     to_taxonomy: 'These are the categories to know.',
   },
   voice_profile: {
-    rate: 0.88,
+    rate: 1.02,
     pitch: 0.92,
     volume: 1,
   },

@@ -106,6 +106,7 @@ export default function LessonInstructorView({ script, lessonId = '' }) {
           transcript={script.sentences}
           personaName={script.instructorName}
           academyLabel={script.academyLabel || 'HESTIA Academy'}
+          instructorTitle={script.instructorTitle || ''}
           voiceProfile={script.voiceProfile}
           lessonId={lessonId}
           onSentenceChange={handleSentenceChange}

@@ -41,6 +41,7 @@ export default function InstructorTalkingHead({
   transcript = [],
   personaName = 'Rafael',
   academyLabel = 'Bar Academy',
+  instructorTitle = '',
   voiceProfile = null,
   lessonId = '',
   onSentenceChange = null,
@@ -175,16 +176,22 @@ export default function InstructorTalkingHead({
   return (
     <section className="avi-localInstructor" aria-label={`Voice with ${personaName}`}>
       <div className="avi-localInstructorStage">
-        {/* Portrait — dignified dark silhouette with brass initial */}
+        {/* Portrait — premium instructor card stage */}
         <div className={speaking ? 'avi-avatar isSpeaking' : 'avi-avatar'}>
           <div className="avi-avatarHalo" />
           <div className="avi-avatarFace">
-            <div className="avi-avatarInitial">{personaName ? personaName[0] : '?'}</div>
-          </div>
-          <div className="avi-speechWaves">
-            <span />
-            <span />
-            <span />
+            {instructorTitle && (
+              <div className="avi-portraitKicker">{instructorTitle}</div>
+            )}
+            <div className="avi-portraitName">{personaName}</div>
+            <div className="avi-portraitRule" aria-hidden="true" />
+            <div className="avi-portraitAcademy">{academyLabel}</div>
+            {/* Speech activity indicator — pinned to card bottom */}
+            <div className="avi-speechWaves">
+              <span />
+              <span />
+              <span />
+            </div>
           </div>
         </div>
 
