@@ -1,12 +1,13 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { Button } from '../../components/AppPrimitives'
 import InstructorTalkingHead from './instructor/InstructorTalkingHead'
 import InstructorTranscriptPanel from './instructor/InstructorTranscriptPanel'
+import AcademyEmbeddedVideoPlayer from './instructor/AcademyEmbeddedVideoPlayer'
 import './instructor/instructor.css'
 
 function ReaderMode({ script }) {
   return (
-    <div className="avi-readerMode" role="region" aria-label="Reading with Rafael today">
+    <div className="avi-readerMode" role="region" aria-label={`Reading with ${script.instructorName} today`}>
       <div className="avi-readerCaption">Reading with {script.instructorName} today.</div>
       <div className="avi-readerContent">
         {script.segments
@@ -46,7 +47,7 @@ function ReaderMode({ script }) {
   )
 }
 
-export default function LessonInstructorView({ script, lessonId = '' }) {
+export default function LessonInstructorView({ script, lessonId = '', videoMeta = null }) {
   const [showTranscript, setShowTranscript] = useState(true)
   const [showTakeaways, setShowTakeaways] = useState(true)
   const [showQuestions, setShowQuestions] = useState(false)
@@ -54,6 +55,20 @@ export default function LessonInstructorView({ script, lessonId = '' }) {
   const [ttsSupported, setTtsSupported] = useState(
     () => typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window
   )
+
+  const availableModes = useMemo(() => {
+    const modes = ['reader']
+    if (ttsSupported) modes.unshift('voice')
+    if (videoMeta) modes.unshift('video')
+    return modes
+  }, [videoMeta, ttsSupported])
+
+  const [mode, setMode] = useState(() => availableModes[0])
+
+  // Reset to the highest-priority available mode on lesson change or mode availability change
+  useEffect(() => {
+    setMode(availableModes[0])
+  }, [lessonId, availableModes])
 
   const handleSentenceChange = useCallback((index) => {
     setCurrentSentenceIndex(index)
@@ -75,33 +90,80 @@ export default function LessonInstructorView({ script, lessonId = '' }) {
     )
   }
 
+  const modeLabel = mode === 'video' ? 'Video' : mode === 'voice' ? 'Voice' : 'Reading'
+
   return (
     <div
       className="rounded-2xl border border-[#c9a96e]/20 bg-[radial-gradient(circle_at_top_right,rgba(201,169,110,0.06),transparent_50%),#0f0e0b] p-5 space-y-5"
       role="region"
-      aria-label={`Voice with ${script.instructorName}`}
+      aria-label={`${modeLabel} with ${script.instructorName}`}
     >
       {/* Header */}
       <div className="avi-instructorHeader">
         <div>
           <div className="avi-personaBadge">{script.title}</div>
-          <div className="avi-personaLabel">Voice with {script.instructorName}</div>
+          <div className="avi-personaLabel">{modeLabel} with {script.instructorName}</div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={() => setShowTranscript(v => !v)}>
-            {showTranscript ? 'Hide narration' : 'Show narration'}
-          </Button>
-          <Button variant="ghost" onClick={() => setShowTakeaways(v => !v)}>
-            {showTakeaways ? 'Hide key points' : 'Show key points'}
-          </Button>
-          <Button variant="ghost" onClick={() => setShowQuestions(v => !v)}>
-            {showQuestions ? 'Hide reflection' : 'Reflect with ' + script.instructorName}
-          </Button>
-        </div>
+        {/* Voice/reader toggle controls — suppressed in video mode */}
+        {mode !== 'video' && (
+          <div className="flex flex-wrap gap-2">
+            {mode === 'voice' && (
+              <Button variant="ghost" onClick={() => setShowTranscript(v => !v)}>
+                {showTranscript ? 'Hide narration' : 'Show narration'}
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => setShowTakeaways(v => !v)}>
+              {showTakeaways ? 'Hide key points' : 'Show key points'}
+            </Button>
+            <Button variant="ghost" onClick={() => setShowQuestions(v => !v)}>
+              {showQuestions ? 'Hide reflection' : 'Reflect with ' + script.instructorName}
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Stage: either voice or reader mode */}
-      {ttsSupported ? (
+      {/* Mode switcher — only rendered when a video exists and multiple modes are available */}
+      {videoMeta && availableModes.length > 1 && (
+        <div className="avi-modeSwitcher" role="group" aria-label="Instructor mode">
+          {availableModes.includes('video') && (
+            <button
+              type="button"
+              className={`avi-modeBtn${mode === 'video' ? ' isActive' : ''}`}
+              onClick={() => setMode('video')}
+            >
+              Video with {script.instructorName}
+            </button>
+          )}
+          {availableModes.includes('voice') && (
+            <button
+              type="button"
+              className={`avi-modeBtn${mode === 'voice' ? ' isActive' : ''}`}
+              onClick={() => setMode('voice')}
+            >
+              Voice with {script.instructorName}
+            </button>
+          )}
+          {availableModes.includes('reader') && (
+            <button
+              type="button"
+              className={`avi-modeBtn${mode === 'reader' ? ' isActive' : ''}`}
+              onClick={() => setMode('reader')}
+            >
+              Reading with {script.instructorName}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Stage */}
+      {mode === 'video' && videoMeta && (
+        <AcademyEmbeddedVideoPlayer
+          embedUrl={videoMeta.embedUrl}
+          title={videoMeta.title}
+          provider={videoMeta.provider}
+        />
+      )}
+      {mode === 'voice' && (
         <InstructorTalkingHead
           transcript={script.sentences}
           personaName={script.instructorName}
@@ -113,12 +175,13 @@ export default function LessonInstructorView({ script, lessonId = '' }) {
           onSentenceChange={handleSentenceChange}
           onSupportedChange={handleSupportedChange}
         />
-      ) : (
+      )}
+      {mode === 'reader' && (
         <ReaderMode script={script} />
       )}
 
-      {/* Narration panel — only shown with voice */}
-      {ttsSupported && (
+      {/* Narration panel — voice mode only */}
+      {mode === 'voice' && (
         <InstructorTranscriptPanel
           transcript={script.sentences}
           keyTakeaways={script.keyTakeaways}
@@ -131,8 +194,8 @@ export default function LessonInstructorView({ script, lessonId = '' }) {
         />
       )}
 
-      {/* In reader mode, still show takeaways and reflection */}
-      {!ttsSupported && (
+      {/* Reader panel — takeaways and reflection without transcript */}
+      {mode === 'reader' && (
         <InstructorTranscriptPanel
           transcript={[]}
           keyTakeaways={script.keyTakeaways}

@@ -1,6 +1,7 @@
-// DEV — video metadata map for AI Instructor embedded mode.
-// Add entries here when a lesson has a trusted embedded video.
-// All other lessons fall back to local browser TTS automatically.
+// Video metadata map for Academy Instructor embedded mode.
+// Entries must be keyed by exact lesson.id and only added when the video
+// is confirmed to match that specific lesson. Do not invent entries.
+// All other lessons fall back to voice or reader mode automatically.
 const academyInstructorVideoMap = {
   'service-001': {
     provider: 'synthesia-embed',

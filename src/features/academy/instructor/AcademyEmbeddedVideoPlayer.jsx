@@ -3,7 +3,6 @@ import { isTrustedInstructorEmbedUrl } from './instructorEmbedProviders'
 
 export default function AcademyEmbeddedVideoPlayer({
   embedUrl,
-  publicUrl,
   title,
   provider,
   aspectRatio = '16 / 9',
@@ -30,11 +29,6 @@ export default function AcademyEmbeddedVideoPlayer({
         allowFullScreen={allowFullscreen}
         referrerPolicy="strict-origin-when-cross-origin"
       />
-      {publicUrl && (
-        <a className="avi-videoLink" href={publicUrl} target="_blank" rel="noreferrer">
-          Open provider page
-        </a>
-      )}
     </div>
   )
 }

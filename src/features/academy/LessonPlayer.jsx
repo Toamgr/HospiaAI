@@ -5,6 +5,8 @@ import { getVisibleAcademies, getUserLessonProgress, isLessonComplete, isLessonU
 import LessonInstructorView from './LessonInstructorView'
 import { buildInstructorScript } from './services/academyInstructorScriptService'
 import { resolveInstructorPersona } from './services/academyInstructorPersonaResolver'
+import academyInstructorVideoMap from './data/academyInstructorVideoMap'
+import { isTrustedInstructorEmbedUrl } from './instructor/instructorEmbedProviders'
 
 // ─── Field value renderer ──────────────────────────────────────────────────────
 function FieldBody({ value }) {
@@ -233,6 +235,13 @@ export default function LessonPlayer({ t, currentUser, goToPage, academyProgress
     }
   }, [lesson, unlocked, hasContent])
 
+  const videoMeta = useMemo(() => {
+    if (!lesson) return null
+    const entry = academyInstructorVideoMap[lesson.id]
+    if (!entry) return null
+    return isTrustedInstructorEmbedUrl(entry.embedUrl, entry.provider) ? entry : null
+  }, [lesson])
+
   const step = steps[stepIndex] ?? null
   const totalSteps = steps.length
   const isFirst = stepIndex === 0
@@ -328,7 +337,7 @@ export default function LessonPlayer({ t, currentUser, goToPage, academyProgress
             )}
           </Card>
 
-          {showInstructor && <LessonInstructorView script={instructorScript} lessonId={lesson?.id || ''} />}
+          {showInstructor && <LessonInstructorView script={instructorScript} lessonId={lesson?.id || ''} videoMeta={videoMeta} />}
 
           {!unlocked ? (
             <Card className="border-amber-500/25 bg-amber-950/10">
