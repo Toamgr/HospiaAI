@@ -143,6 +143,7 @@ export function buildInstructorScript(lesson, persona) {
     const apoText = apoSegments.map(s => s.text).join(' ')
     return {
       title: lesson.title || '',
+      instructorId: persona.id || '',
       instructorName: persona.name || 'Instructor',
       academyLabel: persona.academyLabel || 'HESTIA Academy',
       instructorTone: persona.tone || '',
@@ -182,6 +183,7 @@ export function buildInstructorScript(lesson, persona) {
 
   return {
     title: lesson.title || '',
+    instructorId: persona.id || '',
     instructorName: persona.name || 'Instructor',
     academyLabel: persona.academyLabel || 'HESTIA Academy',
     instructorTone: persona.tone || '',

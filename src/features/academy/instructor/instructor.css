@@ -122,52 +122,110 @@
 /* ── Talking head stage ──────────────────────────────────────────────────── */
 .avi-localInstructor {
   border: 1px solid rgba(201, 169, 110, 0.2);
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(8, 8, 7, 0.95), rgba(28, 23, 16, 0.9));
-  padding: 22px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, rgba(9, 8, 6, 0.98), rgba(22, 18, 12, 0.94));
+  overflow: hidden;
 }
 
+/* Stage — full-width atmospheric header, instructor is the visual anchor */
 .avi-localInstructorStage {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
-  gap: 22px;
-  align-items: start;
+  grid-template-columns: 224px minmax(0, 1fr);
+  gap: 0;
+  align-items: center;
+  min-height: 240px;
+  padding: 24px 28px;
+  border-bottom: 1px solid rgba(201, 169, 110, 0.1);
+  /* Warm radial light sourced from the avatar column */
+  background: radial-gradient(
+    ellipse 60% 100% at 18% 50%,
+    rgba(201, 169, 110, 0.07),
+    transparent 65%
+  );
 }
 
-.avi-localInstructorCopy {
+/* Instructor identity — right column of the stage */
+.avi-instructorMeta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0;
+  padding-left: 28px;
+}
+
+.avi-personaAcademy {
+  color: #c9a96e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
 
 .avi-personaName {
   font-family: Georgia, 'Times New Roman', serif;
   color: #f7f1e4;
-  font-size: 24px;
+  font-size: 30px;
   font-weight: 700;
   margin: 0;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
-.avi-personaAcademy {
-  color: #c9a96e;
+.avi-personaRole {
+  margin-top: 6px;
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(232, 220, 192, 0.42);
   text-transform: uppercase;
 }
 
-/* The active sentence caption — shown next to the avatar when speaking */
+/* Speaking status indicator */
+.avi-speakStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(232, 220, 192, 0.2);
+  transition: color 260ms ease;
+}
+
+.avi-speakStatus.isActive  { color: rgba(201, 169, 110, 0.7); }
+.avi-speakStatus.isPaused  { color: rgba(232, 220, 192, 0.32); }
+
+.avi-speakDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  transition: background 260ms ease;
+}
+
+.avi-speakStatus.isActive .avi-speakDot {
+  animation: avi-speakPulse 1.4s ease-in-out infinite;
+}
+
+/* Caption area — below the stage, visually subordinate */
+.avi-captionArea {
+  padding: 16px 24px 0;
+}
+
+/* The active sentence caption */
 .avi-spokenCaption {
-  margin-top: 16px;
+  margin-top: 0;
   padding: 12px 14px;
   border-left: 2px solid #c9a96e;
-  background: rgba(201, 169, 110, 0.06);
+  background: rgba(201, 169, 110, 0.05);
   border-radius: 0 6px 6px 0;
   color: #f7f1e4;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.65;
-  min-height: 44px;
+  min-height: 42px;
 }
 
 .avi-spokenCaption.isEmpty {
@@ -176,28 +234,28 @@
   font-size: 13px;
 }
 
-/* Avatar — atmospheric bar stage */
+/* Avatar — atmospheric instructor stage */
 .avi-avatar {
   position: relative;
   display: grid;
-  min-height: 240px;
+  min-height: 270px;
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(201, 169, 110, 0.18);
   border-radius: 8px;
   background:
-    radial-gradient(ellipse 90% 50% at 50% 0%, rgba(201, 169, 110, 0.14), transparent 58%),
-    radial-gradient(ellipse 70% 45% at 50% 105%, rgba(4, 3, 2, 0.75), transparent),
+    radial-gradient(ellipse 85% 50% at 50% 0%, rgba(201, 169, 110, 0.14), transparent 55%),
+    radial-gradient(ellipse 65% 45% at 50% 108%, rgba(4, 3, 2, 0.75), transparent),
     #090805;
 }
 
 .avi-avatarHalo {
   position: absolute;
-  width: 172px;
-  height: 172px;
+  width: 188px;
+  height: 188px;
   border: 1px solid rgba(201, 169, 110, 0.28);
   border-radius: 50%;
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 /* Premium instructor portrait card */
@@ -207,9 +265,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 152px;
-  height: 192px;
-  padding: 22px 16px 20px;
+  width: 172px;
+  height: 222px;
+  padding: 22px 16px 18px;
   border: 1px solid rgba(201, 169, 110, 0.24);
   border-radius: 10px;
   background: linear-gradient(160deg, #1d1610 0%, #0f0c09 55%, #090806 100%);
@@ -280,19 +338,27 @@
 }
 
 .avi-speechWaves span {
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
+  width: 3px;
+  height: 8px;
+  border-radius: 2px;
   background: #c9a96e;
-  opacity: 0.25;
+  opacity: 0.18;
+  transform-origin: bottom center;
 }
+
+/* Bell-curve heights: outer bars shorter, centre tallest */
+.avi-speechWaves span:nth-child(2),
+.avi-speechWaves span:nth-child(4) { height: 13px; }
+.avi-speechWaves span:nth-child(3) { height: 19px; }
 
 .avi-avatar.isSpeaking .avi-speechWaves span {
   animation: avi-wave 760ms ease-in-out infinite;
 }
 
-.avi-avatar.isSpeaking .avi-speechWaves span:nth-child(2) { animation-delay: 120ms; }
-.avi-avatar.isSpeaking .avi-speechWaves span:nth-child(3) { animation-delay: 240ms; }
+.avi-avatar.isSpeaking .avi-speechWaves span:nth-child(2) { animation-delay: 95ms;  animation-duration: 700ms; }
+.avi-avatar.isSpeaking .avi-speechWaves span:nth-child(3) { animation-delay: 190ms; animation-duration: 780ms; }
+.avi-avatar.isSpeaking .avi-speechWaves span:nth-child(4) { animation-delay: 280ms; animation-duration: 650ms; }
+.avi-avatar.isSpeaking .avi-speechWaves span:nth-child(5) { animation-delay: 95ms;  animation-duration: 830ms; }
 
 /* ── Video shell — wraps the embedded instructor video ───────────────────── */
 .avi-videoShell {
@@ -378,7 +444,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 20px;
+  margin-top: 0;
+  padding: 16px 24px 0;
 }
 
 .avi-controlBtn {
@@ -415,7 +482,7 @@
 .avi-progressBar {
   overflow: hidden;
   height: 3px;
-  margin-top: 18px;
+  margin: 16px 24px 0;
   border-radius: 999px;
   background: rgba(232, 220, 192, 0.1);
 }
@@ -425,13 +492,12 @@
   height: 100%;
   border-radius: inherit;
   background: #c9a96e;
-  /* Use transform instead of width to avoid layout thrash */
   transform-origin: left;
   transition: transform 300ms ease;
 }
 
 .avi-progressMeta {
-  margin-top: 6px;
+  margin: 6px 24px 16px;
   color: rgba(232, 220, 192, 0.45);
   font-size: 11px;
   font-weight: 700;
@@ -534,10 +600,13 @@
 @media (max-width: 980px) {
   .avi-localInstructorStage {
     grid-template-columns: 1fr;
+    min-height: unset;
+    padding: 20px 20px 0;
   }
 
-  .avi-controls {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .avi-instructorMeta {
+    padding-left: 0;
+    padding-bottom: 20px;
   }
 }
 
@@ -548,8 +617,8 @@
 }
 
 @keyframes avi-wave {
-  0%, 100% { height: 4px; opacity: 0.3; }
-  50% { height: 18px; opacity: 0.85; }
+  0%, 100% { transform: scaleY(0.22); opacity: 0.18; }
+  50%       { transform: scaleY(1);    opacity: 0.82; }
 }
 
 /* ── Reduced motion — disable all animations and transitions ─────────────── */
@@ -560,8 +629,8 @@
 
   .avi-avatar.isSpeaking .avi-speechWaves span {
     animation: none;
-    height: 10px;
-    opacity: 0.5;
+    transform: scaleY(0.55);
+    opacity: 0.45;
   }
 
   .avi-progressBar span {
@@ -587,4 +656,111 @@
   .avi-sentenceList {
     scroll-behavior: auto;
   }
+
+  /* New avatar animations */
+  .avi-svgBreathGroup { animation: none !important; }
+  .avi-silhouetteSvg.isSpeaking .avi-svgMouth { animation: none !important; }
+  .avi-silhouetteSvg.isSpeaking .avi-svgShoulders { animation: none !important; }
+  .avi-speakGlow { transition: none; }
+  .avi-speakStatus.isActive .avi-speakDot { animation: none; }
+}
+
+/* ── Speaking glow overlay ───────────────────────────────────────────────── */
+.avi-speakGlow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse 55% 38% at 50% 26%,
+    rgba(201, 169, 110, 0.09),
+    transparent
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 420ms ease;
+}
+
+.avi-avatar.isSpeaking .avi-speakGlow {
+  opacity: 1;
+}
+
+/* ── Silhouette card — overrides the text-only .avi-avatarFace ───────────── */
+.avi-silhouetteCard {
+  padding: 0 !important;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+/* Stage hosts the SVG and the pinned waveform */
+.avi-silhouetteStage {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.avi-silhouetteSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Identity strip pinned to the bottom of the card */
+.avi-silhouetteIdentity {
+  flex-shrink: 0;
+  width: 100%;
+  padding: 5px 12px 8px;
+  background: linear-gradient(to top, rgba(9, 8, 6, 0.94), rgba(9, 8, 6, 0.7) 55%, transparent);
+  text-align: center;
+}
+
+/* ── SVG silhouette animations ───────────────────────────────────────────── */
+
+/* Breathing — always on, subtle vertical shift on the whole figure */
+.avi-svgBreathGroup {
+  animation: avi-breathe 3.8s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+/* Mouth — scaleY up/down while speaking, speed driven by --avi-mouth-dur */
+.avi-svgMouth {
+  transform-origin: 50% 50%;
+}
+
+.avi-silhouetteSvg.isSpeaking .avi-svgMouth {
+  animation: avi-mouthSpeak var(--avi-mouth-dur, 0.72s) ease-in-out infinite;
+}
+
+/* Shoulder sway — very subtle lateral rock while speaking */
+.avi-silhouetteSvg.isSpeaking .avi-svgShoulders {
+  animation: avi-shoulderSway var(--avi-shoulder-dur, 2.6s) ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
+@keyframes avi-breathe {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-1.2px); }
+}
+
+@keyframes avi-mouthSpeak {
+  0%   { transform: scaleY(1);   }
+  18%  { transform: scaleY(2.4); }
+  38%  { transform: scaleY(1.3); }
+  58%  { transform: scaleY(2.0); }
+  78%  { transform: scaleY(1.1); }
+  100% { transform: scaleY(1);   }
+}
+
+@keyframes avi-shoulderSway {
+  0%, 100% { transform: translateX(0); }
+  30%      { transform: translateX(-0.6px); }
+  70%      { transform: translateX(0.6px); }
+}
+
+@keyframes avi-speakPulse {
+  0%, 100% { transform: scale(1);    opacity: 0.7; }
+  50%      { transform: scale(1.45); opacity: 1;   }
 }

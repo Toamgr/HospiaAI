@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import InstructorTalkingAvatar from './InstructorTalkingAvatar'
 
 function splitIntoSentences(input = []) {
   const text = Array.isArray(input) ? input.join(' ') : String(input || '')
@@ -176,54 +177,44 @@ export default function InstructorTalkingHead({
 
   return (
     <section className="avi-localInstructor" aria-label={`Voice with ${personaName}`}>
-      <div className="avi-localInstructorStage">
-        {/* Portrait — premium instructor card stage */}
-        <div className={speaking ? 'avi-avatar isSpeaking' : 'avi-avatar'}>
-          <div className="avi-avatarHalo" />
-          <div className="avi-avatarFace">
-            {portraitSrc ? (
-              <img
-                src={portraitSrc}
-                alt={personaName}
-                className="avi-portraitImage"
-              />
-            ) : (
-              <>
-                {instructorTitle && (
-                  <div className="avi-portraitKicker">{instructorTitle}</div>
-                )}
-                <div className="avi-portraitName">{personaName}</div>
-                <div className="avi-portraitRule" aria-hidden="true" />
-                <div className="avi-portraitAcademy">{academyLabel}</div>
-              </>
-            )}
-            {/* Speech activity indicator — pinned to card bottom */}
-            <div className="avi-speechWaves">
-              <span />
-              <span />
-              <span />
-            </div>
-          </div>
-        </div>
 
-        <div className="avi-localInstructorCopy">
+      {/* ── Instructor stage — visual anchor ───────────────────────────────── */}
+      <div className="avi-localInstructorStage">
+        <InstructorTalkingAvatar
+          speaking={speaking}
+          portraitSrc={portraitSrc}
+          personaName={personaName}
+          instructorTitle={instructorTitle}
+          academyLabel={academyLabel}
+          activeSentence={activeSentence}
+        />
+        <div className="avi-instructorMeta">
           <div className="avi-personaAcademy">{academyLabel}</div>
           <h2 className="avi-personaName">{personaName}</h2>
-
-          {/* Active sentence caption */}
-          {supported ? (
-            <div className={`avi-spokenCaption${activeSentence ? '' : ' isEmpty'}`}>
-              {activeSentence || (speaking ? '…' : 'Press Play to begin.')}
-            </div>
-          ) : (
-            <div className="avi-spokenCaption isEmpty">
-              Reading with {personaName} today. Voice is not available in this browser.
-            </div>
+          {instructorTitle && (
+            <div className="avi-personaRole">{instructorTitle}</div>
           )}
+          <div className={`avi-speakStatus${speaking ? ' isActive' : paused ? ' isPaused' : ''}`}>
+            <span className="avi-speakDot" aria-hidden="true" />
+            <span>{speaking ? 'Speaking now' : paused ? 'Paused' : 'Ready'}</span>
+          </div>
         </div>
       </div>
 
-      {/* Controls — only shown when voice is available */}
+      {/* ── Active sentence — below the stage ──────────────────────────────── */}
+      <div className="avi-captionArea">
+        {supported ? (
+          <div className={`avi-spokenCaption${activeSentence ? '' : ' isEmpty'}`}>
+            {activeSentence || (speaking ? '…' : 'Press Play to begin.')}
+          </div>
+        ) : (
+          <div className="avi-spokenCaption isEmpty">
+            Reading with {personaName} today. Voice is not available in this browser.
+          </div>
+        )}
+      </div>
+
+      {/* ── Controls ───────────────────────────────────────────────────────── */}
       {supported && (
         <div className="avi-controls" aria-label="Playback controls">
           {!speaking && !paused && (
@@ -275,7 +266,7 @@ export default function InstructorTalkingHead({
         </div>
       )}
 
-      {/* Progress bar */}
+      {/* ── Progress ────────────────────────────────────────────────────────── */}
       <div className="avi-progressBar" aria-label={`Narration progress ${Math.round(progress * 100)}%`}>
         <span style={{ transform: `scaleX(${progress})` }} />
       </div>
