@@ -71,7 +71,17 @@ const academyInstructorVideoMap = {
     publicUrl: 'https://share.synthesia.io/3e3f3fe7-7434-426b-b0a4-68079ef5307c',
   },
 
-  // bar-002 through bar-010 — not yet started
+  // bar-002 — confirmed video_ready, Synthesia embed
+  'bar-002': {
+    status: 'video_ready',
+    provider: 'synthesia-embed',
+    mode: 'embedded',
+    title: 'HESTIA Bar Academy — Shaking Mechanics, Aeration, And Emulsification',
+    embedUrl: 'https://share.synthesia.io/embeds/videos/6ba41cbe-d3f6-4d11-aec7-35ba5e026976',
+    publicUrl: 'https://share.synthesia.io/6ba41cbe-d3f6-4d11-aec7-35ba5e026976',
+  },
+
+  // bar-003 through bar-010 — not yet started
   // Add entries here as videos are submitted and returned from Synthesia.
 
 }
