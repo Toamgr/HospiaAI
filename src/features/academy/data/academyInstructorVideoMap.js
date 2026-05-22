@@ -61,7 +61,17 @@ const academyInstructorVideoMap = {
     publicUrl: 'https://share.synthesia.io/05d5dfcf-ad20-498b-8607-4045f1ff180b',
   },
 
-  // bar-001 through bar-010 — not yet started
+  // bar-001 — confirmed video_ready, Synthesia embed
+  'bar-001': {
+    status: 'video_ready',
+    provider: 'synthesia-embed',
+    mode: 'embedded',
+    title: 'HESTIA Bar Academy — Ice Systems, Dilution, And Thermal Control',
+    embedUrl: 'https://share.synthesia.io/embeds/videos/3e3f3fe7-7434-426b-b0a4-68079ef5307c',
+    publicUrl: 'https://share.synthesia.io/3e3f3fe7-7434-426b-b0a4-68079ef5307c',
+  },
+
+  // bar-002 through bar-010 — not yet started
   // Add entries here as videos are submitted and returned from Synthesia.
 
 }
