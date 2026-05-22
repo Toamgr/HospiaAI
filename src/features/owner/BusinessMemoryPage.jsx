@@ -1,2 +1,2 @@
-// Moved to _archived/ — see src/features/owner/_archived/BusinessMemoryPage.jsx
-export { default } from './_archived/BusinessMemoryPage'
+// Feature-flagged (ownerBusinessMemory) — implementation in legacy/
+export { default } from './legacy/BusinessMemoryPage'

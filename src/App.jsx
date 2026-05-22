@@ -53,7 +53,8 @@ import { cx } from './utils/format'
 import { isEnabled } from './config/featureFlags'
 import { clearSession } from './services/authService'
 import { loginWithCredentials } from './services/api/sessionApi'
-import { setAuthToken, clearAuthToken } from './services/api/client'
+import { setAuthToken, clearAuthToken, apiPost } from './services/api/client'
+import { enqueue, dequeue } from './services/pendingSyncQueue'
 import { useUserManagement } from './hooks/useUserManagement'
 import { TEXT } from './config/textConfig'
 import { firstAllowedArea, firstAllowedPage } from './config/roleConfig'
@@ -143,7 +144,7 @@ export default function App() {
 
   const { shiftNotes, setShiftNotes, shiftBrain } = useShiftBrainState({ actionItems, serviceIncidents, eventPlans, ownerNotes })
 
-  const { pulseData, trends, insight, isLoadingInsight, insightError, insightCooldownSeconds, requestInsight } = useOwnerPulseState({ currentUser })
+  const { pulseData, isLoadingPulse, trends, insight, isLoadingInsight, insightError, insightCooldownSeconds, requestInsight } = useOwnerPulseState({ currentUser })
 
   const eventState = useEventState({ currentUser, pushNotification })
 
@@ -191,6 +192,12 @@ export default function App() {
       }
       setActionItems(prev => [urgentAction, ...prev.filter(item => item.id !== urgentAction.id)].slice(0, 80))
       pushNotification({ roles: ['manager', 'admin'], title: 'Urgent EOD action created', body: urgentAction.title, type: 'action', page: 'actionBoard' })
+      apiPost('/api/actions', urgentAction)
+        .then(() => dequeue('action', urgentAction.id))
+        .catch(err => {
+          enqueue('action', { ...urgentAction, created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          console.warn('HESTIA: /api/actions write failed — queued for retry', err?.message)
+        })
     }
 
     return archived
@@ -274,6 +281,7 @@ export default function App() {
               onReportArchived: archiveEndOfDayReport,
               onMemoryEvent: addBusinessMemoryEvent,
               pulseData,
+              isLoadingPulse,
               trends,
               insight,
               isLoadingInsight,
@@ -353,7 +361,7 @@ export default function App() {
 function PageRenderer({ t, page, goToPage, pageContext, session, reports, operations, cocktails, academy, notifications, events }) {
   const { currentUser, lang, role, users, onCreateUser, onUpdateUser, onDisableUser } = session
   const { reportArchive, businessMemory, onReportArchived, onMemoryEvent,
-    pulseData, trends, insight, isLoadingInsight, insightError, insightCooldownSeconds, onRequestInsight } = reports
+    pulseData, isLoadingPulse, trends, insight, isLoadingInsight, insightError, insightCooldownSeconds, onRequestInsight } = reports
   const {
     eventPlans, actionItems, setActionItems, budgetRequests, serviceIncidents,
     employeePerformance, employeeTasks, employeeRequests, ownerNotes, supplyRisks,
@@ -374,8 +382,8 @@ function PageRenderer({ t, page, goToPage, pageContext, session, reports, operat
   const { visibleNotifications, shiftNotes, setShiftNotes, shiftBrain } = notifications
 
   const pages = {
-    commandCenter: <CommandCenter t={t} currentUser={currentUser} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} businessMemory={businessMemory} budgetRequests={budgetRequests} employeeRequests={employeeRequests} serviceIncidents={serviceIncidents} actionItems={actionItems} notifications={visibleNotifications} onApproveEventEnquiry={onApproveEventEnquiry} shiftBrain={shiftBrain} />,
-    preShiftBriefing: <PreShiftBriefing t={t} currentUser={currentUser} actionItems={actionItems} serviceIncidents={serviceIncidents} eventPlans={eventPlans} notes={shiftNotes} reportArchive={reportArchive} shiftBrain={shiftBrain} activeShift={activeShift} onOpenShift={onOpenShift} onSaveBriefing={onSaveBriefing} />,
+    ...(isEnabled('ownerCommandCenter') && { commandCenter: <CommandCenter t={t} currentUser={currentUser} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} businessMemory={businessMemory} budgetRequests={budgetRequests} employeeRequests={employeeRequests} serviceIncidents={serviceIncidents} actionItems={actionItems} notifications={visibleNotifications} onApproveEventEnquiry={onApproveEventEnquiry} shiftBrain={shiftBrain} /> }),
+    preShiftBriefing: <PreShiftBriefing t={t} currentUser={currentUser} actionItems={actionItems} serviceIncidents={serviceIncidents} eventPlans={eventPlans} notes={shiftNotes} reportArchive={reportArchive} shiftBrain={shiftBrain} activeShift={activeShift} onOpenShift={onOpenShift} onSaveBriefing={onSaveBriefing} carryForwardTasks={carryForwardTasks} lastHandover={lastHandover} onResolveTask={onResolveTask} />,
     actionBoard: <ActionBoard t={t} currentUser={currentUser} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} actionItems={actionItems} setActionItems={setActionItems} serviceIncidents={serviceIncidents} onUpdateIncident={onUpdateIncident} employeePerformance={employeePerformance} employeeTasks={employeeTasks} onUpdateEmployeeTask={onUpdateEmployeeTask} supplyRisks={supplyRisks} budgetRequests={budgetRequests} ownerNotes={ownerNotes} onOwnerNote={onOwnerNote} shiftNotes={shiftNotes} shiftBrain={shiftBrain} users={users} assignedTasks={assignedTasks} onAddAssignedTask={onAddAssignedTask} onUpdateAssignedTask={onUpdateAssignedTask} />,
     managerActionCenter: <ManagerActionCenter actionItems={actionItems} setActionItems={setActionItems} serviceIncidents={serviceIncidents} onUpdateIncident={onUpdateIncident} shiftNotes={shiftNotes} reportArchive={reportArchive} shiftBrain={shiftBrain} currentUser={currentUser} />,
     managerEmployeeRequests: <ManagerEmployeeRequests t={t} employeeRequests={employeeRequests} onReview={onManagerReviewEmployeeRequest} />,
@@ -408,14 +416,14 @@ function PageRenderer({ t, page, goToPage, pageContext, session, reports, operat
     approvedCocktails: <ApprovedCocktailsTraining t={t} currentUser={currentUser} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} onMarkPracticed={onMarkCocktailPracticed} />,
     learningProgress: <LearningProgress t={t} currentUser={currentUser} academyProgress={academyProgress} />,
     ...(isEnabled('ownerExecutiveOverview') && { executiveOverview: <ExecutiveOverview t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} /> }),
-    operationalPulse: <OperationalPulse actionItems={actionItems} serviceIncidents={serviceIncidents} shiftNotes={shiftNotes} reportArchive={reportArchive} pulseData={pulseData} trends={trends} insight={insight} isLoadingInsight={isLoadingInsight} insightError={insightError} insightCooldownSeconds={insightCooldownSeconds} onRequestInsight={onRequestInsight} />,
-    budgetApprovals: <BudgetApprovals t={t} budgetRequests={budgetRequests} onRespond={onBudgetResponse} />,
-    ownerOperationalRequests: <OwnerOperationalRequests t={t} employeeRequests={employeeRequests} onReview={onOwnerReviewEmployeeRequest} />,
+    operationalPulse: <OperationalPulse actionItems={actionItems} serviceIncidents={serviceIncidents} shiftNotes={shiftNotes} reportArchive={reportArchive} pulseData={pulseData} isLoadingPulse={isLoadingPulse} trends={trends} insight={insight} isLoadingInsight={isLoadingInsight} insightError={insightError} insightCooldownSeconds={insightCooldownSeconds} onRequestInsight={onRequestInsight} />,
+    ...(isEnabled('ownerBudgetApprovals') && { budgetApprovals: <BudgetApprovals t={t} budgetRequests={budgetRequests} onRespond={onBudgetResponse} /> }),
+    ...(isEnabled('ownerOperationalRequests') && { ownerOperationalRequests: <OwnerOperationalRequests t={t} employeeRequests={employeeRequests} onReview={onOwnerReviewEmployeeRequest} /> }),
     ...(isEnabled('ownerWeeklySummary') && { weeklySummary: <WeeklySummary t={t} currentUser={currentUser} reportArchive={reportArchive} serviceIncidents={serviceIncidents} budgetRequests={budgetRequests} eventPlans={eventPlans} actionItems={actionItems} shiftBrain={shiftBrain} /> }),
     ...(isEnabled('ownerBusinessMRI') && { businessMRI: <BusinessMRI t={t} /> }),
     ...(isEnabled('ownerProfitLeaks') && { profitLeaks: <ProfitLeaks t={t} goToPage={goToPage} /> }),
-    ownerReport: <OwnerReport t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} />,
-    businessMemory: <BusinessMemoryPage t={t} reportArchive={reportArchive} businessMemory={businessMemory} />,
+    ...(isEnabled('ownerReport') && { ownerReport: <OwnerReport t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} /> }),
+    ...(isEnabled('ownerBusinessMemory') && { businessMemory: <BusinessMemoryPage t={t} reportArchive={reportArchive} businessMemory={businessMemory} /> }),
     ...(isEnabled('ownerStrategicRecommendations') && { strategicRecommendations: <StrategicRecommendations t={t} /> }),
     userManagement: <UserManagement currentUser={currentUser} users={users} onCreateUser={onCreateUser} onUpdateUser={onUpdateUser} onDisableUser={onDisableUser} />,
     settings: <SettingsPage />

@@ -515,6 +515,27 @@ try { db.exec("ALTER TABLE auth_users ADD COLUMN password TEXT"); } catch { /* a
 try { db.exec("ALTER TABLE auth_users ADD COLUMN password_hash TEXT"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE cocktails ADD COLUMN event_id TEXT"); } catch { /* already exists */ }
 
+// shift_reports extended fields
+for (const [col, def] of [
+  ["flaggedForOwner",   "INTEGER DEFAULT 0"],
+  ["highlights",        "TEXT"],
+  ["carry_forward_count","INTEGER DEFAULT 0"],
+  ["open_count",        "INTEGER DEFAULT 0"],
+  ["resolved_count",    "INTEGER DEFAULT 0"],
+  ["general_notes",     "TEXT"],
+]) {
+  try { db.exec(`ALTER TABLE shift_reports ADD COLUMN ${col} ${def}`); } catch { /* already exists */ }
+}
+
+// carry_forward_tasks extended fields
+for (const [col, def] of [
+  ["source",            "TEXT"],
+  ["source_report_id",  "TEXT"],
+  ["description",       "TEXT"],
+]) {
+  try { db.exec(`ALTER TABLE carry_forward_tasks ADD COLUMN ${col} ${def}`); } catch { /* already exists */ }
+}
+
 seedDatabase();
 migrateAcademyExternalIds();
 migrateUserCredentials();
@@ -669,28 +690,58 @@ function migrateAcademyExternalIds() {
 }
 
 function migrateUserCredentials() {
-  const creds = [
-    { id: 1, username: "toam",  password: "hestia123" },
-    { id: 2, username: "tal",   password: "hestia123" },
-    { id: 3, username: "omer",  password: "hestia123" },
-    { id: 4, username: "peleg", password: "hestia123" },
-    { id: 5, username: "saar",  password: "hestia123" },
-    { id: 6, username: "hadar", password: "hestia123" },
-    { id: 7, username: "zohar", password: "hestia123" },
+  // Seeds usernames and password hashes for the original 7 seed accounts only.
+  // Only fills gaps — NEVER overwrites existing username or password_hash values.
+  // NOTE: The 'password' column in auth_users is a legacy bridge field and is NOT used for login.
+  //       Login only checks auth_users.password_hash via bcrypt. See /api/auth/login.
+  // TODO: Remove the plaintext 'password' column from auth_users in a future migration.
+  const SEED_DEFAULT_PASSWORD = "hestia123"; // dev seed default only — not a production secret
+  const seedAccounts = [
+    { id: 1, username: "toam"  },
+    { id: 2, username: "tal"   },
+    { id: 3, username: "omer"  },
+    { id: 4, username: "peleg" },
+    { id: 5, username: "saar"  },
+    { id: 6, username: "hadar" },
+    { id: 7, username: "zohar" },
   ];
+
   const setUsername = db.prepare(
-    "UPDATE auth_users SET username = ?, password = ? WHERE id = ? AND (username IS NULL OR username = '')"
+    "UPDATE auth_users SET username = ? WHERE id = ? AND (username IS NULL OR username = '')"
   );
-  for (const u of creds) {
-    setUsername.run(u.username, u.password, u.id);
+  const writeHash = db.prepare(
+    "UPDATE auth_users SET password_hash = ? WHERE id = ? AND password_hash IS NULL"
+  );
+
+  for (const u of seedAccounts) {
+    setUsername.run(u.username, u.id);
+    // Only create a password_hash if one does not already exist.
+    // NEVER overwrites an existing hash — this protects passwords changed after first seed.
+    const row = db.prepare("SELECT password_hash FROM auth_users WHERE id = ?").get(u.id);
+    if (row && !row.password_hash) {
+      writeHash.run(bcrypt.hashSync(SEED_DEFAULT_PASSWORD, 10), u.id);
+    }
   }
-  // Hash plaintext passwords for any user who does not yet have a password_hash
-  const needsHash = db.prepare("SELECT id, password FROM auth_users WHERE password_hash IS NULL AND password IS NOT NULL").all();
-  const writeHash = db.prepare("UPDATE auth_users SET password_hash = ? WHERE id = ?");
-  for (const u of needsHash) {
-    writeHash.run(bcrypt.hashSync(u.password, 10), u.id);
+  // REMOVED: DELETE FROM auth_users WHERE id > 7
+  // User-created accounts (id > 7) must survive server restarts.
+}
+
+// Safe local dev password reset for username "toam".
+// Runs ONLY when RESET_TOAM_PASSWORD env var is present at startup.
+// Never hardcodes a password. Never logs the password value.
+// PowerShell usage: $env:RESET_TOAM_PASSWORD="your-new-password"; npm run dev
+function resetDevPasswordFromEnv() {
+  const rawPassword = process.env.RESET_TOAM_PASSWORD;
+  if (!rawPassword) return;
+  const hash = bcrypt.hashSync(rawPassword, 10);
+  const result = db.prepare(
+    "UPDATE auth_users SET password_hash = ? WHERE LOWER(username) = 'toam'"
+  ).run(hash);
+  if (result.changes > 0) {
+    console.log("[HESTIA] Local dev password reset applied for username: toam");
+  } else {
+    console.warn("[HESTIA] Dev password reset: username 'toam' not found in auth_users.");
   }
-  db.prepare("DELETE FROM auth_users WHERE id > 7").run();
 }
 
 function reportRow(row) {
@@ -699,11 +750,17 @@ function reportRow(row) {
     shift_date: row.shift_date,
     manager_name: row.manager_name || "",
     shift_summary: row.shift_summary || "",
+    highlights: row.highlights || "",
     complaints: row.complaints || "",
     service_recovery: row.service_recovery || "",
     staff_issues: row.staff_issues || "",
     sales_notes: row.sales_notes || "",
     urgent_items: row.urgent_items || "",
+    general_notes: row.general_notes || "",
+    flaggedForOwner: Boolean(row.flaggedForOwner),
+    carry_forward_count: row.carry_forward_count || 0,
+    open_count: row.open_count || 0,
+    resolved_count: row.resolved_count || 0,
     submitted_at: row.submitted_at
   };
 }
@@ -746,7 +803,26 @@ async function askGemini(prompt, { jsonMode = false } = {}) {
     throw new Error(data.error?.message || "Gemini request failed.");
   }
 
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "No answer generated.";
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+  if (jsonMode && text) {
+    // Validate the JSON is parseable; repair trailing commas if not.
+    try {
+      JSON.parse(text);
+    } catch {
+      const repaired = text.replace(/,(\s*[}\]])/g, '$1');
+      try {
+        JSON.parse(repaired);
+        return repaired;
+      } catch {
+        // Return raw text and let the client parser handle it
+        console.warn("GEMINI JSON MODE: response could not be repaired server-side.");
+      }
+    }
+    return text;
+  }
+
+  return text || "No answer generated.";
 }
 
 app.post("/api/gemini", async (req, res) => {
@@ -803,37 +879,51 @@ app.get("/api/shift-reports", requireAuth("manager", "bar_manager", "owner", "ad
 });
 
 app.post("/api/shift-reports", requireAuth("manager", "bar_manager", "admin"), (req, res) => {
+  const clientId = String(req.body.id || "").trim();
   const report = {
-    id: id("eod"),
+    id: clientId || id("eod"),
     venue_id: defaultVenueId(),
     shift_date: String(req.body.shift_date || new Date().toISOString().slice(0, 10)),
     manager_name: String(req.body.manager_name || ""),
     shift_summary: String(req.body.shift_summary || ""),
+    highlights: String(req.body.highlights || ""),
     complaints: String(req.body.complaints || ""),
     service_recovery: String(req.body.service_recovery || ""),
     staff_issues: String(req.body.staff_issues || ""),
     sales_notes: String(req.body.sales_notes || ""),
     urgent_items: String(req.body.urgent_items || ""),
+    general_notes: String(req.body.general_notes || ""),
+    flaggedForOwner: req.body.flaggedForOwner ? 1 : 0,
+    carry_forward_count: Number(req.body.carry_forward_count) || 0,
+    open_count: Number(req.body.open_count) || 0,
+    resolved_count: Number(req.body.resolved_count) || 0,
     submitted_at: nowIso()
   };
 
   db.prepare(`
-    INSERT INTO shift_reports (
-      id, venue_id, shift_date, manager_name, shift_summary, complaints,
-      service_recovery, staff_issues, sales_notes, urgent_items, submitted_at
+    INSERT OR IGNORE INTO shift_reports (
+      id, venue_id, shift_date, manager_name, shift_summary, highlights, complaints,
+      service_recovery, staff_issues, sales_notes, urgent_items, general_notes,
+      flaggedForOwner, carry_forward_count, open_count, resolved_count, submitted_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     report.id,
     report.venue_id,
     report.shift_date,
     report.manager_name,
     report.shift_summary,
+    report.highlights,
     report.complaints,
     report.service_recovery,
     report.staff_issues,
     report.sales_notes,
     report.urgent_items,
+    report.general_notes,
+    report.flaggedForOwner,
+    report.carry_forward_count,
+    report.open_count,
+    report.resolved_count,
     report.submitted_at
   );
 
@@ -1187,22 +1277,31 @@ app.post("/api/tasks", requireAuth("manager", "bar_manager", "admin"), (req, res
   const content = String(req.body.content || "").trim();
   if (!content) return res.status(400).json({ error: "content is required." });
 
+  const clientId = String(req.body.id || "").trim();
   const task = {
-    id:       id("task"),
-    venue_id: defaultVenueId(),
-    shift_id: String(req.body.shift_id || ""),
+    id:               clientId || id("task"),
+    venue_id:         defaultVenueId(),
+    shift_id:         String(req.body.shift_id || ""),
     content,
-    priority: String(req.body.priority || "normal"),
-    status:   "open",
-    created_at: nowIso()
+    priority:         String(req.body.priority || "normal"),
+    status:           "open",
+    source:           String(req.body.source || ""),
+    source_report_id: String(req.body.source_report_id || ""),
+    description:      String(req.body.description || ""),
+    created_at:       nowIso()
   };
 
   db.prepare(`
-    INSERT INTO carry_forward_tasks (id, venue_id, shift_id, content, priority, status, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(task.id, task.venue_id, task.shift_id, task.content, task.priority, task.status, task.created_at);
+    INSERT OR IGNORE INTO carry_forward_tasks
+      (id, venue_id, shift_id, content, priority, status, source, source_report_id, description, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    task.id, task.venue_id, task.shift_id, task.content, task.priority, task.status,
+    task.source, task.source_report_id, task.description, task.created_at
+  );
 
-  res.status(201).json({ task });
+  const row = db.prepare("SELECT * FROM carry_forward_tasks WHERE id = ?").get(task.id);
+  res.status(201).json({ task: row || task });
 });
 
 app.patch("/api/tasks/:id", requireAuth("manager", "bar_manager", "admin"), (req, res) => {

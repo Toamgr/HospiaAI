@@ -5,6 +5,7 @@ export function useOwnerPulseState({ currentUser }) {
   const isOwnerOrAdmin = ['owner', 'admin'].includes(currentUser?.role)
 
   const [pulseData, setPulseData] = useState(null)
+  const [isLoadingPulse, setIsLoadingPulse] = useState(true)
   const [trends, setTrends] = useState([])
   const [insight, setInsight] = useState(null)
   const [isLoadingInsight, setIsLoadingInsight] = useState(false)
@@ -13,11 +14,14 @@ export function useOwnerPulseState({ currentUser }) {
   const cooldownTimerRef = useRef(null)
 
   useEffect(() => {
-    if (!isOwnerOrAdmin) return
-    apiGet('/api/owner/pulse').then(data => {
-      setPulseData(data)
-      if (data.last_insight) setInsight(data.last_insight)
-    }).catch(() => {})
+    if (!isOwnerOrAdmin) { setIsLoadingPulse(false); return }
+    apiGet('/api/owner/pulse')
+      .then(data => {
+        setPulseData(data)
+        if (data.last_insight) setInsight(data.last_insight)
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingPulse(false))
     apiGet('/api/owner/trends').then(data => {
       setTrends(data.trends || [])
     }).catch(() => {})
@@ -59,6 +63,7 @@ export function useOwnerPulseState({ currentUser }) {
 
   return {
     pulseData,
+    isLoadingPulse,
     trends,
     insight,
     isLoadingInsight,

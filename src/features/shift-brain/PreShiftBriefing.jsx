@@ -64,12 +64,13 @@ const STATUS_CONFIG = {
   critical:  { label: 'Critical — Address Before Service', border: 'border-red-800/50 bg-red-950/20',     text: 'text-red-400',    dot: 'bg-red-400' }
 }
 
-export default function PreShiftBriefing({ t, currentUser, actionItems = [], serviceIncidents = [], eventPlans = [], notes = [], reportArchive = [], shiftBrain, activeShift, onOpenShift, onSaveBriefing }) {
+export default function PreShiftBriefing({ t, currentUser, actionItems = [], serviceIncidents = [], eventPlans = [], notes = [], reportArchive = [], shiftBrain, activeShift, onOpenShift, onSaveBriefing, carryForwardTasks = [], lastHandover = null, onResolveTask = null }) {
   const [briefed, setBriefed] = useState({})
   const [checklistDone, setChecklistDone] = useState({})
   const [started, setStarted] = useState(false)
   const [saving, setSaving] = useState(false)
   const [shiftOpenError, setShiftOpenError] = useState(null)
+  const [resolvedTaskIds, setResolvedTaskIds] = useState(new Set())
 
   // Manager-flagged carry-forward items from previous shift (reads localStorage set by ManagerActionCenter)
   const managerCarryForward = (() => {
@@ -317,10 +318,65 @@ export default function PreShiftBriefing({ t, currentUser, actionItems = [], ser
         </div>
 
         {/* Intelligence panel */}
-        {(shiftBrain || managerCarryForward.length > 0) && (
+        {(shiftBrain || carryForwardTasks.length > 0 || managerCarryForward.length > 0 || lastHandover) && (
           <div className="space-y-4">
-            {/* Manager-flagged carry-forward items from previous shift */}
-            {managerCarryForward.length > 0 && (
+            {/* Handover note from previous shift (DB-backed) */}
+            {lastHandover?.shift?.handover_notes && (
+              <div className="rounded-2xl border border-[#c9a96e]/30 bg-[#c9a96e]/8 p-5">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-2">
+                  Handover from Previous Shift
+                </div>
+                <p className="text-xs leading-5 text-[#e8dcc0]">{lastHandover.shift.handover_notes}</p>
+                {lastHandover.shift.closed_by && (
+                  <p className="mt-2 text-[10px] text-[#e8dcc0]/30">Left by {lastHandover.shift.closed_by}</p>
+                )}
+              </div>
+            )}
+
+            {/* DB carry-forward tasks (source of truth) */}
+            {carryForwardTasks.length > 0 && (
+              <div className="rounded-2xl border border-[#c9a96e]/20 bg-[#c9a96e]/5 p-5">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">
+                  Carry-Forward Tasks ({carryForwardTasks.filter(a => !resolvedTaskIds.has(a.id)).length} open)
+                </div>
+                <div className="space-y-2.5">
+                  {carryForwardTasks.slice(0, 8).map(a => {
+                    const resolved = resolvedTaskIds.has(a.id)
+                    return (
+                      <div key={a.id} className={cx('flex items-start gap-2 transition-opacity', resolved && 'opacity-40')}>
+                        <span className={cx(
+                          'shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.1em]',
+                          resolved ? 'border-emerald-800/40 bg-emerald-950/15 text-emerald-400' : (PRIORITY_STYLE[a.priority] || PRIORITY_STYLE.normal)
+                        )}>
+                          {resolved ? '✓ Done' : (PRIORITY_LABEL[a.priority] || 'Normal')}
+                        </span>
+                        <span className={cx('flex-1 text-xs leading-5', resolved ? 'line-through text-[#e8dcc0]/40' : 'text-[#e8dcc0]')}>
+                          {a.content}
+                        </span>
+                        {!resolved && onResolveTask && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setResolvedTaskIds(prev => new Set([...prev, a.id]))
+                              onResolveTask(a.id)
+                            }}
+                            className="shrink-0 rounded-xl border border-[#6b705c]/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#e8dcc0]/40 hover:border-emerald-700/50 hover:text-emerald-400 transition"
+                          >
+                            Resolve
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                <p className="mt-3 text-[10px] leading-5 text-[#e8dcc0]/30">
+                  Saved to database at end of previous shift. Mark resolved to close the loop.
+                </p>
+              </div>
+            )}
+
+            {/* localStorage carry-forward as fallback when no DB tasks */}
+            {carryForwardTasks.length === 0 && managerCarryForward.length > 0 && (
               <div className="rounded-2xl border border-[#c9a96e]/20 bg-[#c9a96e]/5 p-5">
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a96e] mb-3">
                   Carry-Forward From Previous Shift ({managerCarryForward.length})

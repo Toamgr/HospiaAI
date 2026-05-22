@@ -1,2 +1,2 @@
-// Moved to _archived/ — see src/features/owner/_archived/CommandCenter.jsx
-export { default } from './_archived/CommandCenter'
+// Feature-flagged (ownerCommandCenter) — implementation in legacy/
+export { default } from './legacy/CommandCenter'

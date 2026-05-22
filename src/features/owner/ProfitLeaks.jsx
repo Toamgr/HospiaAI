@@ -1,2 +1,2 @@
-// Moved to _archived/ — see src/features/owner/_archived/ProfitLeaks.jsx
-export { default } from './_archived/ProfitLeaks'
+// WIP — see src/features/owner/wip/ProfitLeaks.jsx
+export { default } from './wip/ProfitLeaks'

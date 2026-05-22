@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { apiGet } from '../services/api/client'
+import { apiGet, apiPost } from '../services/api/client'
 import { syncUsersFromBackend, persistUsers } from '../services/userService'
+import { loadPendingQueue, dequeue } from '../services/pendingSyncQueue'
 
 export function useBackendSync({ role, setReportArchive, setBusinessMemory, setEventPlans, setActionItems, setUsers, setServiceIncidents }) {
   useEffect(() => {
@@ -95,6 +96,21 @@ export function useBackendSync({ role, setReportArchive, setBusinessMemory, setE
           return merged
         })
       }).catch(() => {})
+    }
+
+    // Flush pending sync queue — retry any writes that failed in a previous session
+    if (['manager', 'bar_manager', 'admin'].includes(role)) {
+      const pending = loadPendingQueue()
+      pending.forEach(item => {
+        let promise
+        if (item.type === 'shift_report') promise = apiPost('/api/shift-reports', item.payload)
+        else if (item.type === 'task')    promise = apiPost('/api/tasks', item.payload)
+        else if (item.type === 'action')  promise = apiPost('/api/actions', item.payload)
+        else return
+        promise
+          .then(() => dequeue(item.type, item.payload?.id))
+          .catch(err => console.warn(`HESTIA: pending ${item.type} retry failed`, err?.message))
+      })
     }
 
     return () => {

@@ -1,2 +1,2 @@
-// Moved to _archived/ — see src/features/owner/_archived/BudgetApprovals.jsx
-export { default } from './_archived/BudgetApprovals'
+// Feature-flagged (ownerBudgetApprovals) — implementation in legacy/
+export { default } from './legacy/BudgetApprovals'

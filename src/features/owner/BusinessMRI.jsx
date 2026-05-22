@@ -1,2 +1,2 @@
-// Moved to _archived/ — see src/features/owner/_archived/BusinessMRI.jsx
-export { default } from './_archived/BusinessMRI'
+// WIP — see src/features/owner/wip/BusinessMRI.jsx
+export { default } from './wip/BusinessMRI'

@@ -3,6 +3,8 @@ import { cx } from '../../utils/format'
 import { loadEmailJS } from '../../utils/emailjs'
 import { EMAILJS } from '../../config/systemConfig'
 import { Card, Label, Header } from '../../components/AppPrimitives'
+import { apiPost } from '../../services/api/client'
+import { enqueue, dequeue, loadPendingQueue } from '../../services/pendingSyncQueue'
 import {
   deriveOperationalActions, enrichActions,
   getCarryForwardActions, getUrgentActions,
@@ -48,6 +50,8 @@ export default function EndOfDayReports({
   const [sending,          setSending]          = useState(false)
   const [submitted,        setSubmitted]        = useState(false)
   const [emailStatus,      setEmailStatus]      = useState(null)
+  const [syncStatus,       setSyncStatus]       = useState(null) // null | 'saving' | 'saved' | 'partial' | 'failed'
+  const [retrying,         setRetrying]         = useState(false)
   const [handoverDraft,    setHandoverDraft]    = useState('')
   const [handoverSaving,   setHandoverSaving]   = useState(false)
   const [handoverComplete, setHandoverComplete] = useState(false)
@@ -83,6 +87,7 @@ export default function EndOfDayReports({
     e.preventDefault()
     setSending(true)
     setEmailStatus(null)
+    setSyncStatus('saving')
 
     const review = {
       id:                  `eod-${Date.now()}`,
@@ -104,10 +109,64 @@ export default function EndOfDayReports({
       submitted_at:        new Date().toISOString(),
     }
 
-    // Persist to local archive regardless of email
+    // Capture carry-forward items now so the async callbacks can reference them
+    const itemsToSync = [...carryForwardItems]
+
+    // 1. localStorage write — synchronous, always first, always succeeds
     saveEndOfShiftReview(review)
 
-    // EmailJS — best effort, non-blocking
+    // 2. Backend POSTs — fire in parallel, track results asynchronously
+    //    The success screen shows immediately; syncStatus updates when promises settle.
+    const reportPromise = apiPost('/api/shift-reports', review)
+    const taskPromises = itemsToSync.map(a =>
+      apiPost('/api/tasks', {
+        id:               `cf-${review.id}-${a.id}`,
+        content:          a.title,
+        priority:         a.priority || 'normal',
+        source:           'eod_carry_forward',
+        source_report_id: review.id,
+        description:      a.detail || a.signal || '',
+        shift_id:         activeShift?.id || '',
+      })
+    )
+
+    Promise.allSettled([reportPromise, ...taskPromises]).then(results => {
+      const [reportResult, ...taskResults] = results
+      const reportOk = reportResult.status === 'fulfilled'
+      const failedTaskCount = taskResults.filter(r => r.status === 'rejected').length
+
+      if (!reportOk) {
+        enqueue('shift_report', review)
+        console.warn('HESTIA: /api/shift-reports write failed — queued for retry', reportResult.reason?.message)
+      } else {
+        dequeue('shift_report', review.id)
+      }
+
+      taskResults.forEach((r, i) => {
+        const a = itemsToSync[i]
+        const taskPayload = {
+          id:               `cf-${review.id}-${a.id}`,
+          content:          a.title,
+          priority:         a.priority || 'normal',
+          source:           'eod_carry_forward',
+          source_report_id: review.id,
+          description:      a.detail || a.signal || '',
+          shift_id:         activeShift?.id || '',
+        }
+        if (r.status === 'rejected') {
+          enqueue('task', taskPayload)
+          console.warn('HESTIA: /api/tasks write failed — queued for retry', r.reason?.message)
+        } else {
+          dequeue('task', taskPayload.id)
+        }
+      })
+
+      if (reportOk && failedTaskCount === 0) setSyncStatus('saved')
+      else if (reportOk)                     setSyncStatus('partial')
+      else                                   setSyncStatus('failed')
+    })
+
+    // 3. EmailJS — best-effort, non-blocking
     try {
       const emailjs = await loadEmailJS()
       await emailjs.send(
@@ -130,9 +189,10 @@ export default function EndOfDayReports({
       setEmailStatus('failed')
     }
 
+    // 4. Archive in memory + create urgent action
     await onReportArchived?.(review)
 
-    // Stage 4: close the active shift in SQLite
+    // 5. Close the active shift in DB
     if (activeShift && onCloseShift) {
       try {
         await onCloseShift({ summary: shiftSummary.trim(), cover_count: null })
@@ -146,9 +206,37 @@ export default function EndOfDayReports({
   }, [
     shiftDate, managerName, shiftSummary, highlights, urgentItems,
     complaints, serviceRecovery, staffIssues, salesNotes, generalNotes,
-    flagForOwner, carryForwardItems.length, openCount, resolvedCount,
+    flagForOwner, carryForwardItems, openCount, resolvedCount,
     currentUser, onReportArchived, activeShift, onCloseShift,
   ])
+
+  async function retrySyncPending() {
+    setRetrying(true)
+    const queue = loadPendingQueue()
+    if (!queue.length) { setSyncStatus('saved'); setRetrying(false); return }
+
+    const results = await Promise.allSettled(
+      queue.map(item => {
+        if (item.type === 'shift_report') {
+          return apiPost('/api/shift-reports', item.payload)
+            .then(() => dequeue('shift_report', item.payload.id))
+        }
+        if (item.type === 'task') {
+          return apiPost('/api/tasks', item.payload)
+            .then(() => dequeue('task', item.payload.id))
+        }
+        if (item.type === 'action') {
+          return apiPost('/api/actions', item.payload)
+            .then(() => dequeue('action', item.payload.id))
+        }
+        return Promise.resolve()
+      })
+    )
+
+    const allOk = results.every(r => r.status === 'fulfilled')
+    setSyncStatus(allOk ? 'saved' : 'partial')
+    setRetrying(false)
+  }
 
   async function submitHandover() {
     if (!onSaveHandover) return
@@ -190,6 +278,40 @@ export default function EndOfDayReports({
             {carryForwardItems.length > 0 && `${carryForwardItems.length} item${carryForwardItems.length !== 1 ? 's' : ''} carrying forward to next pre-shift.`}
           </p>
         </div>
+
+        {/* Backend sync status */}
+        {syncStatus && (
+          <div className={cx(
+            'w-full max-w-sm mx-auto mb-6 rounded-2xl border px-4 py-3 text-center',
+            syncStatus === 'saved'   && 'border-emerald-800/30 bg-emerald-950/10',
+            syncStatus === 'saving'  && 'border-[#6b705c]/20 bg-[#14130f]',
+            syncStatus === 'partial' && 'border-amber-800/30 bg-amber-950/10',
+            syncStatus === 'failed'  && 'border-red-800/30 bg-red-950/10',
+          )}>
+            <p className={cx(
+              'text-[10px] font-black uppercase tracking-widest',
+              syncStatus === 'saved'   && 'text-emerald-400',
+              syncStatus === 'saving'  && 'text-[#e8dcc0]/35',
+              syncStatus === 'partial' && 'text-amber-400',
+              syncStatus === 'failed'  && 'text-red-400',
+            )}>
+              {syncStatus === 'saving'  && 'Saving to HESTIA memory…'}
+              {syncStatus === 'saved'   && 'Saved to HESTIA memory'}
+              {syncStatus === 'partial' && 'Some carry-forward items did not sync'}
+              {syncStatus === 'failed'  && 'Saved locally — backend sync pending'}
+            </p>
+            {(syncStatus === 'partial' || syncStatus === 'failed') && (
+              <button
+                type="button"
+                onClick={retrySyncPending}
+                disabled={retrying}
+                className="mt-2 text-[10px] font-black uppercase tracking-widest text-[#c9a96e] hover:text-[#e8d0a0] disabled:opacity-50 transition"
+              >
+                {retrying ? 'Retrying…' : 'Retry sync'}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Stage 5 — Handover */}
         {onSaveHandover && (

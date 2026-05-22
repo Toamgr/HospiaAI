@@ -1,2 +1,2 @@
-// Moved to _archived/ — see src/features/owner/_archived/StrategicRecommendations.jsx
-export { default } from './_archived/StrategicRecommendations'
+// WIP — see src/features/owner/wip/StrategicRecommendations.jsx
+export { default } from './wip/StrategicRecommendations'

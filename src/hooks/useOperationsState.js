@@ -6,6 +6,7 @@ import { generateExecutiveEventSummary } from '../prompts/eventPrompts'
 import { INITIAL_FUTURE_EVENTS } from '../data/events'
 import { INITIAL_BUDGET_REQUESTS, INITIAL_SERVICE_INCIDENTS, INITIAL_EMPLOYEE_TASKS, INITIAL_OWNER_NOTES } from '../data/operations'
 import { apiPost, apiPatch } from '../services/api/client'
+import { enqueue, dequeue } from '../services/pendingSyncQueue'
 
 function normalizeText(value) {
   return String(value || '').toLowerCase()
@@ -85,7 +86,12 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
       return Array.isArray(saved) ? saved : INITIAL_FUTURE_EVENTS
     } catch { return INITIAL_FUTURE_EVENTS }
   })
-  const [actionItems, setActionItems] = useState([])
+  const [actionItems, setActionItems] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE.actionItems) || 'null')
+      return Array.isArray(saved) ? saved : []
+    } catch { return [] }
+  })
   const [budgetRequests, setBudgetRequests] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE.budgetRequests) || 'null')
@@ -364,7 +370,7 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
       title: `Service incident reported by ${saved.employeeName}`,
       detail: `${saved.issueType} at ${saved.guestTable}. ${saved.description}`
     })
-    setActionItems(prev => saved.resolved ? prev : [{
+    const incidentAction = saved.resolved ? null : {
       id: `incident-action-${saved.id}`,
       priority: saved.severity === 'high' ? 'urgent' : 'high',
       title: `Resolve service incident: ${saved.issueType} - ${saved.guestTable}`,
@@ -373,7 +379,17 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
       signal: `${saved.employeeName}: ${saved.description}`,
       page: 'actionBoard',
       done: false
-    }, ...prev].slice(0, 80))
+    }
+    setActionItems(prev => incidentAction ? [incidentAction, ...prev].slice(0, 80) : prev)
+    if (incidentAction) {
+      const actionPayload = { ...incidentAction, created_at: now.toISOString(), updated_at: now.toISOString() }
+      apiPost('/api/actions', actionPayload)
+        .then(() => dequeue('action', actionPayload.id))
+        .catch(err => {
+          enqueue('action', actionPayload)
+          console.warn('HESTIA: incident action write failed — queued for retry', err?.message)
+        })
+    }
     pushNotification({ roles: ['manager', 'admin'], title: 'New service incident', body: `${saved.employeeName} reported ${saved.issueType} at ${saved.guestTable}.`, type: 'incident', page: 'actionBoard' })
     return saved
   }, [activeShift, addBusinessMemoryEvent, currentUser?.role, currentUser?.username, pushNotification])
