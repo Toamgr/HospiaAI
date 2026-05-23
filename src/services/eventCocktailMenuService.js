@@ -54,15 +54,28 @@ function extractJsonSubstring(text) {
   return null
 }
 
+function repairJson(text) {
+  return text
+    .replace(/,(\s*[}\]])/g, '$1')           // trailing commas
+    .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":') // unquoted keys
+}
+
 function parseStrictJson(raw) {
   const cleaned = stripMarkdownFences(String(raw || ''))
+
+  // 1. Try parsing the whole cleaned response (json_mode returns raw JSON)
+  try { return JSON.parse(cleaned) } catch {}
+
+  // 2. Extract the outermost JSON structure and try again
   const jsonStr = extractJsonSubstring(cleaned)
   if (!jsonStr) throw new Error('AI response was not valid JSON.')
-  try {
-    return JSON.parse(jsonStr)
-  } catch {
-    throw new Error('AI response could not be parsed as JSON.')
-  }
+
+  try { return JSON.parse(jsonStr) } catch {}
+
+  // 3. Repair common LLM JSON issues (trailing commas, unquoted keys) and retry
+  try { return JSON.parse(repairJson(jsonStr)) } catch {}
+
+  throw new Error('AI response could not be parsed as JSON.')
 }
 
 function getResponseText(data) {
@@ -147,7 +160,7 @@ function buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext })
     `Event: "${event.name}"`,
     `Event type: ${eventType}`,
     guestCount ? `Guest count: ${guestCount}` : null,
-    `Cocktails to create: ${form.cocktailCount}`,
+    `REQUIRED — Cocktails to generate: ${form.cocktailCount}. The "cocktails" array MUST contain exactly ${form.cocktailCount} item${form.cocktailCount !== 1 ? 's' : ''} — no fewer, no more.`,
     `Flavor profile: ${flavorStr}`,
     `Dietary restrictions / requirements: ${restrictionStr}`,
     `Event vibe: ${form.vibe || 'Not specified'}`,
@@ -162,7 +175,7 @@ function buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext })
     'For liquid_color_hex use the dominant ingredient: Campari=#E8272A, Aperol=#FF6B35, Blue Curacao=#0096FF, Midori=#4CAF50, Espresso/Coffee=#2C1A0E, Rum=#C8860A, Whiskey/Bourbon=#B5651D, Gin/Vodka/Tequila=#F5F5DC, Red wine=#722F37, Rosé=#FFB7C5, White wine/Prosecco/Champagne=#F0E68C.',
     '',
     'Do not include cost estimates in the response — costing is computed separately by the venue system from verified ingredient data.',
-    'Return ONLY valid JSON:',
+    `Return ONLY valid JSON with exactly ${form.cocktailCount} cocktail${form.cocktailCount !== 1 ? 's' : ''} in the array:`,
     `{
   "menu_name": "creative name for this cocktail menu",
   "cocktails": [
@@ -192,10 +205,46 @@ function buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext })
   return parts.filter(p => p !== null).join('\n')
 }
 
+// ─── Replacement validation helpers ──────────────────────────────────────────
+
+const SPIRIT_KEYWORDS = [
+  'gin', 'vodka', 'rum', 'tequila', 'mezcal', 'whiskey', 'whisky', 'bourbon',
+  'rye', 'scotch', 'cognac', 'brandy', 'pisco', 'amaro', 'aperol', 'campari',
+  'liqueur', 'vermouth',
+]
+
+function extractMentionedSpirit(instruction) {
+  const lower = (instruction || '').toLowerCase()
+  return SPIRIT_KEYWORDS.find(s => lower.includes(s)) || null
+}
+
+function validateReplacement(parsed, replaceInstruction) {
+  const mentionedSpirit = extractMentionedSpirit(replaceInstruction)
+  if (!mentionedSpirit) return null
+  const baseSpirit = (parsed.base_spirit || '').toLowerCase()
+  const ingNames = (parsed.ingredients || []).map(i => (i && i.name || '').toLowerCase()).join(' ')
+  if (!baseSpirit.includes(mentionedSpirit) && !ingNames.includes(mentionedSpirit)) {
+    return `Replacement must use "${mentionedSpirit}" as instructed (user said: "${replaceInstruction}") but the returned base_spirit is "${parsed.base_spirit}".`
+  }
+  return null
+}
+
 function buildReplacementPrompt({ event, cocktail, index, otherNames, replaceInstruction, flavorStr, knowledgeContext }) {
   const eventType = EVENT_TYPE_LABELS[event.event_type] || event.event_type || 'Event'
   const guestCount = event.expected_guests
   const isHighVolume = guestCount >= 50
+
+  const originalIngredients = (cocktail.ingredients || [])
+    .map(i => {
+      if (!i) return ''
+      const name = typeof i === 'object' ? (i.name || '') : String(i)
+      const amt = typeof i === 'object' && i.amount_ml != null ? ` ${i.amount_ml}ml` : ''
+      return name + amt
+    })
+    .filter(Boolean)
+    .join(', ')
+
+  const mentionedSpirit = extractMentionedSpirit(replaceInstruction)
 
   const parts = [
     BEVERAGE_DIRECTOR_SYSTEM_PROMPT,
@@ -204,10 +253,22 @@ function buildReplacementPrompt({ event, cocktail, index, otherNames, replaceIns
     'Replace one cocktail in an existing event cocktail menu. Design the replacement to be differentiated from existing menu cocktails, operationally practical, and suited to the event format.',
     '',
     `Event: "${event.name}" (${eventType}${guestCount ? `, ${guestCount} guests` : ''})`,
-    `Cocktail being replaced: ${cocktail.name}`,
+    `Cocktail being replaced: ${cocktail.name}${cocktail.base_spirit ? ` (base: ${cocktail.base_spirit})` : ''}`,
+    originalIngredients ? `Original ingredients: ${originalIngredients}` : null,
     `Remaining menu: ${otherNames || 'none'}`,
-    `Replacement instruction: ${replaceInstruction}`,
     `Event flavor profile: ${flavorStr}`,
+    '',
+    '=== MANDATORY USER CHANGE REQUEST — OBEY THIS EXACTLY ===',
+    `The user has specifically requested: "${replaceInstruction}"`,
+    '=== RULES YOU MUST FOLLOW ===',
+    mentionedSpirit
+      ? `- BASE SPIRIT: The user specified "${mentionedSpirit}". The replacement MUST use "${mentionedSpirit}" as the base_spirit field and in its ingredients. Do not substitute a different spirit.`
+      : null,
+    '- If the user asks for "more complex", use more modifiers, bitters, layered flavor architecture, or advanced technique. The replacement must NOT be simpler than the original.',
+    '- If the user asks for "simpler", use fewer ingredients and a clean, straightforward build.',
+    '- If the user specifies a flavor direction (sweeter, more bitter, more citrus, smoky, herbal, spicy, lighter, etc.), the replacement must clearly reflect that direction.',
+    '- Do NOT produce a generic replacement that ignores the user instruction.',
+    '- The replacement must still suit the event format and feel differentiated from the remaining menu.',
     '',
     isHighVolume ? `HIGH-VOLUME: keep service speed under 30 seconds, minimal garnish complexity.` : null,
     isHighVolume ? '' : null,
@@ -322,7 +383,7 @@ function buildFallbackReplacement(index) {
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
-function validateMenuResponse(parsed) {
+function validateMenuResponse(parsed, expectedCount) {
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('AI returned an unexpected format. Please try again.')
   }
@@ -332,9 +393,26 @@ function validateMenuResponse(parsed) {
   for (const c of parsed.cocktails) {
     if (!c.name) throw new Error('AI returned a cocktail with no name. Please try again.')
   }
+  if (expectedCount != null && parsed.cocktails.length !== expectedCount) {
+    throw new Error(`AI returned ${parsed.cocktails.length} cocktail${parsed.cocktails.length !== 1 ? 's' : ''} but ${expectedCount} were requested. Retrying.`)
+  }
 }
 
 // ─── Exported service functions ───────────────────────────────────────────────
+
+async function attemptMenuGeneration(prompt, expectedCount) {
+  const res = await fetch('/api/gemini', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, json_mode: true }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(formatServiceError(data, 'AI request failed. Please try again.'))
+  const rawText = getResponseText(data)
+  const parsed = parseStrictJson(rawText)
+  validateMenuResponse(parsed, expectedCount)
+  return parsed
+}
 
 export async function generateEventMenu({ event, form }) {
   const combinedText = [
@@ -354,29 +432,27 @@ export async function generateEventMenu({ event, form }) {
 
   const prompt = buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext })
 
-  try {
-    const res = await fetch('/api/gemini', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, json_mode: true }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(formatServiceError(data, 'AI request failed. Please try again.'))
-
-    const rawText = getResponseText(data)
-    const parsed = parseStrictJson(rawText)
-    validateMenuResponse(parsed)
-
-    return {
-      menu: { ...parsed, cocktails: enrichCocktailsWithCost(parsed.cocktails) },
-      isFallback: false,
-      fallbackReason: null,
-    }
-  } catch (err) {
-    return {
-      menu: buildFallbackEventMenu(form, event),
-      isFallback: true,
-      fallbackReason: err.message || 'AI generation failed.',
+  // Try up to 2 times before falling back to the placeholder menu.
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const parsed = await attemptMenuGeneration(prompt, form.cocktailCount)
+      return {
+        menu: { ...parsed, cocktails: enrichCocktailsWithCost(parsed.cocktails) },
+        isFallback: false,
+        fallbackReason: null,
+      }
+    } catch (err) {
+      const isLastAttempt = attempt === 2
+      const isNetworkError = /request failed|rate.limit|quota/i.test(err.message || '')
+      if (isLastAttempt || isNetworkError) {
+        return {
+          menu: buildFallbackEventMenu(form, event),
+          isFallback: true,
+          fallbackReason: err.message || 'AI generation failed.',
+        }
+      }
+      // Wait briefly before retrying a parse failure
+      await new Promise(r => setTimeout(r, 800))
     }
   }
 }
@@ -389,33 +465,47 @@ export async function replaceEventCocktail({ event, menu, index, replaceInstruct
   const replaceText = `event ${event.event_type || ''} ${replaceInstruction} ${flavorStr}`
   const knowledgeContext = buildKnowledgeContext(replaceText, { kosherRequirement: '' })
 
-  const prompt = buildReplacementPrompt({
+  const basePrompt = buildReplacementPrompt({
     event, cocktail, index, otherNames, replaceInstruction, flavorStr, knowledgeContext,
   })
+  let currentPrompt = basePrompt
 
-  try {
-    const res = await fetch('/api/gemini', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, json_mode: true }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(formatServiceError(data, 'AI replacement request failed. Please try again.'))
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: currentPrompt, json_mode: true }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(formatServiceError(data, 'AI replacement request failed. Please try again.'))
 
-    const rawText = getResponseText(data)
-    const parsed = parseStrictJson(rawText)
-    if (!parsed.name) throw new Error('AI returned an invalid replacement. Please try again.')
+      const rawText = getResponseText(data)
+      const parsed = parseStrictJson(rawText)
+      if (!parsed.name) throw new Error('AI returned an invalid replacement. Please try again.')
 
-    return {
-      cocktail: { ...parsed, number: index + 1, _cost: computeEventCocktailCost(parsed) },
-      isFallback: false,
-      fallbackReason: null,
-    }
-  } catch (err) {
-    return {
-      cocktail: buildFallbackReplacement(index),
-      isFallback: true,
-      fallbackReason: err.message || 'AI replacement failed.',
+      const validationError = validateReplacement(parsed, replaceInstruction)
+      if (validationError && attempt === 1) {
+        currentPrompt = basePrompt + `\n\nCORRECTION REQUIRED: ${validationError} Fix this now — you MUST obey the user's change request.`
+        throw new Error(validationError)
+      }
+
+      return {
+        cocktail: { ...parsed, number: index + 1, _cost: computeEventCocktailCost(parsed) },
+        isFallback: false,
+        fallbackReason: null,
+      }
+    } catch (err) {
+      const isLastAttempt = attempt === 2
+      const isNetworkError = /request failed|rate.limit|quota/i.test(err.message || '')
+      if (isLastAttempt || isNetworkError) {
+        return {
+          cocktail: buildFallbackReplacement(index),
+          isFallback: true,
+          fallbackReason: err.message || 'AI replacement failed.',
+        }
+      }
+      await new Promise(r => setTimeout(r, 800))
     }
   }
 }

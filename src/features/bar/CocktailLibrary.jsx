@@ -8,7 +8,7 @@ function formatDate(iso) {
 
 function spiritFamily(cocktail) {
   const text = [cocktail.name, cocktail.menuRole, cocktail.conceptStory, cocktail.guestDescription,
-    ...(cocktail.ingredientsMl || cocktail.ingredientObjects || []).map(i => i.ingredient || '')
+    ...(cocktail.ingredientsMl || cocktail.ingredientObjects || []).map(i => (i && i.ingredient) || '')
   ].join(' ').toLowerCase()
   if (/mezcal/.test(text)) return 'Mezcal'
   if (/tequila/.test(text)) return 'Tequila'
@@ -166,13 +166,19 @@ export default function CocktailLibrary({ cocktailDrafts = [], approvedCocktails
   }, [approvedCocktails, cocktailDrafts, archivedCocktails])
 
   const filtered = useMemo(() => allCocktails.filter(c => {
-    const matchSearch = !search || [c.name, c.menuRole, c.guestDescription, c.conceptStory].join(' ').toLowerCase().includes(search.toLowerCase())
+    if (!c) return false
+    const matchSearch = !search || [
+      c.name, c.menuRole, c.guestDescription, c.conceptStory, c.style, c.method, c.glassware, c.garnish,
+    ].join(' ').toLowerCase().includes(search.toLowerCase())
     const matchSpirit = spiritFilter === 'All' || spiritFamily(c) === spiritFilter
     return matchSearch && matchSpirit
   }), [allCocktails, search, spiritFilter])
 
   const classicsFiltered = useMemo(() => CLASSIC_COCKTAIL_LIBRARY.filter(c => {
-    const matchSearch = !search || [c.name, c.category, c.baseSpirit, c.story, c.notes, ...(c.tags || [])].join(' ').toLowerCase().includes(search.toLowerCase())
+    const ingText = (c.ingredients || []).map(i => (i && i.name) || '').join(' ')
+    const matchSearch = !search || [
+      c.name, c.category, c.family, c.baseSpirit, c.story, c.notes, ingText, ...(c.tags || []),
+    ].join(' ').toLowerCase().includes(search.toLowerCase())
     const matchSpirit = spiritFilter === 'All' || classicSpiritFamily(c) === spiritFilter
     return matchSearch && matchSpirit
   }), [search, spiritFilter])
