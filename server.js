@@ -825,7 +825,7 @@ async function askGemini(prompt, { jsonMode = false } = {}) {
   return text || "No answer generated.";
 }
 
-app.post("/api/gemini", async (req, res) => {
+app.post("/api/gemini", requireAuth("manager", "bar_manager", "owner", "admin"), async (req, res) => {
   try {
     const prompt = String(req.body?.prompt || "").trim();
     const jsonMode = Boolean(req.body?.json_mode);
@@ -1396,7 +1396,7 @@ app.get("/api/event-plans", requireAuth("manager", "owner", "admin"), (req, res)
   });
 });
 
-app.post("/api/coach", async (req, res) => {
+app.post("/api/coach", requireAuth("manager", "bar_manager", "owner", "admin"), async (req, res) => {
   try {
     const { question } = req.body;
     const answer = await askGemini(`
@@ -1413,7 +1413,7 @@ ${question}
   }
 });
 
-app.post("/api/simulate", async (req, res) => {
+app.post("/api/simulate", requireAuth("manager", "bar_manager", "owner", "admin"), async (req, res) => {
   try {
     const { scenario, employeeResponse } = req.body;
     const answer = await askGemini(`
