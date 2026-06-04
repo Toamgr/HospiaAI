@@ -1,36 +1,34 @@
 export const NAV_GROUPS = {
   command: {
     roles: ['owner', 'admin'],
-    // PHASE 2 — restore full owner nav after pre-seed milestone
     pages: [
-      // 'commandCenter',       // PHASE 2 — archived pre-seed
       'operationalPulse',
-      // 'budgetApprovals',     // PHASE 2 — archived pre-seed
-      // 'ownerOperationalRequests', // PHASE 2 — archived pre-seed
-      // 'weeklySummary',       // PHASE 2 — archived pre-seed
-      // 'ownerReport',         // PHASE 2 — archived pre-seed
-      // 'businessMemory',      // PHASE 2 — archived pre-seed
-      // 'userManagement'       // PHASE 2 — archived pre-seed
       'settings'
     ]
   },
   operations: {
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['owner', 'admin'],
     pages: [
       'preShiftBriefing',
       'actionBoard',
       'managerEmployeeRequests',
       'operationalNotes',
-      'endOfDay',
-      'budgetRequest',
-      'eventCRM',
-      'eventOrchestrator',
-      'staffProgression'
+      'budgetRequest'
     ]
+  },
+  // Trimmed nav for manager — Daily Close + Sales Tracker
+  dailyOps: {
+    roles: ['manager', 'bar_manager', 'owner', 'admin'],
+    pages: ['endOfDay', 'ciDashboard']
   },
   employeeWorkflow: {
     roles: ['employee', 'admin'],
     pages: ['employeeHome', 'employeeRequests', 'employeeAchievements', 'serviceRecovery']
+  },
+  // Employee shift pages
+  employeeShifts: {
+    roles: ['employee', 'admin'],
+    pages: ['myShifts', 'constraintsForm', 'foodMenuView']
   },
   planning: {
     roles: ['manager', 'owner', 'admin'],
@@ -41,20 +39,56 @@ export const NAV_GROUPS = {
     pages: []
   },
   academy: {
-    roles: ['employee', 'manager', 'bar_manager', 'admin'],
-    pages: ['courses', 'lessonPlayer', 'knowledgeLibrary', 'wineKnowledge', 'sopSheets', 'simulation', 'approvedCocktails', 'cocktailLibrary']
+    roles: ['employee', 'fb_director', 'admin'],
+    pages: ['courses', 'lessonPlayer', 'knowledgeLibrary', 'wineKnowledge', 'approvedCocktails', 'cocktailLibrary']
   },
   barManagement: {
-    roles: ['manager', 'bar_manager', 'owner', 'admin'],
+    roles: ['bar_manager', 'owner', 'fb_director', 'admin'],
     pages: ['cocktailLab', 'foodCostTables', 'approvedCocktailsBar', 'cocktailLibrary', 'inventoryOverview', 'barReports', 'bottlePrices']
   },
   ownerIntelligence: {
     roles: ['owner', 'admin'],
-    pages: [] // Merged into command area — tab no longer appears in nav
+    pages: []
   },
   system: {
     roles: ['owner', 'admin'],
-    pages: [] // userManagement moved to command area — tab no longer appears in nav
+    pages: []
+  },
+  // CI MODULE ADDITION
+  cocktailIntelligence: {
+    roles: ['owner', 'bar_manager', 'fb_director', 'admin'],
+    pages: ['ciDashboard']
+  },
+  // Events module — events_manager
+  eventsArea: {
+    roles: ['events_manager', 'owner', 'admin'],
+    pages: ['eventCRM', 'eventOrchestrator']
+  },
+  // Staff tab — fb_director, bar_manager, owner, admin
+  staffArea: {
+    roles: ['fb_director', 'bar_manager', 'owner', 'admin'],
+    pages: ['staffTab', 'staffProgression']
+  },
+  // Shift organizer — bar_manager
+  shiftOrganizer: {
+    roles: ['bar_manager', 'owner', 'admin'],
+    pages: ['shiftOrganizerPage']
+  },
+  // Chef module
+  chefArea: {
+    roles: ['chef', 'admin'],
+    pages: ['chefDashboard']
+  },
+  // Chef menu approval — fb_director + owner
+  chefApproval: {
+    roles: ['fb_director', 'owner', 'admin'],
+    pages: ['chefDashboard']
+  },
+
+  // Cocktails Magazine + Business Menus — open to all staff
+  cocktailsMagazineArea: {
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'events_manager', 'chef', 'owner', 'admin'],
+    pages: ['cocktailsMagazine']
   }
 }
 
@@ -72,14 +106,14 @@ export const PAGE_META = {
   // ── Operations ─────────────────────────────────────────────────────────────
   preShiftBriefing: {
     area: 'operations',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'owner', 'admin'],
     code: 'PB',
     section: 'Shift Start',
     description: 'Review all open signals before service begins'
   },
   actionBoard: {
     area: 'operations',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'owner', 'admin'],
     code: 'SC',
     section: 'Shift Control',
     description: 'Consolidated shift intelligence — actions, incidents, tasks, and owner communication'
@@ -87,7 +121,7 @@ export const PAGE_META = {
   // managerActionCenter merged into actionBoard — hidden from nav, file preserved
   managerActionCenter: {
     area: 'operations',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'owner', 'admin'],
     code: 'MC',
     section: 'Shift Control',
     description: 'Consolidated open actions, incidents, notes, and carry-forward items',
@@ -95,14 +129,14 @@ export const PAGE_META = {
   },
   managerEmployeeRequests: {
     area: 'operations',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'owner', 'admin'],
     code: 'ER',
     section: 'Shift Control',
     description: 'Review operational requests submitted by employees'
   },
   operationalNotes: {
     area: 'operations',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'owner', 'admin'],
     code: 'ON',
     section: 'Shift Control',
     description: 'Pinned notes and manager memory'
@@ -110,22 +144,22 @@ export const PAGE_META = {
   // endOfShiftReview merged into endOfDay — hidden from nav, file preserved
   endOfShiftReview: {
     area: 'operations',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'owner', 'admin'],
     code: 'ES',
     section: 'Shift Closeout',
     description: 'Close out the shift — capture hand-offs, complaints, and carry-forward items',
     hiddenInNav: true
   },
   endOfDay: {
-    area: 'operations',
-    roles: ['manager', 'bar_manager', 'admin'],
+    area: 'dailyOps',
+    roles: ['manager', 'bar_manager', 'owner', 'admin'],
     code: 'CL',
-    section: 'Shift Closeout',
+    section: 'Daily Close',
     description: 'Close out the shift — handoff notes, incident summary, email report, and archive'
   },
   budgetRequest: {
     area: 'operations',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'owner', 'admin'],
     code: 'BR',
     section: 'Requests',
     description: 'Submit budget approval requests'
@@ -139,8 +173,8 @@ export const PAGE_META = {
     hiddenInNav: true
   },
   eventCRM: {
-    area: 'operations',
-    roles: ['manager', 'owner', 'admin'],
+    area: 'eventsArea',
+    roles: ['manager', 'owner', 'admin', 'events_manager'],
     code: 'EC',
     section: 'Events',
     description: 'Guest management, seating, check-in, and messaging'
@@ -148,16 +182,16 @@ export const PAGE_META = {
 
   // Moved from planning tab into operations
   eventOrchestrator: {
-    area: 'operations',
-    roles: ['manager', 'owner', 'admin'],
+    area: 'eventsArea',
+    roles: ['manager', 'owner', 'admin', 'events_manager'],
     code: 'EV',
     section: 'Event Finance',
     description: 'Event financial calculator and revenue pipeline'
   },
   // Moved from staffProgression tab into operations
   staffProgression: {
-    area: 'operations',
-    roles: ['manager', 'bar_manager', 'admin'],
+    area: 'staffArea',
+    roles: ['manager', 'bar_manager', 'admin', 'fb_director'],
     code: 'SP',
     section: 'Staff',
     description: 'Training progress, incident exposure, and coaching flags'
@@ -204,14 +238,14 @@ export const PAGE_META = {
   // ── Academy ────────────────────────────────────────────────────────────────
   courses: {
     area: 'academy',
-    roles: ['employee', 'manager', 'bar_manager', 'admin'],
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'CR',
     section: 'Course Catalog',
     description: 'Structured learning paths'
   },
   lessonPlayer: {
     area: 'academy',
-    roles: ['employee', 'manager', 'bar_manager', 'admin'],
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'LP',
     section: 'Course Catalog',
     description: 'Lesson experience and service doctrine',
@@ -219,7 +253,7 @@ export const PAGE_META = {
   },
   knowledgeLibrary: {
     area: 'academy',
-    roles: ['employee', 'manager', 'bar_manager', 'admin'],
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'KL',
     section: 'Course Catalog',
     description: 'Grand Bar Atlas course module',
@@ -227,28 +261,29 @@ export const PAGE_META = {
   },
   wineKnowledge: {
     area: 'academy',
-    roles: ['employee', 'manager', 'bar_manager', 'admin'],
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'WK',
     section: 'Wine Academy',
     description: 'WSET-level wine knowledge foundation'
   },
   sopSheets: {
     area: 'academy',
-    roles: ['employee', 'manager', 'bar_manager', 'admin'],
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'SV',
     section: 'Service',
-    description: 'Hospitality standards and service reference'
+    description: 'Hospitality standards and service reference',
+    hiddenInNav: true
   },
   simulation: {
     area: 'academy',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'GS',
     section: 'Practice Lab',
     description: 'Guest scenarios and scoring'
   },
   approvedCocktails: {
     area: 'academy',
-    roles: ['employee', 'manager', 'bar_manager', 'admin'],
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'AC',
     section: 'Approved Bar Menu',
     description: 'Employee-approved cocktail training'
@@ -257,49 +292,49 @@ export const PAGE_META = {
   // ── Bar Management ─────────────────────────────────────────────────────────
   cocktailLab: {
     area: 'barManagement',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'CL',
     section: 'R&D Studio',
     description: 'AI cocktail creation — visual, editable, operational'
   },
   foodCostTables: {
     area: 'barManagement',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'FC',
     section: 'R&D Studio',
     description: 'Ingredient costing, pour cost, and pricing logic'
   },
   approvedCocktailsBar: {
     area: 'barManagement',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'AM',
     section: 'Menu',
     description: 'Approved cocktails published to the bar menu'
   },
   cocktailLibrary: {
     area: 'barManagement',
-    roles: ['employee', 'manager', 'bar_manager', 'admin'],
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'CB',
     section: 'Reference Library',
     description: 'Browse all cocktails — recipes, methods, glassware, and full specs'
   },
   inventoryOverview: {
     area: 'barManagement',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'IO',
     section: 'Archive',
     description: 'Ingredient usage derived from the active cocktail portfolio'
   },
   barReports: {
     area: 'barManagement',
-    roles: ['manager', 'bar_manager', 'admin'],
+    roles: ['manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'RP',
     section: 'Archive',
     description: 'Program performance, pipeline metrics, and recent approvals'
   },
   bottlePrices: {
     area: 'barManagement',
-    roles: ['bar_manager', 'owner', 'admin'],
+    roles: ['bar_manager', 'owner', 'fb_director', 'admin'],
     code: 'BP',
     section: 'Pricing Intelligence',
     description: 'Restricted bottle pricing — authorized personnel only',
@@ -384,6 +419,15 @@ export const PAGE_META = {
     hiddenInNav: true
   },
 
+  // ── Cocktail Intelligence (CI MODULE ADDITION) ────────────────────────────
+  ciDashboard: {
+    area: 'cocktailIntelligence',
+    roles: ['owner', 'manager', 'bar_manager', 'fb_director', 'admin'],
+    code: 'CI',
+    section: 'Intelligence',
+    description: 'AI beverage director — DNA, menus, narratives, and 5PM emergency mode'
+  },
+
   // ── System (merged into command area) ────────────────────────────────────
   userManagement: {
     area: 'command',
@@ -398,5 +442,64 @@ export const PAGE_META = {
     code: 'ST',
     section: 'System',
     description: 'User management and system configuration'
+  },
+
+  // ── Chef Module ────────────────────────────────────────────────────────────
+  chefDashboard: {
+    area: 'chefArea',
+    roles: ['chef', 'fb_director', 'owner', 'admin'],
+    code: 'CH',
+    section: 'Kitchen',
+    description: 'AI food menu creation and approval workflow'
+  },
+
+  // ── Staff Tab ─────────────────────────────────────────────────────────────
+  staffTab: {
+    area: 'staffArea',
+    roles: ['fb_director', 'bar_manager', 'owner', 'admin'],
+    code: 'ST',
+    section: 'Staff',
+    description: 'All employees — seniority, trainee status, sub-roles'
+  },
+
+  // ── Cocktails Magazine ────────────────────────────────────────────────────
+  cocktailsMagazine: {
+    area: 'cocktailsMagazineArea',
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'events_manager', 'chef', 'owner', 'admin'],
+    code: 'CM',
+    section: 'Cocktails',
+    description: 'Classic cocktail magazine and active bar menus'
+  },
+
+  // ── Shift Organizer (bar_manager) ─────────────────────────────────────────
+  shiftOrganizerPage: {
+    area: 'shiftOrganizer',
+    roles: ['bar_manager', 'manager', 'owner', 'admin'],
+    code: 'SO',
+    section: 'Shifts',
+    description: 'AI-assisted weekly shift builder and publish'
+  },
+
+  // ── Employee Shift Pages ──────────────────────────────────────────────────
+  myShifts: {
+    area: 'employeeShifts',
+    roles: ['employee', 'admin'],
+    code: 'MS',
+    section: 'My Shifts',
+    description: 'View your published shifts for current and next week'
+  },
+  constraintsForm: {
+    area: 'employeeShifts',
+    roles: ['employee', 'admin'],
+    code: 'CF',
+    section: 'My Shifts',
+    description: 'Submit your availability for the coming week'
+  },
+  foodMenuView: {
+    area: 'employeeShifts',
+    roles: ['employee', 'admin'],
+    code: 'FM',
+    section: 'Menus',
+    description: 'View published food menus'
   }
 }

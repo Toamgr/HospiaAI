@@ -39,6 +39,12 @@ import EmployeeAchievements from './features/employee/EmployeeAchievements'
 import ServiceRecovery from './features/employee/ServiceRecovery'
 import StaffProgression from './features/staff/StaffProgression'
 import StaffReadiness from './features/staff/StaffReadiness'
+import StaffTab from './features/staff/StaffTab'
+import ChefDashboard from './features/chef/ChefDashboard'
+import FoodMenuView from './features/chef/FoodMenuView'
+import ConstraintsForm from './features/shifts/ConstraintsForm'
+import ShiftOrganizer from './features/shifts/ShiftOrganizer'
+import MyShifts from './features/shifts/MyShifts'
 import WineKnowledge from './features/academy/WineKnowledge'
 import KnowledgeLibrary from './features/academy/KnowledgeLibrary'
 import UserManagement from './features/system/UserManagement'
@@ -70,6 +76,10 @@ import { useShiftState } from './hooks/useShiftState'
 import { useBackendSync } from './hooks/useBackendSync'
 import { useOwnerPulseState } from './hooks/useOwnerPulseState'
 import { useEventState } from './hooks/useEventState'
+import { useCocktailIntelligenceState } from './hooks/useCocktailIntelligenceState' // CI MODULE ADDITION
+import { CocktailIntelligenceDashboard } from './features/cocktail-intelligence/CocktailIntelligenceDashboard' // CI MODULE ADDITION
+import CocktailsTab from './features/magazine/CocktailsTab' // COCKTAILS TAB
+import WineAtlas from './features/wine-atlas/WineAtlas'
 
 
 export default function App() {
@@ -147,6 +157,7 @@ export default function App() {
   const { pulseData, isLoadingPulse, trends, insight, isLoadingInsight, insightError, insightCooldownSeconds, requestInsight } = useOwnerPulseState({ currentUser })
 
   const eventState = useEventState({ currentUser, pushNotification })
+  const cocktailIntelligenceState = useCocktailIntelligenceState({ currentUser }) // CI MODULE ADDITION
 
   useBackendSync({ role, setReportArchive, setBusinessMemory, setEventPlans, setActionItems, setUsers, setServiceIncidents })
 
@@ -162,6 +173,7 @@ export default function App() {
       username: apiUser.full_name,
       full_name: apiUser.full_name,
       role: apiUser.role,
+      sub_role: apiUser.sub_role || null,
       canManageCocktails: ['admin', 'bar_manager'].includes(apiUser.role)
     }
     const nextArea = firstAllowedArea(sessionUser)
@@ -205,6 +217,12 @@ export default function App() {
 
   if (!currentUser) {
     return <LoginScreen t={t} onLogin={login} />
+  }
+
+  // Wine Atlas: full-screen takeover — no HESTIA shell when active
+  if (page === 'wineKnowledge') {
+    const exitAtlas = () => goToPage('courses')
+    return <WineAtlas onExit={exitAtlas} />
   }
 
   return (
@@ -351,6 +369,7 @@ export default function App() {
               shiftBrain
             }}
             events={eventState}
+            cocktailIntelligence={cocktailIntelligenceState} // CI MODULE ADDITION
           />
         </main>
       </div>
@@ -358,7 +377,7 @@ export default function App() {
   )
 }
 
-function PageRenderer({ t, page, goToPage, pageContext, session, reports, operations, cocktails, academy, notifications, events }) {
+function PageRenderer({ t, page, goToPage, pageContext, session, reports, operations, cocktails, academy, notifications, events, cocktailIntelligence }) { // CI MODULE ADDITION: added cocktailIntelligence
   const { currentUser, lang, role, users, onCreateUser, onUpdateUser, onDisableUser } = session
   const { reportArchive, businessMemory, onReportArchived, onMemoryEvent,
     pulseData, isLoadingPulse, trends, insight, isLoadingInsight, insightError, insightCooldownSeconds, onRequestInsight } = reports
@@ -426,7 +445,15 @@ function PageRenderer({ t, page, goToPage, pageContext, session, reports, operat
     ...(isEnabled('ownerBusinessMemory') && { businessMemory: <BusinessMemoryPage t={t} reportArchive={reportArchive} businessMemory={businessMemory} /> }),
     ...(isEnabled('ownerStrategicRecommendations') && { strategicRecommendations: <StrategicRecommendations t={t} /> }),
     userManagement: <UserManagement currentUser={currentUser} users={users} onCreateUser={onCreateUser} onUpdateUser={onUpdateUser} onDisableUser={onDisableUser} />,
-    settings: <SettingsPage />
+    settings: <SettingsPage />,
+    ciDashboard: <CocktailIntelligenceDashboard cocktailIntelligence={cocktailIntelligence} />, // CI MODULE ADDITION
+    cocktailsMagazine: <CocktailsTab approvedCocktails={approvedCocktails} />, // COCKTAILS TAB
+    chefDashboard: <ChefDashboard currentUser={currentUser} />,
+    staffTab: <StaffTab />,
+    shiftOrganizerPage: <ShiftOrganizer currentUser={currentUser} />,
+    myShifts: <MyShifts />,
+    constraintsForm: <ConstraintsForm />,
+    foodMenuView: <FoodMenuView />,
   }
 
   return pages[page] || <MissingPage t={t} page={page} />

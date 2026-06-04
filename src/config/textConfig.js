@@ -30,7 +30,16 @@
       academy: 'Academy',
       barManagement: 'Bar Management',
       ownerIntelligence: 'Business Intelligence',
-      system: 'System'
+      system: 'System',
+      cocktailIntelligence: 'Cocktail Intelligence', // CI MODULE ADDITION
+      cocktailsMagazineArea: 'Classic Cocktails Magazine',
+      dailyOps: 'Daily Operations',
+      employeeShifts: 'My Schedule',
+      eventsArea: 'Events',
+      staffArea: 'Staff',
+      shiftOrganizer: 'Shift Organizer',
+      chefArea: 'Kitchen',
+      chefApproval: 'Menu Approvals'
     },
     areaDescriptions: {
       command: 'Owner HQ — approvals, reports, memory, and workspace',
@@ -41,7 +50,16 @@
       academy: 'Courses, service standards, lessons, and approved knowledge',
       barManagement: 'Cocktail R&D, costing, and menu approval pipeline',
       ownerIntelligence: 'Reports, approvals, business memory, and operational intelligence',
-      system: 'Owner workspace'
+      system: 'Owner workspace',
+      cocktailIntelligence: 'AI beverage director — menus, narratives, lifecycle, and emergency mode',
+      cocktailsMagazineArea: 'Classic cocktail magazine and active bar menus',
+      dailyOps: 'Daily close and sales tracker',
+      employeeShifts: 'Your shifts, availability, and menus',
+      eventsArea: 'Event CRM and financial planning',
+      staffArea: 'Team roster, seniority, and training progression',
+      shiftOrganizer: 'AI-assisted weekly shift schedule builder',
+      chefArea: 'AI food menu creation and approval workflow',
+      chefApproval: 'Pending food menus awaiting approval'
     },
     pages: {
       commandCenter: 'Owner Dashboard',
@@ -86,7 +104,15 @@
       ownerReport: 'Owner Report',
       businessMemory: 'Business Memory',
       strategicRecommendations: 'Strategic Recommendations',
-      settings: 'Settings'
+      settings: 'Settings',
+      cocktailsMagazine: 'Cocktails',
+      ciDashboard: 'Cocktail Intelligence', // CI MODULE ADDITION
+      chefDashboard: 'Kitchen Intelligence',
+      staffTab: 'Team Roster',
+      shiftOrganizerPage: 'Shift Builder',
+      myShifts: 'My Shifts',
+      constraintsForm: 'My Availability',
+      foodMenuView: 'Food Menu'
     },
     ui: {
       collapsePanel: 'Collapse panel',

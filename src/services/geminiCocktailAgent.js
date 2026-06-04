@@ -1,6 +1,7 @@
 import { FEW_SHOT_EXAMPLES, BEVERAGE_DIRECTOR_SYSTEM_PROMPT, BEVERAGE_DIRECTOR_FEW_SHOT_EXAMPLES, EXPECTED_FIELDS } from '../prompts/geminiCocktailPrompts.js'
 import { buildKnowledgeContext } from '../domain/hospitality/bar/cocktailKnowledgeBase/index.js'
 import { getPricingContextSummary } from '../domain/hospitality/bar/cocktailLabPricingAdapter.js'
+import { apiPost } from './api/client.js' // CI MODULE ADDITION - auth fix
 
 function stripMarkdownFences(text = '') {
   return text
@@ -1132,19 +1133,8 @@ export async function consultGeminiCocktailDirection({ agentPrompt, form, approv
 
   const prompt = buildDirectorConsultationPrompt({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, conversationHistory, previousProposal })
 
-  const response = await fetch('/api/gemini', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ prompt })
-  })
-
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    throw new Error(formatGeminiServiceError(data, 'HESTIA could not complete the Beverage Director consultation. Please shorten the brief and try again.'))
-  }
-
+  // CI MODULE ADDITION - auth fix: apiPost sends Authorization header automatically
+  const data = await apiPost('/api/gemini', { prompt })
   const rawText = getResponseText(data.answer || data)
   const parsed = parseStrictJson(rawText)
   return normalizeConsultationDecision(parsed)
@@ -1161,20 +1151,9 @@ export async function generateGeminiCocktailProposal({ agentPrompt, form, approv
     ? buildCompactRevisionPrompt({ agentPrompt, form, menuAnalysis, variation, previousProposal })
     : buildCocktailPrompt({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, variation, previousProposal });
 
-  const response = await fetch('/api/gemini', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ prompt })
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(formatGeminiServiceError(data, 'HESTIA could not complete the beverage proposal. Please try a shorter directive or retry in a moment.'));
-  }
-
-  const rawText = getResponseText(data.answer || data);
+  // CI MODULE ADDITION - auth fix: apiPost sends Authorization header automatically
+  const data = await apiPost('/api/gemini', { prompt })
+  const rawText = getResponseText(data.answer || data)
   const parsed = parseStrictJson(rawText);
   const proposalPayload = ensureFullProposalPayload(parsed, { agentPrompt, form, menuAnalysis });
   const normalized = normalizeCocktailProposal(proposalPayload);

@@ -10,9 +10,12 @@ export default function TopNav({ t, currentUser, role, area, page, goToArea, goT
     .map(([key]) => key)
   const employeePages = [
     ['employeeHome', 'Home'],
+    ['myShifts', 'My Shifts'],
+    ['constraintsForm', 'Availability'],
     ['courses', 'Courses'],
-    ['sopSheets', 'Service'],
     ['approvedCocktails', 'Cocktails'],
+    ['cocktailsMagazine', 'Magazine'],
+    ['foodMenuView', 'Food Menu'],
     ['wineKnowledge', 'Wine'],
     ['employeeRequests', 'Requests'],
     ['serviceRecovery', 'Report']

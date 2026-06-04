@@ -1,0 +1,142 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   HESTIA WINE ATLAS — Luxury Editorial Design System
+   Scoped to .wine-atlas-root so it never leaks into the HESTIA shell.
+   ───────────────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap');
+
+/* ── Root wrapper ────────────────────────────────────────────────────────── */
+.wine-atlas-root {
+  --wa-background:      #f5f0e8;
+  --wa-foreground:      #2a1c14;
+  --wa-ivory:           #f5f0e8;
+  --wa-parchment:       #ede6d5;
+  --wa-ink:             #261512;
+  --wa-burgundy:        #7a1818;
+  --wa-burgundy-deep:   #3f0d0d;
+  --wa-oak:             #5c4020;
+  --wa-amber:           #c4950a;
+  --wa-vine:            #48602a;
+  --wa-card:            #f0e5cc;
+  --wa-border:          #ccb898;
+  --wa-muted:           #e5d5b5;
+  --wa-muted-fg:        #6b4e38;
+
+  --wa-tracking-editorial: 0.22em;
+  --wa-tracking-wide:      0.12em;
+
+  font-family: 'Inter', 'Helvetica Neue', sans-serif;
+  background-color: var(--wa-background);
+  color: var(--wa-foreground);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "kern", "liga", "calt";
+
+  /* Paper grain texture */
+  background-image:
+    radial-gradient(at 12% 18%, rgba(235, 218, 178, 0.45) 0px, transparent 55%),
+    radial-gradient(at 88% 82%, rgba(210, 185, 155, 0.30) 0px, transparent 55%);
+}
+
+.wine-atlas-root h1,
+.wine-atlas-root h2,
+.wine-atlas-root h3,
+.wine-atlas-root h4 {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.wine-atlas-root ::selection {
+  background: var(--wa-burgundy);
+  color: var(--wa-ivory);
+}
+
+/* ── Typography utilities ──────────────────────────────────────────────── */
+.wine-atlas-root .wa-font-display { font-family: 'Cormorant Garamond', 'Cormorant', serif; }
+.wine-atlas-root .wa-font-serif   { font-family: 'Cormorant Garamond', serif; }
+.wine-atlas-root .wa-font-sans    { font-family: 'Inter', 'Helvetica Neue', sans-serif; }
+.wine-atlas-root .wa-font-mono    { font-family: 'JetBrains Mono', monospace; }
+
+.wine-atlas-root .wa-tracking-editorial { letter-spacing: var(--wa-tracking-editorial); }
+.wine-atlas-root .wa-tracking-wide      { letter-spacing: var(--wa-tracking-wide); }
+
+.wine-atlas-root .wa-text-eyebrow {
+  font-family: 'Inter', 'Helvetica Neue', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: var(--wa-tracking-editorial);
+  text-transform: uppercase;
+  color: var(--wa-burgundy);
+}
+
+/* ── Background / color utilities ─────────────────────────────────────── */
+.wine-atlas-root .wa-paper-grain {
+  background-image:
+    radial-gradient(at 20% 30%, rgba(225, 205, 160, 0.55), transparent 60%),
+    radial-gradient(at 80% 70%, rgba(200, 175, 140, 0.35), transparent 60%);
+}
+
+/* ── Rule line ─────────────────────────────────────────────────────────── */
+.wine-atlas-root .wa-rule-line {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--wa-border) 20%,
+    var(--wa-border) 80%,
+    transparent
+  );
+}
+
+/* ── Hover rise ────────────────────────────────────────────────────────── */
+.wine-atlas-root .wa-hover-rise {
+  transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1),
+              filter 700ms ease;
+}
+.wine-atlas-root .wa-hover-rise:hover {
+  transform: translateY(-4px);
+  filter: brightness(1.05);
+}
+
+/* ── Cinematic image filter ────────────────────────────────────────────── */
+.wine-atlas-root .wa-img-cinematic {
+  filter: saturate(0.92) contrast(1.04);
+}
+
+/* ── Animations ────────────────────────────────────────────────────────── */
+@keyframes wa-slow-fade-up {
+  0%   { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes wa-slow-zoom {
+  0%   { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.wine-atlas-root .wa-anim-fade-up  { animation: wa-slow-fade-up 1.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.wine-atlas-root .wa-anim-delay-1  { animation-delay: 0.15s; }
+.wine-atlas-root .wa-anim-delay-2  { animation-delay: 0.35s; }
+.wine-atlas-root .wa-anim-delay-3  { animation-delay: 0.6s; }
+.wine-atlas-root .wa-anim-slow-zoom { animation: wa-slow-zoom 12s ease-out both; }
+
+/* ── Scrollbar (atlas-scoped) ─────────────────────────────────────────── */
+.wine-atlas-root ::-webkit-scrollbar        { width: 6px; }
+.wine-atlas-root ::-webkit-scrollbar-track  { background: var(--wa-parchment); }
+.wine-atlas-root ::-webkit-scrollbar-thumb  { background: var(--wa-border); border-radius: 0; }
+
+/* ── Input style for Academy enrollment ──────────────────────────────── */
+.wine-atlas-root .wa-input-email {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(245, 240, 232, 0.4);
+  padding: 12px 4px;
+  color: var(--wa-ivory);
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.wine-atlas-root .wa-input-email::placeholder { color: rgba(245, 240, 232, 0.45); }
+.wine-atlas-root .wa-input-email:focus        { border-bottom-color: var(--wa-amber); }

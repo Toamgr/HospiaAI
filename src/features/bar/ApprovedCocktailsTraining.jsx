@@ -11,7 +11,18 @@ function CocktailFact({ label, value }) {
   )
 }
 
-function ApprovedCocktailCard({ cocktail, practiced, onMarkPracticed }) {
+function ApprovedCocktailCard({ cocktail, practiced, onMarkPracticed, waiterOnly }) {
+  if (waiterOnly) {
+    return (
+      <article className="rounded-2xl border border-[#6b705c]/20 bg-[#1a1a1a]/60 p-5">
+        <h2 className="font-serif text-xl font-black text-[#f5f5f0] mb-2">{cocktail.name}</h2>
+        <p className="text-sm leading-6 text-[#e8dcc0]/70">{cocktail.guestDescription}</p>
+        {cocktail.price && (
+          <p className="mt-3 text-sm font-bold text-[#c9a96e]">₪{cocktail.price}</p>
+        )}
+      </article>
+    )
+  }
   return (
     <article className="rounded-2xl border border-[#6b705c]/30 bg-gradient-to-br from-[#1a1a1a] to-[#11100d] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
@@ -48,6 +59,7 @@ function ApprovedCocktailCard({ cocktail, practiced, onMarkPracticed }) {
 export default function ApprovedCocktailsTraining({ t, currentUser, approvedCocktails = [], cocktailPractice = {}, onMarkPracticed }) {
   const [query, setQuery] = useState('')
   const employeeName = currentUser?.username || 'Employee'
+  const isWaiter = currentUser?.role === 'employee' && currentUser?.sub_role === 'waiter'
   const employeePractice = useMemo(() => cocktailPractice[employeeName] || {}, [cocktailPractice, employeeName])
   const filteredCocktails = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -101,6 +113,7 @@ export default function ApprovedCocktailsTraining({ t, currentUser, approvedCock
               cocktail={cocktail}
               practiced={Boolean(employeePractice[cocktail.id]?.practiced)}
               onMarkPracticed={() => onMarkPracticed?.(cocktail.id, employeeName)}
+              waiterOnly={isWaiter}
             />
           ))}
         </div>

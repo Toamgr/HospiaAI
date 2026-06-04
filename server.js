@@ -1,11 +1,12 @@
 import express from "express";
 import dotenv from "dotenv";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, appendFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
+import nodemailer from "nodemailer";
 import { cocktailLibrary } from "./src/data/cocktails.js";
 import { UNIVERSITY_MANIFEST } from "./src/data/academy/universityManifest.js";
 
@@ -45,7 +46,276 @@ Always be sophisticated, precise, warm, practical, and premium.
 Never be generic. Never be robotic. Never be academic.
 `;
 
-app.use(express.json({ limit: "2mb" }));
+// CI MODULE ADDITION — HESTIA Cocktail Menu Skill v5.2
+// Used as system_instruction for POST /api/ci/generate-menu-design.
+// Mirror of src/services/prompts/hestiaCocktailMenuSkill.js (ES module for frontend).
+const HESTIA_COCKTAIL_MENU_SKILL = `
+HESTIA Cocktail Menu — Global Art Director v5.2
+
+Vision
+The output of this skill is a cocktail menu that could win a design award.
+Not a list. Not a component. A physical artifact — the kind a world-class
+bar hands to a guest on a Friday night.
+
+The menu belongs entirely to the bar. HESTIA is invisible except for one
+small "Powered by HESTIA" line in the footer.
+
+Reference bars: Bar San (Bangkok), Bar Deco (Amsterdam), Paradiso (Barcelona),
+Signature Bangkok. Every output must feel like it belongs in their company.
+
+Anti-Scope Rule
+This skill designs cocktail menus only.
+Do not expand into: food menus, wine lists, spirits lists, event proposals,
+brand books, operational manuals, or training documents.
+Unless explicitly requested, output is:
+Cover → Signature cocktails → Non-alcoholic (if provided) → Classics (if provided) → Footer.
+Do not exceed 2 pages/screens for a standard menu.
+If the cocktail list is too large, compress and organize — do not expand endlessly.
+
+Core Principle
+The bar owner fills in their DNA. HESTIA does everything else.
+The owner never picks a hex code, a font, or a layout.
+HESTIA reads the DNA and makes every decision — the way a creative director would.
+
+The output must feel like a professional designer read the brief and spent a week on it.
+
+Step 1 — Read the Bar DNA
+Extract these fields before doing anything else:
+
+name            → venue name
+concept         → founding idea, not just category
+price_tier      → budget / mid-range / premium / luxury
+vibe_keywords   → atmosphere, identity, cultural references
+hero_spirits    → signature ingredients
+city            → location (affects color temperature, cultural context)
+lighting        → described or inferred (amber / neon / daylight / candlelight)
+materials       → described or inferred (wood / concrete / marble / velvet / brass)
+music           → described or inferred (jazz / techno / silence / folk / classical)
+
+Step 2 — Build Creative Direction Before Template
+INTERNAL DESIGN ENGINE — DO NOT DISPLAY
+This entire step runs silently. Nothing from this step is shown to the user.
+The output of this step is a set of internal design decisions only.
+
+2a — Identity Word
+Infer one single word that captures the venue's essence from the full DNA.
+
+Vinyl + jazz + whiskey + late night     → "forgotten"
+Rooftop + city + modern + luxury        → "altitude"
+Hidden + vault + classified + whiskey   → "classified"
+Umami + fermented + concept + bold      → "ferment"
+Garden + botanical + daylight + natural → "bloom"
+Tokyo + minimal + listening + precision → "silence"
+Mediterranean + warm + neighborhood     → "sunday"
+
+2b — Material Palette
+Identify 3 physical materials that define the venue's space.
+Derive from concept, city, lighting, price tier, cultural reference.
+
+vinyl sleeve paper  → matte warm grey, catalog structure, condensed type
+walnut wood         → warm brown, serif weight, organic spacing
+brushed brass       → warm gold undertone, refined detail
+concrete            → cool grey, grotesque type, industrial spacing
+velvet              → deep saturated tone, generous tracking, soft edges
+rice paper / washi  → near-white, extreme lightness, geometric precision
+marble              → cool white or veined grey, classical serif, bold contrast
+torn poster / pulp  → rough texture, layered type, high contrast
+leather             → tobacco / oxblood, condensed serif, heavy weight
+lacquer             → deep saturated color, sharp edges, minimal detail
+
+2c — Signal Resolution
+Identify the dominant signal, secondary signal, and signals to suppress.
+Identify dangerous clichés to avoid for this specific venue type.
+
+2d — Creative Territory
+Define the design world in one sentence.
+This is not a mood board description — it is an operational directive.
+
+2e — Signature Design Anchors
+Generate 4-5 design anchors specific to this venue.
+These cannot belong to any other bar.
+At least 3 must be visibly present in the final output.
+
+Noir (vinyl speakeasy):
+  → Track-list layout for ingredients
+  → Catalog number as cocktail identifier
+  → Groove-line dividers (thin horizontal rules with slight curve)
+  → Equalizer bars as flavor chart visual
+  → Sleeve paper warmth in background tone
+
+2f — Spatial Translation
+Translate DNA keywords into concrete design decisions:
+
+Intimate    → body text 8-9pt, compressed scale, deep margins
+Bold        → asymmetric grid, dominant oversized anchor, extreme weight contrast
+Rooftop     → geometric sans, open tracking, airy spacing, 60%+ negative space
+Speakeasy   → historical serif character, low-contrast body text, tactile paper signal
+Fine dining → separate display cut + body cut, generous negative space
+Mediterranean → organic serif, terracotta/plaster/olive tones
+Nordic/Minimal → near-white palette, geometric precision, sparing color
+
+2g — Distinctiveness Score (internal, never displayed)
+Score 1-10. Deliver only if 7 or above.
+If score below 7 after rebuild: deliver with note "HESTIA detected an opportunity to refine this menu further." only.
+
+Step 3 — Select Base Template
+Priority 1 — GRAPHIC_BOLD: experimental / concept bar / bold / savory / umami / art bar
+Priority 2 — DARK_LUXURY: speakeasy / whiskey bar / members club / underground / vault / hidden / late night
+  Note: Dark Luxury does not mean black. Derive tone from materials.
+Priority 3 — MODERN_GRID: hotel / modern / clean / contemporary / minimal / rooftop / lobby
+Priority 4 — EDITORIAL: price_tier premium or luxury AND no stronger signal
+Priority 5 — MEDITERRANEAN: Israeli / Mediterranean / garden / neighborhood / warm / Tel Aviv
+
+Step 4 — Build the Menu
+
+Conceptual Categorization Logic
+Default: Signature Cocktails → Non-Alcoholic → Classics.
+If DNA has strong concept/story/music — replace category names with concept-specific names:
+  Vinyl / jazz bar → Side A / Side B / Standards
+  Theatre / Soho  → Act I / Act II / Encore
+  Tokyo listening → Opening Track / Deep Cut / Final Note
+  Classified speakeasy → Files / Redactions / Evidence
+
+Typographic Hierarchy
+Display:      32-48pt  ultra-bold    tracking -0.02 to 0       leading 1.0-1.1
+Category:     12-14pt  medium        tracking +0.15 to +0.25   UPPERCASE
+Cocktail name: 10-11pt bold          tracking +0.02 to +0.05
+Ingredients:  8-9pt   light         tracking +0.01 to +0.03
+Price:        9-10pt  regular/italic desaturated, nested near metadata
+
+Choice Architecture
+Maximum 12-18 signature cocktails. Maximum 3-5 per category.
+Content-to-space ratio: 40% content / 60% negative space.
+Never use price leader dots. Never right-justify prices.
+Price: numeric only — 65, 68, 58. Never "NIS 65" or "ILS" or "Shekels".
+If currency symbol required: ₪65 only.
+
+Temporal Progression
+Light / low-ABV / aperitif → Mid-weight → Spirit-forward / digestif
+
+Structure
+COVER
+  Venue name: small, spaced, uppercase, muted — top left
+  Season/edition: small, muted — top right
+  Main title: reflects Identity Word
+  Sub-line: 5-8 words, poetic, references Creative Territory
+  At least one Signature Design Anchor visible on cover
+
+SIGNATURE COCKTAILS
+  Name: large, derived from Creative Territory
+  Hebrew name (Israeli venues only): italic, muted, direction:rtl
+  Description: sensory, specific, 100-120 characters max
+  Never: delicious, tasty, amazing, premium, excellent, crafted
+  Ingredients: structured per Creative Territory anchors
+  Flavor chart: data-precise, visual derived from venue
+  Price: numeric only, desaturated, nested
+
+NON-ALCOHOLIC — Compact. Name + ingredients + price. No image.
+
+CLASSICS — Two-column grid. Name + price only.
+
+FOOTER
+  Venue name: large, tracked
+  Kosher/allergen note: tiny, very muted (Israeli venues only)
+  "Powered by HESTIA": 9px, letter-spacing .2em, brand accent, right-aligned
+
+Step 5 — Flavor Chart
+Display only relevant dimensions per cocktail. Never display a zero dimension to fill space.
+
+ABV:        spirit forward=75  shake/sour=50  long/spritz=30  non-alc=0
+Sweet:      syrup/cordial/liqueur +15-25
+Sour:       citrus +20-30
+Bitter:     amaro=40  Campari=50  bitters dash=20
+Salty:      brine=40  saline=25  salt rim=30
+Creamy:     egg white=50  cream=60  fat wash=40
+Umami:      dashi=50  miso=60  fish sauce=40  mushroom=30
+Smoke:      mezcal=65  lapsang=50  smoked ingredient=40
+Spice:      chili=50  ginger=35  pepper=30  mole=45
+Herbal:     zaatar=45  basil=35  rosemary=30
+Floral:     elderflower=50  rose=45  lavender=40
+Green:      cucumber=40  matcha=50  green tea=35
+Nutty:      walnut=45  hazelnut=40  almond=35  peanut=50
+Anise:      arak=70  pastis=70  absinthe=80
+Carbonated: soda/tonic/sparkling=50  champagne=60
+Fruit:      tropical=50  stone fruit=40  berry=45
+Chocolate:  cacao=50  mole=45  dark chocolate=55
+
+Visual Language (derived from Creative Territory):
+Vinyl / record bar       → equalizer bars or groove marks
+Theatre                  → ticket-punch dots on a ruled line
+Tokyo / listening bar    → frequency grid, minimal marks
+Mediterranean            → tasting notches, sun-washed horizontal lines
+Speakeasy / classified   → redacted-file dots, archive notation
+Hotel / modern           → clean dot-on-track, cool and precise
+Default                  → dot-on-track system
+
+Step 6 — Typography
+Typography must grow from the Creative Territory, not from a default pairing.
+
+Vinyl / record shop → condensed grotesque or vintage serif
+Japanese / minimal  → geometric sans, generous spacing, mono-weight
+Brutalist           → bold grotesque, tight tracking
+Garden / botanical  → flowing organic serif
+Theatre / opera     → classical display serif
+Tech / modern hotel → neutral geometric sans
+Old world / literary → Cormorant Garamond or equivalent
+
+Default fallback (old-world / literary / Mediterranean only):
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Inter:wght@300;400;500&display=swap');
+
+Step 7 — International Applicability
+Never overfit to Israeli / Mediterranean aesthetics unless DNA explicitly states these.
+Background color is never assumed. Premium does not mean dark.
+Use darkness only when it is part of the venue's material, lighting, or cultural world.
+
+Step 8 — Anti-Amateur Failure Gate (fix silently — do not narrate the fix)
+Reject and fix if any of these appear:
+- "NIS", "ILS", or "Shekels" anywhere in the visible menu
+- Display serif used as body/ingredient text below 10pt
+- Price leader dots (Negroni........₪43)
+- Prices in right-justified column
+- Currency symbol left-aligned and prominent
+- Descriptions exceeding 120 characters
+- Generic words: delicious, tasty, amazing, premium, excellent, crafted
+- More than 18 signature cocktails without explicit request
+- Negative space below 40% of page
+- Black/gold palette without DNA justification
+- Temporal structure missing
+- "Powered by HESTIA" missing from footer
+
+CRITICAL DATA RULE:
+Do not invent, rename, remove, or alter any cocktail from the provided list.
+Every cocktail name in the input must appear unchanged in the output.
+Design only from the provided list. preserveCocktails = true at all times.
+
+OUTPUT FORMAT — STRICT JSON ONLY. No markdown. No backticks. No text outside the JSON object.
+{
+  "creativeTerritory": "one-sentence operational directive",
+  "identityWord": "single word",
+  "templateBase": "GRAPHIC_BOLD or DARK_LUXURY or MODERN_GRID or EDITORIAL or MEDITERRANEAN",
+  "colorSystem": {
+    "background": "hex or description",
+    "primary": "hex or description",
+    "accent": "hex or description",
+    "text": "hex or description",
+    "muted": "hex or description"
+  },
+  "typographyDirection": "one sentence on font decisions and why",
+  "designAnchors": ["anchor 1", "anchor 2", "anchor 3", "anchor 4"],
+  "conceptualCategories": {
+    "signatures": "category name",
+    "nonAlcoholic": "category name or null",
+    "classics": "category name or null"
+  },
+  "menuHtml": "complete self-contained HTML — all styles inline or in a <style> block — no external dependencies except Google Fonts",
+  "menuCss": "extracted CSS string identical to inside the <style> block in menuHtml",
+  "flavorCharts": {
+    "COCKTAIL_NAME": { "ABV": 50, "Smoke": 65 }
+  }
+}
+`;
+
+app.use(express.json({ limit: "15mb" }));
 
 app.use((req, res, next) => {
   const origin = req.header("Origin");
@@ -498,6 +768,296 @@ db.exec(`
   );
 `);
 
+// CI MODULE ADDITION — Cocktail Intelligence tables (9 new tables, no existing tables modified)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS cocktail_intelligence_dna (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id             TEXT NOT NULL,
+    venue_name           TEXT NOT NULL,
+    venue_type           TEXT,
+    atmosphere           TEXT,
+    cuisine_style        TEXT,
+    audience_age_min     INTEGER,
+    audience_age_max     INTEGER,
+    audience_type        TEXT,
+    staff_skill          TEXT,
+    equipment_json       TEXT,
+    glassware_json       TEXT,
+    is_kosher            TEXT,
+    flavor_identity_json TEXT,
+    price_range          TEXT,
+    service_pressure     TEXT,
+    hero_ingredient      TEXT,
+    created_at           TEXT DEFAULT (datetime('now')),
+    updated_at           TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS cocktail_rejections (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id              TEXT NOT NULL,
+    cocktail_name         TEXT NOT NULL,
+    cocktail_profile_json TEXT,
+    reasons_json          TEXT NOT NULL,
+    rejected_by           TEXT,
+    rejected_at           TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS cocktail_taste_dna (
+    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id                 TEXT NOT NULL UNIQUE,
+    rejected_flavors_json    TEXT,
+    rejected_spirits_json    TEXT,
+    rejected_complexity_json TEXT,
+    approved_flavors_json    TEXT,
+    approved_spirits_json    TEXT,
+    pattern_notes_json       TEXT,
+    updated_at               TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS cocktail_sales (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id      TEXT NOT NULL,
+    cocktail_id   INTEGER,
+    cocktail_name TEXT NOT NULL,
+    sale_date     TEXT NOT NULL,
+    period_type   TEXT NOT NULL DEFAULT 'day',
+    units_sold    INTEGER NOT NULL DEFAULT 0,
+    sale_price    REAL,
+    cost_per_unit REAL,
+    revenue       REAL,
+    gross_profit  REAL,
+    gp_percent    REAL,
+    created_at    TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (cocktail_id) REFERENCES cocktails(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS cocktail_narratives (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id         TEXT NOT NULL,
+    cocktail_id      INTEGER,
+    cocktail_name    TEXT NOT NULL,
+    menu_description TEXT,
+    server_script    TEXT,
+    story_card       TEXT,
+    generated_at     TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (cocktail_id) REFERENCES cocktails(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS cocktail_scores (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id           TEXT NOT NULL,
+    cocktail_id        INTEGER,
+    cocktail_name      TEXT NOT NULL,
+    flavor_balance     REAL,
+    menu_fit           REAL,
+    profit_score       REAL,
+    prep_complexity    REAL,
+    staff_execution    REAL,
+    guest_appeal       REAL,
+    originality        REAL,
+    seasonal_fit       REAL,
+    speed_of_service   REAL,
+    kosher_readiness   REAL,
+    premium_perception REAL,
+    overall_score      REAL,
+    score_notes_json   TEXT,
+    generated_at       TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (cocktail_id) REFERENCES cocktails(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS cocktail_trends_db (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id    TEXT,
+    category    TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    description TEXT,
+    market      TEXT DEFAULT 'israel',
+    tags_json   TEXT,
+    is_kosher   INTEGER,
+    is_active   INTEGER DEFAULT 1,
+    added_by    TEXT,
+    added_at    TEXT DEFAULT (datetime('now')),
+    updated_at  TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS cocktail_lifecycle (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id          TEXT NOT NULL,
+    cocktail_id       INTEGER,
+    cocktail_name     TEXT NOT NULL,
+    date_added        TEXT,
+    season_added      TEXT,
+    times_ordered     INTEGER DEFAULT 0,
+    revenue_generated REAL DEFAULT 0,
+    cost_per_serve    REAL,
+    status            TEXT NOT NULL DEFAULT 'active'
+                      CHECK(status IN ('active','seasonal','archived','under_review')),
+    last_reviewed_at  TEXT,
+    alert_flags_json  TEXT,
+    created_at        TEXT DEFAULT (datetime('now')),
+    updated_at        TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (cocktail_id) REFERENCES cocktails(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS cocktail_emergency_log (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id                TEXT NOT NULL,
+    session_date            TEXT NOT NULL,
+    missing_items_json      TEXT NOT NULL,
+    affected_cocktails_json TEXT,
+    decisions_json          TEXT,
+    snapshot_json           TEXT,
+    created_by              TEXT,
+    created_at              TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS cocktail_menus (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id    TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    occasion    TEXT,
+    description TEXT,
+    season      TEXT,
+    created_by  TEXT,
+    created_at  TEXT DEFAULT (datetime('now')),
+    status      TEXT DEFAULT 'active'
+  );
+`);
+
+// ── New Role + Staff Module Tables ───────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS employees (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES auth_users(id),
+    display_name TEXT NOT NULL,
+    gender      TEXT NOT NULL DEFAULT 'M',
+    sub_role    TEXT NOT NULL DEFAULT 'waiter',
+    joined_date TEXT NOT NULL,
+    email       TEXT,
+    created_at  TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS food_menus (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id         TEXT,
+    name             TEXT NOT NULL,
+    menu_type        TEXT,
+    story            TEXT,
+    status           TEXT NOT NULL DEFAULT 'draft',
+    visible_to_staff INTEGER NOT NULL DEFAULT 0,
+    created_by       INTEGER,
+    fb_approved_at   TEXT,
+    owner_approved_at TEXT,
+    created_at       TEXT DEFAULT (datetime('now')),
+    updated_at       TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS food_dishes (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    menu_id          INTEGER REFERENCES food_menus(id),
+    name             TEXT NOT NULL,
+    description      TEXT,
+    story            TEXT,
+    category         TEXT,
+    price_ils        REAL,
+    food_cost_ils    REAL,
+    food_cost_percent REAL,
+    ingredients      TEXT,
+    allergens        TEXT,
+    created_at       TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS menu_notifications (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    type         TEXT,
+    reference_id INTEGER,
+    target_role  TEXT,
+    message      TEXT,
+    is_read      INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS food_sales (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id      TEXT,
+    dish_name     TEXT,
+    sale_date     TEXT,
+    units_sold    INTEGER,
+    sale_price    REAL,
+    cost_per_unit REAL,
+    revenue       REAL,
+    gross_profit  REAL,
+    gp_percent    REAL,
+    created_at    TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS employee_shift_constraints (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_id     INTEGER REFERENCES employees(id),
+    week_start      TEXT,
+    submitted_at    TEXT DEFAULT (datetime('now')),
+    constraints_json TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS employee_weekly_schedules (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    venue_id     TEXT,
+    week_start   TEXT,
+    published_at TEXT,
+    published_by INTEGER,
+    shifts_json  TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS employee_shift_notifications (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    type        TEXT,
+    employee_id INTEGER,
+    week_start  TEXT,
+    is_read     INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT DEFAULT (datetime('now'))
+  );
+`);
+
+// CI MODULE ADDITION — Visual Menu Builder: one AI image design per cocktail per menu
+db.exec(`
+  CREATE TABLE IF NOT EXISTS visual_menu_designs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    menu_id     INTEGER NOT NULL,
+    cocktail_id INTEGER NOT NULL,
+    image_prompt TEXT,
+    image_url    TEXT,
+    status       TEXT DEFAULT 'pending',
+    created_at   TEXT DEFAULT (datetime('now')),
+    UNIQUE(menu_id, cocktail_id)
+  );
+`);
+
+// CI MODULE ADDITION — Full menu design output (HESTIA Cocktail Menu Skill v5.2)
+// spec_json stores the full Layer-1 AI design spec (added in v5.3 refactor)
+try { db.exec("ALTER TABLE ci_menu_full_designs ADD COLUMN spec_json TEXT"); } catch { /* already exists */ }
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ci_menu_full_designs (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    menu_id              INTEGER NOT NULL UNIQUE,
+    venue_id             INTEGER NOT NULL,
+    version              TEXT    DEFAULT 'hestia-cocktail-menu-v5.2',
+    identity_word        TEXT,
+    template_base        TEXT,
+    creative_territory   TEXT,
+    color_system_json    TEXT,
+    typography_direction TEXT,
+    design_anchors_json  TEXT,
+    conceptual_cats_json TEXT,
+    menu_html            TEXT,
+    menu_css             TEXT,
+    flavor_charts_json   TEXT,
+    output_context       TEXT,
+    language_mode        TEXT,
+    generated_at         TEXT    DEFAULT (datetime('now'))
+  );
+`);
+
 for (const [col, def] of [
   ["severity",    "TEXT DEFAULT 'medium'"],
   ["root_cause",  "TEXT"],
@@ -514,6 +1074,18 @@ try { db.exec("ALTER TABLE auth_users ADD COLUMN username TEXT"); } catch { /* a
 try { db.exec("ALTER TABLE auth_users ADD COLUMN password TEXT"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE auth_users ADD COLUMN password_hash TEXT"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE cocktails ADD COLUMN event_id TEXT"); } catch { /* already exists */ }
+// CI MODULE ADDITION — track whether a cocktail was created by Cocktail Intelligence
+try { db.exec("ALTER TABLE cocktails ADD COLUMN source TEXT DEFAULT 'classic'"); } catch { /* already exists */ }
+// CI MODULE ADDITION — extra DNA fields from UI form (concept, signature style, exclusions, notes, etc.)
+try { db.exec("ALTER TABLE cocktail_intelligence_dna ADD COLUMN meta_json TEXT"); } catch { /* already exists */ }
+// CI MODULE ADDITION — link cocktails to a named menu
+try { db.exec("ALTER TABLE cocktails ADD COLUMN menu_id INTEGER"); } catch { /* already exists */ }
+// Staff visibility column for published menus
+try { db.exec("ALTER TABLE cocktail_menus ADD COLUMN visible_to_staff INTEGER NOT NULL DEFAULT 0"); } catch { /* already exists */ }
+// CI MODULE ADDITION — preserve AI-suggested pricing on approval
+try { db.exec("ALTER TABLE cocktails ADD COLUMN estimated_cost_ils REAL"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE cocktails ADD COLUMN suggested_price_ils REAL"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE cocktails ADD COLUMN estimated_gp_percent REAL"); } catch { /* already exists */ }
 
 // shift_reports extended fields
 for (const [col, def] of [
@@ -536,9 +1108,12 @@ for (const [col, def] of [
   try { db.exec(`ALTER TABLE carry_forward_tasks ADD COLUMN ${col} ${def}`); } catch { /* already exists */ }
 }
 
+migrateAuthUsersRoles();
 seedDatabase();
 migrateAcademyExternalIds();
 migrateUserCredentials();
+seedNewUsers();
+seedCocktailIntelligence(); // CI MODULE ADDITION — idempotent, skips if already seeded
 
 function nowIso() {
   return new Date().toISOString();
@@ -706,15 +1281,16 @@ function migrateUserCredentials() {
     { id: 7, username: "zohar" },
   ];
 
+  // Force-set canonical short usernames for the 7 original seed accounts (corrects any "Full Name" drift)
   const setUsername = db.prepare(
-    "UPDATE auth_users SET username = ? WHERE id = ? AND (username IS NULL OR username = '')"
+    "UPDATE auth_users SET username = ? WHERE id = ? AND LOWER(COALESCE(username,'')) != ?"
   );
   const writeHash = db.prepare(
     "UPDATE auth_users SET password_hash = ? WHERE id = ? AND password_hash IS NULL"
   );
 
   for (const u of seedAccounts) {
-    setUsername.run(u.username, u.id);
+    setUsername.run(u.username, u.id, u.username.toLowerCase());
     // Only create a password_hash if one does not already exist.
     // NEVER overwrites an existing hash — this protects passwords changed after first seed.
     const row = db.prepare("SELECT password_hash FROM auth_users WHERE id = ?").get(u.id);
@@ -856,7 +1432,12 @@ app.post("/api/auth/login", (req, res) => {
   db.prepare("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)").run(
     token, user.id, nowIso(), expiresAt
   );
-  res.json({ ok: true, token, user: { id: user.id, full_name: user.full_name, role: user.role } });
+  const userResp = { id: user.id, full_name: user.full_name, role: user.role };
+  if (user.role === 'employee') {
+    const emp = db.prepare('SELECT sub_role FROM employees WHERE user_id=?').get(user.id);
+    if (emp) userResp.sub_role = emp.sub_role;
+  }
+  res.json({ ok: true, token, user: userResp });
 });
 
 app.post("/api/auth/logout", (req, res) => {
@@ -1683,7 +2264,7 @@ function tryJson(str, fallback) {
 
 // ─── Admin User Management Routes ────────────────────────────────────────────
 
-const VALID_ROLES = ['owner', 'manager', 'bar_manager', 'employee', 'admin'];
+const VALID_ROLES = ['owner', 'manager', 'bar_manager', 'employee', 'admin', 'fb_director', 'events_manager', 'chef'];
 
 function adminUserRow(row) {
   return {
@@ -2812,6 +3393,2903 @@ app.patch('/api/notifications/:id/read', requireAuth('manager', 'bar_manager', '
 // ── Guest portal SPA route (production) ──────────────────────────────────────
 app.get('/event/:token/guest', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+// ════════════════════════════════════════════════════════════════════════════════
+// CI MODULE ADDITION — COCKTAIL INTELLIGENCE
+// All routes under /api/ci/  |  All roles: owner, manager, bar_manager, admin
+// No existing routes or tables were modified to add this block.
+// ════════════════════════════════════════════════════════════════════════════════
+
+const CI_ROLES = ['owner', 'manager', 'bar_manager', 'admin', 'fb_director'];
+
+// ── CI Helpers ────────────────────────────────────────────────────────────────
+
+function getCIDna(venueId) {
+  return db.prepare(
+    'SELECT * FROM cocktail_intelligence_dna WHERE venue_id = ? ORDER BY updated_at DESC LIMIT 1'
+  ).get(venueId) || null;
+}
+
+// CI MODULE ADDITION — maps raw DB record to UI-friendly field names for API responses
+function formatDnaForApi(raw) {
+  if (!raw) return null;
+  const meta = JSON.parse(raw.meta_json || '{}');
+  return {
+    ...raw,
+    bar_name:         raw.venue_name,
+    target_guest:     raw.audience_type,
+    price_tier:       raw.price_range,
+    hero_ingredients: raw.hero_ingredient,
+    kosher_aware:     raw.is_kosher === 'yes' || raw.is_kosher === 'events_only',
+    ...meta,
+  };
+}
+
+function getCITasteDna(venueId) {
+  return db.prepare('SELECT * FROM cocktail_taste_dna WHERE venue_id = ?').get(venueId) || null;
+}
+
+function getCurrentSeason() {
+  const m = new Date().getMonth() + 1;
+  if (m >= 3 && m <= 5) return 'spring';
+  if (m >= 6 && m <= 8) return 'summer';
+  if (m >= 9 && m <= 11) return 'autumn';
+  return 'winter';
+}
+
+function buildDnaContextString(dna) {
+  if (!dna) return 'No Bar DNA configured for this venue.';
+  const equipment = JSON.parse(dna.equipment_json || '[]').join(', ') || 'basic bar tools';
+  const glassware = JSON.parse(dna.glassware_json || '[]').join(', ') || 'standard glassware';
+  const flavors   = JSON.parse(dna.flavor_identity_json || '[]').join(', ') || 'not specified';
+  const meta      = JSON.parse(dna.meta_json || '{}'); // CI MODULE ADDITION — include rich meta fields
+  return [
+    `Venue: ${dna.venue_name}`,
+    `Type: ${dna.venue_type}`,
+    `Atmosphere: ${dna.atmosphere}`,
+    `Cuisine: ${dna.cuisine_style}`,
+    `Audience: ${dna.audience_age_min}–${dna.audience_age_max}, ${dna.audience_type}`,
+    `Staff skill: ${dna.staff_skill}`,
+    `Equipment: ${equipment}`,
+    `Glassware: ${glassware}`,
+    `Kosher policy: ${dna.is_kosher}`,
+    `Flavor identity: ${flavors}`,
+    `Price range: ${dna.price_range}`,
+    `Service pressure: ${dna.service_pressure}`,
+    `Hero ingredient: ${dna.hero_ingredient || 'not specified'}`,
+    // CI MODULE ADDITION — additional meta fields from the UI Bar DNA form
+    meta.concept                 && `Bar concept: ${meta.concept}`,
+    meta.signature_style         && `Signature style: ${meta.signature_style}`,
+    meta.excluded_ingredients    && `NEVER USE these ingredients: ${meta.excluded_ingredients}`,
+    meta.spirit_focus            && `Spirit focus: ${meta.spirit_focus}`,
+    meta.non_alcoholic_ratio     && `Non-alcoholic target: ${meta.non_alcoholic_ratio}`,
+    meta.seasonal_approach       && `Seasonal approach: ${meta.seasonal_approach}`,
+    meta.local_sourcing_priority && `Local sourcing priority: ${meta.local_sourcing_priority}`,
+    meta.menu_size_target        && `Menu size target: ${meta.menu_size_target}`,
+    meta.notes                   && `Director notes (always follow): ${meta.notes}`,
+  ].filter(Boolean).join('\n');
+}
+
+function buildTasteDnaContextString(tasteDna) {
+  if (!tasteDna) return 'No taste history recorded yet.';
+  const rejectedFlavors  = JSON.parse(tasteDna.rejected_flavors_json  || '[]');
+  const rejectedSpirits  = JSON.parse(tasteDna.rejected_spirits_json  || '[]');
+  const parts = [];
+  if (rejectedFlavors.length) {
+    parts.push('Rejected flavor patterns: ' + rejectedFlavors.map(r => `${r.pattern} (rejected ${r.count}x)`).join(', '));
+  }
+  if (rejectedSpirits.length) {
+    parts.push('Rejected spirit categories: ' + rejectedSpirits.join(', '));
+  }
+  return parts.length ? parts.join('\n') : 'No strong rejection patterns yet.';
+}
+
+// Builds a scored JSON format block for inclusion in generation prompts
+const SCORE_INSTRUCTIONS = `
+For each cocktail provide a "scores" object:
+{
+  "flavor_balance": 1-10,
+  "menu_fit": 1-10,
+  "profit_score": 1-10,
+  "prep_complexity": 1-10 (10=very easy, 1=extremely complex),
+  "staff_execution": 1-10,
+  "guest_appeal": 1-10,
+  "originality": 1-10,
+  "seasonal_fit": 1-10,
+  "speed_of_service": 1-10,
+  "kosher_readiness": 1-10,
+  "premium_perception": 1-10,
+  "overall": 1-10,
+  "low_score_notes": [{"score_name": "string", "reason": "string", "fix": "string"}]
+}
+Include low_score_notes only for scores below 7.`.trim();
+
+const DIRECTOR_PERSONA = `You are HESTIA Beverage Director — a world-class AI Beverage Director, not a recipe generator. You think like the world's best 1,000 bartenders and mixologists combined. You have the instincts of Lorenzo Antinori, the rigor of Ago Perrone, the creativity of Ryan Chetiyawardana, and the commercial discipline of a bar owner who has survived 15 years in hospitality.
+
+You do not hedge. You have opinions. You tell the truth about a bad menu. You push back when something won't work — and explain exactly why. You get excited about great ideas.
+
+Every recommendation is filtered through three lenses:
+1. Hospitality first — does this make the guest feel seen and at home?
+2. Commercial discipline — does this protect the venue's margin?
+3. Contextual intelligence — is this right for THIS venue, team, and guest?
+
+ISRAELI MARKET — ALWAYS ACTIVE:
+- VAT: 18% — all menu prices are VAT-inclusive. Net price = Gross ÷ 1.18
+- Spirit excise tax: ILS 100.24 per liter of pure alcohol (LPA)
+- Cocktail price reality: Market average ~ILS 55–57. Premium ceiling: ILS 68. Never recommend above ILS 68 for standard premium positioning.
+- Lime seasonal spike: up to ILS 35/kg in winter — always flag and suggest acid-adjusted alternative
+- Israeli ingredients are context, not a default. Never force local ingredients.
+- Carob: niche, not mainstream. Tahini: not an established cocktail ingredient in Israeli bar culture.
+
+Wholesale benchmarks (excl. VAT):
+Stolichnaya 1L: ILS 72.50 | Bombay Sapphire 1L: ILS 100.80 | Jameson 1L: ILS 110.00 | JW Black 1L: ILS 118.60 | Aperol 1L: ILS 71.95 | St. Germain 700ml: ILS 160.17 | Elite Arak 700ml: ILS 54.15 | Lemons: ILS 14.90/kg → ILS 0.0426/ml juice
+
+GP benchmarks:
+- Casual bar: ILS 38–52 menu price, 14–17% pour cost
+- Premium restaurant/bar: ILS 52–68 menu price, 16–19% pour cost
+- Luxury hotel: ILS 65–85 menu price, 12–15% pour cost
+
+BEHAVIORAL RULES:
+1. Never fabricate prices or kosher status
+2. Always calculate — show the formula and the work
+3. Prioritize absolute GP in ILS over pour cost percentage
+4. Kosher is a design parameter — shapes every decision from the start
+5. Always flag seasonal produce risk in citrus-heavy recipes
+6. Every recommended drink gets a server recommendation script
+
+COCKTAIL NAMING:
+Choose the single best name for each cocktail. The name must do one of the following:
+- Root the drink in a specific place, street, or cultural moment
+- Capture a feeling or occasion in 1–3 words
+- Surprise and intrigue — a name that creates curiosity before the first sip
+
+Never use: ingredient descriptions, generic geography, or adjective + category combinations.
+Never name a cocktail after an ingredient that does not appear in the recipe. The name must be inspired by what is actually in the glass — a flavor, a spirit, a technique, a place, or a feeling — but never an ingredient that isn't there.
+Return only the chosen name. No explanation needed.
+
+🕯️ HESTIA BEST VERSION PROTOCOL:
+When evaluating any cocktail, always generate this block.
+Iron Rule: concept survives, base spirit unchanged, technical family unchanged.
+What may change: proportions, one ingredient upgrade, technique, garnish, price.
+If the Best Version introduces any batch element — deliver the full production protocol:
+batch name, yield (ml), exact ingredients (g/ml), method step-by-step, Brix target, storage, shelf life, disposal trigger.
+A manager must be able to hand this to their team the next morning with zero follow-up questions.`.trim();
+
+function buildMenuContextString(cocktails) {
+  if (!Array.isArray(cocktails) || !cocktails.length) return 'None.';
+  return cocktails.map((c, i) => {
+    const ings = Array.isArray(c.ingredients)
+      ? c.ingredients.map(ing => `${ing.amount}${ing.unit} ${ing.name}`).join(', ')
+      : 'ingredients not available';
+    return `${i + 1}. ${c.name}${c.base_spirit ? ` (${c.base_spirit})` : ''} — ${ings}`;
+  }).join('\n');
+}
+
+function buildDirectorSystemInstruction(dna, menuCocktails = []) {
+  const hasMenu = Array.isArray(menuCocktails) && menuCocktails.length > 0;
+  return `${DIRECTOR_PERSONA}
+
+BAR DNA:
+${buildDnaContextString(dna)}
+
+ACTIVE MENU (the specific cocktails the operator has loaded for this session):
+${hasMenu ? buildMenuContextString(menuCocktails) : 'No menu loaded — operator is asking general questions.'}
+
+CONVERSATIONAL RULES:
+- Respond in natural language. Do not return JSON unless explicitly asked.
+- Be direct, specific, and hospitality-native in tone.
+- When recommending cocktails, always include ingredients with amounts, method, glass, and Israeli market pricing.
+- Show your working when calculating costs or GP — operators need to trust the numbers.
+- When an ACTIVE MENU is present, ground your answers in those specific drinks first.
+- Keep answers focused and actionable. Operators are busy.`.trim();
+}
+
+function debugLog(obj) {
+  const line = `[${new Date().toISOString()}] ${JSON.stringify(obj)}\n`;
+  try { appendFileSync(path.join(__dirname, 'director.debug.log'), line); } catch {}
+  console.error('[DIRECTOR DEBUG]', JSON.stringify(obj));
+}
+
+async function askGeminiChat(systemInstruction, history, message) {
+  const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'PASTE_KEY_HERE') {
+    throw new Error('Missing VITE_GEMINI_API_KEY in .env.');
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
+
+  const contents = [
+    ...history.map(turn => ({
+      role: turn.role,
+      parts: [{ text: turn.content }]
+    })),
+    { role: 'user', parts: [{ text: message }] }
+  ];
+
+  debugLog({ event: 'gemini_chat_request', model: MODEL, history_turns: history.length, contents_roles: contents.map(c => c.role) });
+
+  const body = {
+    system_instruction: { parts: [{ text: systemInstruction }] },
+    contents
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    debugLog({ event: 'gemini_chat_error', status: response.status, body: data });
+    throw new Error(data.error?.message || 'Gemini request failed.');
+  }
+
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
+}
+
+function buildGenerationPrompt(flowType, params, dna, tasteDna, existingNames) {
+  const dnaContext   = buildDnaContextString(dna);
+  const tasteContext = buildTasteDnaContextString(tasteDna);
+  const existingList = existingNames.length ? existingNames.join(', ') : 'none';
+  const kosher       = params.kosher_override != null ? params.kosher_override : (dna?.is_kosher !== 'no');
+  const skillLevel   = dna?.staff_skill || 'intermediate';
+
+  const guardrails = `CRITICAL GUARDRAILS (non-negotiable):
+1. Never invent exact bottle prices — always mark as "estimated"
+2. Never claim kosher certification — only flag "verify with supplier"
+3. Maximum 2 cocktails per spirit category unless explicitly requested
+4. Staff skill is "${skillLevel}" — warn clearly if complexity exceeds this
+5. Exact measurements only (ml or oz) — never "a splash of" or "to taste"
+6. Always explain WHY each cocktail was suggested (business logic, not just flavor)
+7. Flag any cocktail similar to existing menu: ${existingList}
+8. Kosher mode is ${kosher ? 'ON — apply kosher constraints to all cocktails' : 'OFF — do not apply kosher constraints'}
+9. Always warn when costing data is missing or estimated`.trim();
+
+  let taskSection = '';
+
+  if (flowType === 'full_menu') {
+    // CI MODULE ADDITION — accept number_of_cocktails (UI param name) as well as legacy count
+    const menuCount = params.number_of_cocktails || params.count || 6;
+    taskSection = `TASK: Generate a complete cocktail menu for this specific venue.
+Count: ${menuCount} cocktails
+Occasion: ${params.occasion || 'regular menu'}
+Guest profile: ${params.guest_profile || 'mixed'}
+Budget tier: ${params.budget_tier || 'mid'}
+Special requirements: ${params.special_requirements || 'none'}
+
+ISRAELI MARKET CONTEXT (apply to all cocktails):
+- Arak and local herbs are hero spirits — prioritize where appropriate to this venue
+- Warm climate: favor fresh, lower-sugar, high-citrus profiles in general
+- Avoid overly sweet combinations unless explicitly requested
+- Kosher constraints: ${kosher ? 'ACTIVE — flag every non-kosher ingredient in kosher_flags array' : 'inactive for this generation — leave kosher_flags empty'}
+- Local sourcing (Israeli spirits, Galilee producers, local botanicals) preferred where available
+
+Return ONLY valid JSON matching this EXACT structure — no extra keys, no markdown:
+{
+  "menu_strategy": "string — 2-3 sentences on why these specific cocktails work together as a menu for this venue",
+  "cocktails": [
+    {
+      "name": "string",
+      "tagline": "string — one evocative sensory line, no technical jargon",
+      "base_spirit": "string",
+      "ingredients": [{"name": "string", "amount": "string", "unit": "string (ml/oz/leaves/dashes/g)"}],
+      "method": "string — shake or stir or build or blend",
+      "glass": "string",
+      "garnish": "string",
+      "flavor_profile": ["string", "string"],
+      "prep_complexity": 1,
+      "speed_of_service": 1,
+      "estimated_cost_ils": null,
+      "suggested_price_ils": "Calculate the VAT-inclusive menu price in ILS. Must be between 45 and 68. Use value-based pricing — do not simply divide cost by 0.22. Return a clean integer (e.g. 58, 62, 65, 68). Never return null.",
+      "estimated_gp_percent": null,
+      "why_this_venue": "string — specific business logic for why this cocktail fits this exact venue",
+      "kosher_flags": [],
+      "warnings": []
+    }
+  ],
+  "menu_warnings": []
+}`;
+
+  } else if (flowType === 'menu_audit') {
+    // CI MODULE ADDITION — Flow 2: Menu Audit with full Israeli/Mediterranean context
+    taskSection = `TASK: You are a world-class Beverage Director conducting a professional menu audit. Analyze the SPECIFIC cocktails submitted — not generic advice.
+
+MENU TO AUDIT:
+${params.menu_text || '(no menu provided)'}
+
+For each cocktail submitted, evaluate it individually.
+Count the exact number of:
+- Vodka-based drinks
+- Gin-based drinks
+- Rum-based drinks
+- Tequila/Mezcal-based drinks
+- Whiskey-based drinks
+- Local spirits (arak, etc.)
+- Non-alcoholic options
+
+Then audit:
+1. Spirit imbalance: if any spirit appears 3+ times, flag it with exact cocktail names
+2. Flavor repetition: identify cocktails that taste similar (both sour + citrus, both sweet + fruity) and name them specifically
+3. Price gap: if prices provided, identify if there is a gap in the price architecture
+4. Identity fit: for each cocktail, does it reflect this specific venue's DNA? Name which ones don't.
+5. Missing slots: what specific type of cocktail is completely absent from this menu?
+6. Staff complexity: identify the 2-3 most complex cocktails and whether they match staff skill level
+
+Do NOT give generic advice. Reference specific cocktail names from the submitted menu in every finding. If a cocktail is problematic, name it. If a cocktail is strong, name it.
+Score calibration: a menu of generic classics with no local identity should score 30-45.
+
+Return ONLY valid JSON matching this EXACT structure — no extra keys, no markdown:
+{
+  "overall_score": number (0-100, be honest — a generic tourist menu should score below 50),
+  "overall_verdict": "string (2 sentences max: overall quality assessment + main direction needed)",
+  "strengths": ["string (specific, not generic — cite actual cocktail names)"],
+  "critical_issues": [{
+    "issue": "string (specific, name the problem clearly)",
+    "severity": "high | medium | low",
+    "affected_cocktails": ["string (cocktail names, or empty array if menu-wide issue)"],
+    "recommendation": "string (actionable — what exactly should they do?)"
+  }],
+  "per_cocktail": [{
+    "name": "string (exact name from the menu)",
+    "verdict": "keep | modify | replace | retire",
+    "score": number (0-100),
+    "issues": ["string (specific issues with this cocktail for THIS venue)"],
+    "suggestion": "string (if modify/replace: what specifically should change or replace it)"
+  }],
+  "missing_from_menu": ["string (specific missing category or cocktail type, not generic)"],
+  "quick_wins": [{
+    "action": "string (concrete, implementable action — something a bar manager can do tomorrow)",
+    "impact": "high | medium | low",
+    "effort": "easy | medium | hard"
+  }],
+  "menu_narrative": "string (3-5 sentences written like a consultant's summary: overall character, what works, what fails, how it fits or misses the venue identity)"
+}`;
+
+  } else if (flowType === 'single_cocktail') {
+    taskSection = `TASK: Develop a single cocktail.
+Desired flavors: ${(params.flavor_direction || []).join(', ') || 'open'}
+Unwanted flavors: ${(params.unwanted_flavors || []).join(', ') || 'none specified'}
+Base spirit: ${params.base_spirit || 'no preference'}
+Complexity: ${params.complexity || 'medium'}
+Special notes: ${params.notes || 'none'}
+
+Return ONLY valid JSON:
+{
+  "cocktail": {
+    "name": "string",
+    "description": "string (60-80 words, evocative)",
+    "base_spirit": "string",
+    "method": "string",
+    "glass": "string",
+    "garnish": "string",
+    "ingredients": [{"name": "string", "amount": "string", "unit": "string"}],
+    "estimated_cost_ils": number_or_null,
+    "estimated_sell_price_ils": "Calculate the VAT-inclusive menu price in ILS. Must be between 45 and 68. Use value-based pricing — do not simply divide cost by 0.22. Return a clean integer (e.g. 58, 62, 65, 68). Never return null.",
+    "prep_complexity": 1-5,
+    "speed_of_service": 1-5,
+    "kosher_ready": boolean,
+    "business_rationale": "string",
+    "variations": {
+      "lighter": "string",
+      "stronger": "string",
+      "batch_version": "string"
+    },
+    "warnings": ["string"],
+    "scores": {}
+  },
+  "warnings": ["string"]
+}`;
+
+  } else if (flowType === 'bottle_optimizer') {
+    taskSection = `TASK: Suggest cocktails using ONLY these available bottles.
+Available: ${JSON.stringify(params.available_bottles || [])}
+
+Return ONLY valid JSON:
+{
+  "cocktails": [{
+    "name": "string",
+    "description": "string",
+    "ingredients": [{"name": "string", "amount": "string", "unit": "string"}],
+    "method": "string",
+    "glass": "string",
+    "garnish": "string",
+    "margin_potential": "low | medium | high",
+    "prep_simplicity": 1-5,
+    "guest_appeal": 1-10,
+    "business_rationale": "string",
+    "scores": {}
+  }],
+  "gaps": [{"missing_bottle": "string", "would_unlock": "string"}],
+  "warnings": ["string"]
+}`;
+
+  } else if (flowType === 'staff_briefing') {
+    taskSection = `TASK: Generate staff briefing cards for these cocktails.
+Cocktails: ${JSON.stringify(params.cocktail_names || [])}
+
+Return ONLY valid JSON:
+{
+  "briefing_cards": [{
+    "cocktail_name": "string",
+    "how_to_make": ["step 1", "step 2"],
+    "how_to_sell": "string (2-3 sentences starting with 'This cocktail is...')",
+    "what_to_say_to_guest": "string",
+    "common_mistakes": ["string"],
+    "upsell_opportunity": "string"
+  }]
+}`;
+
+  } else if (flowType === 'signature_drink') {
+    taskSection = `TASK: Create ONE defining signature cocktail for this venue.
+Venue story: ${params.venue_story || ''}
+Three defining flavors: ${(params.defining_flavors || []).join(', ')}
+Local ingredient or memory to honor: ${params.local_ingredient || 'none'}
+Guest feeling after first sip: ${params.guest_feeling || ''}
+Name direction: ${params.name_direction || 'surprise me'}
+Color direction: ${params.color_direction || 'open'}
+
+Return ONLY valid JSON:
+{
+  "signature_cocktail": {
+    "name": "string",
+    "description": "string (full evocative description)",
+    "base_spirit": "string",
+    "method": "string",
+    "glass": "string",
+    "garnish": "string",
+    "ingredients": [{"name": "string", "amount": "string", "unit": "string"}],
+    "serving_ritual": "string",
+    "narrative_story": "string (the full creative story of this cocktail)",
+    "batch_version": "string",
+    "mocktail_adaptation": "string",
+    "visual_suggestions": ["string"],
+    "staff_training_card": "string",
+    "scores": {}
+  }
+}`;
+
+  } else if (flowType === 'beverage_director') {
+    // Module 4: receives a pre-processed brief from the Beverage Director Prompt Generator
+    taskSection = `TASK: Generate a cocktail based on this professional brief.
+Brief: ${params.brief || ''}
+Occasion: ${params.occasion || 'daily menu'}
+Constraints: ${(params.constraints || []).join(', ') || 'none'}
+Mood: ${params.mood || ''}
+
+Return ONLY valid JSON:
+{
+  "cocktail": {
+    "name": "string",
+    "description": "string (60-80 words)",
+    "base_spirit": "string",
+    "method": "string",
+    "glass": "string",
+    "garnish": "string",
+    "ingredients": [{"name": "string", "amount": "string", "unit": "string"}],
+    "estimated_cost_ils": number_or_null,
+    "estimated_sell_price_ils": "Calculate the VAT-inclusive menu price in ILS. Must be between 45 and 68. Use value-based pricing — do not simply divide cost by 0.22. Return a clean integer (e.g. 58, 62, 65, 68). Never return null.",
+    "prep_complexity": 1-5,
+    "speed_of_service": 1-5,
+    "kosher_ready": boolean,
+    "business_rationale": "string",
+    "variations": {"lighter": "string", "stronger": "string", "batch_version": "string"},
+    "warnings": ["string"],
+    "scores": {}
+  },
+  "warnings": ["string"]
+}`;
+
+  } else {
+    taskSection = `TASK: ${JSON.stringify(params)}`;
+  }
+
+  return `${DIRECTOR_PERSONA}
+
+BAR DNA:
+${dnaContext}
+
+TASTE DNA (learned from past approvals and rejections):
+${tasteContext}
+
+EXISTING MENU (check for duplicates before suggesting):
+${existingList}
+
+${guardrails}
+
+${SCORE_INSTRUCTIONS}
+
+${taskSection}
+
+IMPORTANT: Return ONLY valid JSON. No markdown code fences. No explanation outside the JSON object.`;
+}
+
+// Rebuilds the aggregated taste profile from all non-experimental rejections
+function rebuildTasteDna(venueId) {
+  const rejections = db.prepare(
+    "SELECT cocktail_profile_json, reasons_json FROM cocktail_rejections WHERE venue_id = ? AND reasons_json NOT LIKE '%just_experimenting%'"
+  ).all(venueId);
+
+  const flavorCounts     = {};
+  const spiritCounts     = {};
+  const complexityCounts = {};
+
+  for (const r of rejections) {
+    const profile = JSON.parse(r.cocktail_profile_json || '{}');
+    const reasons = JSON.parse(r.reasons_json || '[]');
+    const flavors = Array.isArray(profile.flavor_profile)
+      ? profile.flavor_profile.map(s => String(s).trim()).filter(Boolean)
+      : typeof profile.flavor_profile === 'string'
+      ? profile.flavor_profile.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+    for (const f of flavors) {
+      flavorCounts[f] = (flavorCounts[f] || 0) + 1;
+    }
+    if (profile.base_spirit && (reasons.includes('identity_mismatch') || reasons.includes('too_strong'))) {
+      spiritCounts[profile.base_spirit] = (spiritCounts[profile.base_spirit] || 0) + 1;
+    }
+    if (profile.complexity && reasons.includes('too_complex')) {
+      complexityCounts[profile.complexity] = (complexityCounts[profile.complexity] || 0) + 1;
+    }
+  }
+
+  const rejectedFlavors  = Object.entries(flavorCounts).filter(([, c]) => c >= 2).map(([p, c]) => ({ pattern: p, count: c }));
+  const rejectedSpirits  = Object.entries(spiritCounts).filter(([, c]) => c >= 2).map(([s]) => s);
+  const rejectedComplexity = Object.entries(complexityCounts).map(([c, n]) => ({ complexity: c, count: n }));
+
+  const existing = getCITasteDna(venueId);
+  const now = nowIso();
+
+  if (existing) {
+    db.prepare(`
+      UPDATE cocktail_taste_dna
+      SET rejected_flavors_json=?, rejected_spirits_json=?, rejected_complexity_json=?, updated_at=?
+      WHERE venue_id=?
+    `).run(JSON.stringify(rejectedFlavors), JSON.stringify(rejectedSpirits), JSON.stringify(rejectedComplexity), now, venueId);
+  } else {
+    db.prepare(`
+      INSERT INTO cocktail_taste_dna
+        (venue_id, rejected_flavors_json, rejected_spirits_json, rejected_complexity_json,
+         approved_flavors_json, approved_spirits_json, pattern_notes_json, updated_at)
+      VALUES (?,?,?,?,?,?,?,?)
+    `).run(venueId, JSON.stringify(rejectedFlavors), JSON.stringify(rejectedSpirits),
+      JSON.stringify(rejectedComplexity), '[]', '[]', '[]', now);
+  }
+}
+
+// ── CI DNA ────────────────────────────────────────────────────────────────────
+
+app.get('/api/ci/dna', requireAuth(...CI_ROLES), (req, res) => {
+  res.json({ dna: formatDnaForApi(getCIDna(defaultVenueId())) }); // CI MODULE ADDITION — returns UI-friendly aliases
+});
+
+app.post('/api/ci/dna', requireAuth(...CI_ROLES), (req, res) => {
+  const b   = req.body;
+  const now = nowIso();
+  const existing = getCIDna(defaultVenueId());
+
+  // CI MODULE ADDITION — accept UI field names (bar_name, target_guest, etc.) with DB column fallbacks
+  const venueName  = b.bar_name       || b.venue_name   || '';
+  const audType    = b.target_guest   || b.audience_type || '';
+  const priceRange = b.price_tier     || b.price_range   || '';
+  const heroIng    = b.hero_ingredients || b.hero_ingredient || null;
+  const isKosher   = b.kosher_aware != null
+    ? (b.kosher_aware ? 'yes' : 'no')
+    : (b.is_kosher || 'no');
+  const metaJson = JSON.stringify({
+    concept:                 b.concept                 || null,
+    signature_style:         b.signature_style         || null,
+    excluded_ingredients:    b.excluded_ingredients    || null,
+    spirit_focus:            b.spirit_focus            || null,
+    non_alcoholic_ratio:     b.non_alcoholic_ratio     || null,
+    seasonal_approach:       b.seasonal_approach       || null,
+    local_sourcing_priority: b.local_sourcing_priority || null,
+    menu_size_target:        b.menu_size_target        || null,
+    notes:                   b.notes                   || null,
+  });
+
+  const fields = [
+    venueName, b.venue_type || 'restaurant', b.atmosphere || b.concept || null, b.cuisine_style || null,
+    b.audience_age_min || null, b.audience_age_max || null, audType,
+    b.staff_skill || null,
+    JSON.stringify(b.equipment || []),
+    JSON.stringify(b.glassware || []),
+    isKosher,
+    JSON.stringify(b.flavor_identity || []),
+    priceRange, b.service_pressure || null, heroIng,
+    metaJson,
+  ];
+
+  if (existing) {
+    db.prepare(`
+      UPDATE cocktail_intelligence_dna
+      SET venue_name=?,venue_type=?,atmosphere=?,cuisine_style=?,
+          audience_age_min=?,audience_age_max=?,audience_type=?,staff_skill=?,
+          equipment_json=?,glassware_json=?,is_kosher=?,flavor_identity_json=?,
+          price_range=?,service_pressure=?,hero_ingredient=?,meta_json=?,updated_at=?
+      WHERE venue_id=?
+    `).run(...fields, now, defaultVenueId());
+    res.json({ ok: true, updated: true, dna: formatDnaForApi(getCIDna(defaultVenueId())) });
+  } else {
+    db.prepare(`
+      INSERT INTO cocktail_intelligence_dna
+        (venue_id,venue_name,venue_type,atmosphere,cuisine_style,
+         audience_age_min,audience_age_max,audience_type,staff_skill,
+         equipment_json,glassware_json,is_kosher,flavor_identity_json,
+         price_range,service_pressure,hero_ingredient,meta_json,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(defaultVenueId(), ...fields, now, now);
+    res.status(201).json({ ok: true, updated: false, dna: formatDnaForApi(getCIDna(defaultVenueId())) });
+  }
+});
+
+// ── CI AI GENERATION ──────────────────────────────────────────────────────────
+
+app.post('/api/ci/generate', requireAuth(...CI_ROLES), async (req, res) => {
+  try {
+    const { flow_type, ...params } = req.body;
+    if (!flow_type) return res.status(400).json({ error: 'flow_type is required.' });
+
+    const dna      = getCIDna(defaultVenueId());
+    const tasteDna = getCITasteDna(defaultVenueId());
+    const existingNames = db.prepare('SELECT name FROM cocktails WHERE is_active=1 ORDER BY name').all().map(r => r.name);
+
+    const prompt = buildGenerationPrompt(flow_type, params, dna, tasteDna, existingNames);
+    const raw    = await askGemini(prompt, { jsonMode: true });
+
+    let result;
+    try { result = JSON.parse(raw); }
+    catch { return res.status(500).json({ error: 'AI response could not be parsed.', raw }); }
+
+    res.json({ ok: true, flow_type, result });
+  } catch (err) {
+    console.error('CI GENERATE ERROR:', err);
+    res.status(500).json({ error: err.message || 'Generation failed.' });
+  }
+});
+
+// ── CI REJECTIONS ─────────────────────────────────────────────────────────────
+
+app.get('/api/ci/rejections', requireAuth(...CI_ROLES), (req, res) => {
+  const rows = db.prepare(
+    'SELECT * FROM cocktail_rejections WHERE venue_id=? ORDER BY rejected_at DESC'
+  ).all(defaultVenueId());
+  res.json({
+    rejections: rows.map(r => ({
+      ...r,
+      reasons:          JSON.parse(r.reasons_json || '[]'),
+      cocktail_profile: JSON.parse(r.cocktail_profile_json || '{}'),
+    })),
+  });
+});
+
+app.post('/api/ci/rejections', requireAuth(...CI_ROLES), (req, res) => {
+  const b = req.body;
+  if (!b.cocktail_name || !Array.isArray(b.reasons) || !b.reasons.length) {
+    return res.status(400).json({ error: 'cocktail_name and reasons[] are required.' });
+  }
+  if (b.reasons.includes('just_experimenting')) {
+    return res.json({ ok: true, saved: false, reason: 'just_experimenting — no memory saved' });
+  }
+
+  db.prepare(`
+    INSERT INTO cocktail_rejections (venue_id,cocktail_name,cocktail_profile_json,reasons_json,rejected_by,rejected_at)
+    VALUES (?,?,?,?,?,?)
+  `).run(
+    defaultVenueId(), b.cocktail_name,
+    JSON.stringify({ ...b.cocktail_profile, base_spirit: b.base_spirit || null }),
+    JSON.stringify(b.reasons),
+    req.user.full_name, nowIso()
+  );
+
+  rebuildTasteDna(defaultVenueId());
+  res.status(201).json({ ok: true, saved: true });
+});
+
+// ── CI TASTE DNA ──────────────────────────────────────────────────────────────
+
+app.get('/api/ci/taste-dna', requireAuth(...CI_ROLES), (req, res) => {
+  res.json({ taste_dna: getCITasteDna(defaultVenueId()) });
+});
+
+// ── CI COCKTAILS (ci_generated slice of cocktails table) ──────────────────────
+
+app.get('/api/ci/cocktails', requireAuth(...CI_ROLES), (req, res) => {
+  const rows = db.prepare(
+    "SELECT * FROM cocktails WHERE source='ci_generated' AND is_active=1 ORDER BY created_at DESC"
+  ).all();
+  res.json({
+    cocktails: rows.map(r => ({
+      ...r,
+      tags:        JSON.parse(r.tags_json || '[]'),
+      ingredients: JSON.parse(r.ingredients_text_json || '[]'),
+    })),
+  });
+});
+
+app.post('/api/ci/cocktails', requireAuth(...CI_ROLES), (req, res) => {
+  const b   = req.body;
+  if (!b.name) return res.status(400).json({ error: 'name is required.' });
+  const now = nowIso();
+
+  // CI MODULE ADDITION — include menu_id if provided
+  const result = db.prepare(`
+    INSERT INTO cocktails
+      (name,category,description,base_spirit,glass_type,garnish,method,
+       tags_json,ingredients_text_json,source,created_by,created_at,menu_id,
+       estimated_cost_ils,suggested_price_ils,estimated_gp_percent)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `).run(
+    b.name, b.category || 'ci_generated', b.description || null,
+    b.base_spirit || null, b.glass || null, b.garnish || null, b.method || null,
+    JSON.stringify(b.tags || []), JSON.stringify(b.ingredients || []),
+    'ci_generated', req.user.id, now, b.menu_id || null,
+    b.estimated_cost_ils || null, b.suggested_price_ils || null, b.estimated_gp_percent || null
+  );
+  const newId = result.lastInsertRowid;
+
+  // Auto-create lifecycle record for newly saved CI cocktail
+  db.prepare(`
+    INSERT INTO cocktail_lifecycle
+      (venue_id,cocktail_id,cocktail_name,date_added,season_added,status,created_at,updated_at)
+    VALUES (?,?,?,?,?,?,?,?)
+  `).run(defaultVenueId(), newId, b.name, now.slice(0, 10), getCurrentSeason(), 'active', now, now);
+
+  const saved = db.prepare('SELECT * FROM cocktails WHERE id=?').get(newId);
+  res.status(201).json({
+    ok: true,
+    cocktail: { ...saved, tags: JSON.parse(saved.tags_json || '[]'), ingredients: JSON.parse(saved.ingredients_text_json || '[]') },
+  });
+});
+
+app.delete('/api/ci/cocktails/:id', requireAuth(...CI_ROLES), (req, res) => {
+  db.prepare("UPDATE cocktails SET is_active=0 WHERE id=? AND source='ci_generated'").run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ── CI MENUS ──────────────────────────────────────────────────────────────────
+// CI MODULE ADDITION — named menu records that group approved cocktails
+
+app.get('/api/ci/menus', requireAuth(...CI_ROLES), (req, res) => {
+  const venueId = defaultVenueId();
+  const menus = db.prepare(
+    "SELECT * FROM cocktail_menus WHERE venue_id=? AND status='active' ORDER BY created_at DESC"
+  ).all(venueId);
+
+  // Attach cocktail count and first 3 cocktail names to each menu
+  const enriched = menus.map(menu => {
+    const cocktails = db.prepare(
+      "SELECT name FROM cocktails WHERE menu_id=? AND is_active=1 ORDER BY created_at ASC"
+    ).all(menu.id);
+    return {
+      ...menu,
+      cocktail_count: cocktails.length,
+      preview_names:  cocktails.slice(0, 3).map(c => c.name)
+    };
+  });
+
+  res.json({ menus: enriched });
+});
+
+app.post('/api/ci/menus', requireAuth(...CI_ROLES), (req, res) => {
+  const { name, occasion, description, season } = req.body;
+  if (!name) return res.status(400).json({ error: 'name is required.' });
+  const venueId = defaultVenueId();
+  const now     = nowIso();
+
+  const result = db.prepare(`
+    INSERT INTO cocktail_menus (venue_id, name, occasion, description, season, created_by, created_at, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
+  `).run(venueId, name.trim(), occasion || null, description || null, season || null, req.user?.id || null, now);
+
+  const created = db.prepare('SELECT * FROM cocktail_menus WHERE id=?').get(result.lastInsertRowid);
+  res.status(201).json({ ok: true, menu: created });
+});
+
+app.get('/api/ci/menus/:id', requireAuth(...CI_ROLES), (req, res) => {
+  const menu = db.prepare('SELECT * FROM cocktail_menus WHERE id=?').get(req.params.id);
+  if (!menu) return res.status(404).json({ error: 'Menu not found.' });
+
+  const cocktails = db.prepare(
+    "SELECT * FROM cocktails WHERE menu_id=? AND is_active=1 ORDER BY created_at ASC"
+  ).all(menu.id);
+
+  res.json({
+    menu: {
+      ...menu,
+      cocktails: cocktails.map(c => ({
+        ...c,
+        tags:        JSON.parse(c.tags_json || '[]'),
+        ingredients: JSON.parse(c.ingredients_text_json || '[]')
+      }))
+    }
+  });
+});
+
+app.patch('/api/ci/menus/:id', requireAuth(...CI_ROLES), (req, res) => {
+  const { name, occasion, description, status } = req.body;
+  const menu = db.prepare('SELECT id FROM cocktail_menus WHERE id=?').get(req.params.id);
+  if (!menu) return res.status(404).json({ error: 'Menu not found.' });
+
+  if (name)        db.prepare('UPDATE cocktail_menus SET name=? WHERE id=?').run(name.trim(), menu.id);
+  if (occasion)    db.prepare('UPDATE cocktail_menus SET occasion=? WHERE id=?').run(occasion, menu.id);
+  if (description !== undefined) db.prepare('UPDATE cocktail_menus SET description=? WHERE id=?').run(description, menu.id);
+  if (status)      db.prepare('UPDATE cocktail_menus SET status=? WHERE id=?').run(status, menu.id);
+
+  const updated = db.prepare('SELECT * FROM cocktail_menus WHERE id=?').get(menu.id);
+  res.json({ ok: true, menu: updated });
+});
+
+app.delete('/api/ci/menus/:id', requireAuth(...CI_ROLES), (req, res) => {
+  db.prepare("UPDATE cocktail_menus SET status='archived' WHERE id=?").run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ── CI SALES ──────────────────────────────────────────────────────────────────
+
+app.get('/api/ci/sales', requireAuth(...CI_ROLES), (req, res) => {
+  const { start, end } = req.query;
+  let q    = 'SELECT * FROM cocktail_sales WHERE venue_id=?';
+  const args = [defaultVenueId()];
+  if (start) { q += ' AND sale_date >= ?'; args.push(start); }
+  if (end)   { q += ' AND sale_date <= ?'; args.push(end); }
+  q += ' ORDER BY sale_date DESC';
+  res.json({ sales: db.prepare(q).all(...args) });
+});
+
+app.post('/api/ci/sales', requireAuth(...CI_ROLES), (req, res) => {
+  const b     = req.body;
+  if (!b.cocktail_name || !b.sale_date) return res.status(400).json({ error: 'cocktail_name and sale_date required.' });
+  const units = Number(b.units_sold) || 0;
+  const price = Number(b.sale_price) || null;
+  const cost  = Number(b.cost_per_unit) || null;
+  const rev   = price && units ? price * units : null;
+  const gp    = rev && cost   ? rev - (cost * units) : null;
+  const gpPct = rev && gp     ? Math.round((gp / rev) * 100) : null;
+
+  const r = db.prepare(`
+    INSERT INTO cocktail_sales
+      (venue_id,cocktail_id,cocktail_name,sale_date,period_type,
+       units_sold,sale_price,cost_per_unit,revenue,gross_profit,gp_percent,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+  `).run(defaultVenueId(), b.cocktail_id || null, b.cocktail_name,
+    b.sale_date, b.period_type || 'day', units, price, cost, rev, gp, gpPct, nowIso());
+  res.status(201).json({ ok: true, id: r.lastInsertRowid });
+});
+
+app.patch('/api/ci/sales/:id', requireAuth(...CI_ROLES), (req, res) => {
+  const b     = req.body;
+  const units = Number(b.units_sold) || 0;
+  const price = Number(b.sale_price) || null;
+  const cost  = Number(b.cost_per_unit) || null;
+  const rev   = price && units ? price * units : null;
+  const gp    = rev && cost   ? rev - (cost * units) : null;
+  const gpPct = rev && gp     ? Math.round((gp / rev) * 100) : null;
+  db.prepare(`
+    UPDATE cocktail_sales
+    SET units_sold=?,sale_price=?,cost_per_unit=?,revenue=?,gross_profit=?,gp_percent=?
+    WHERE id=? AND venue_id=?
+  `).run(units, price, cost, rev, gp, gpPct, req.params.id, defaultVenueId());
+  res.json({ ok: true });
+});
+
+app.delete('/api/ci/sales/:id', requireAuth(...CI_ROLES), (req, res) => {
+  db.prepare('DELETE FROM cocktail_sales WHERE id=? AND venue_id=?').run(req.params.id, defaultVenueId());
+  res.json({ ok: true });
+});
+
+// ── CI NARRATIVES ─────────────────────────────────────────────────────────────
+
+app.get('/api/ci/narratives/:cocktailId', requireAuth(...CI_ROLES), (req, res) => {
+  const row = db.prepare(
+    'SELECT * FROM cocktail_narratives WHERE venue_id=? AND cocktail_id=? ORDER BY generated_at DESC LIMIT 1'
+  ).get(defaultVenueId(), req.params.cocktailId);
+  res.json({ narrative: row || null });
+});
+
+app.post('/api/ci/narratives/:cocktailId', requireAuth(...CI_ROLES), async (req, res) => {
+  try {
+    const cocktail = db.prepare('SELECT * FROM cocktails WHERE id=?').get(req.params.cocktailId);
+    if (!cocktail) return res.status(404).json({ error: 'Cocktail not found.' });
+
+    const dna = getCIDna(defaultVenueId());
+    const prompt = `You are a luxury hospitality copywriter and brand storyteller.
+
+BAR DNA:
+${buildDnaContextString(dna)}
+
+COCKTAIL:
+Name: ${cocktail.name}
+Description: ${cocktail.description || 'not provided'}
+Base spirit: ${cocktail.base_spirit || 'not specified'}
+Method: ${cocktail.method || 'not specified'}
+Ingredients: ${cocktail.ingredients_text_json}
+Garnish: ${cocktail.garnish || 'not specified'}
+
+Generate 3 layers of narrative. Return ONLY valid JSON:
+{
+  "menu_description": "string (maximum 2 sentences — confident and evocative, not poetic or melancholic; write like a world-class bar, not a romance novel; short, sensory, direct; no technical terms)",
+  "server_script": "string (one sentence — natural speech, what a great bartender actually says; not a sales pitch, not a description; conversational and confident)",
+  "story_card": "string (internal staff training story: why this ingredient, what inspired it, what makes it uniquely ours)"
+}`;
+
+    const raw       = await askGemini(prompt, { jsonMode: true });
+    const narrative = JSON.parse(raw);
+
+    db.prepare(`
+      INSERT INTO cocktail_narratives
+        (venue_id,cocktail_id,cocktail_name,menu_description,server_script,story_card,generated_at)
+      VALUES (?,?,?,?,?,?,?)
+    `).run(defaultVenueId(), req.params.cocktailId, cocktail.name,
+      narrative.menu_description, narrative.server_script, narrative.story_card, nowIso());
+
+    res.json({ ok: true, narrative });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── CI SCORES ─────────────────────────────────────────────────────────────────
+
+app.get('/api/ci/scores/:cocktailId', requireAuth(...CI_ROLES), (req, res) => {
+  const row = db.prepare(
+    'SELECT * FROM cocktail_scores WHERE venue_id=? AND cocktail_id=? ORDER BY generated_at DESC LIMIT 1'
+  ).get(defaultVenueId(), req.params.cocktailId);
+  res.json({ scores: row ? { ...row, score_notes: JSON.parse(row.score_notes_json || '[]') } : null });
+});
+
+app.post('/api/ci/scores/:cocktailId', requireAuth(...CI_ROLES), (req, res) => {
+  const b = req.body;
+  db.prepare(`
+    INSERT INTO cocktail_scores
+      (venue_id,cocktail_id,cocktail_name,flavor_balance,menu_fit,profit_score,
+       prep_complexity,staff_execution,guest_appeal,originality,seasonal_fit,
+       speed_of_service,kosher_readiness,premium_perception,overall_score,
+       score_notes_json,generated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `).run(
+    defaultVenueId(), req.params.cocktailId, b.cocktail_name || '',
+    b.flavor_balance || null, b.menu_fit || null, b.profit_score || null,
+    b.prep_complexity || null, b.staff_execution || null, b.guest_appeal || null,
+    b.originality || null, b.seasonal_fit || null, b.speed_of_service || null,
+    b.kosher_readiness || null, b.premium_perception || null, b.overall_score || null,
+    JSON.stringify(b.low_score_notes || []), nowIso()
+  );
+  res.status(201).json({ ok: true });
+});
+
+// ── CI LIFECYCLE ──────────────────────────────────────────────────────────────
+
+app.get('/api/ci/lifecycle', requireAuth(...CI_ROLES), (req, res) => {
+  const rows = db.prepare(
+    'SELECT * FROM cocktail_lifecycle WHERE venue_id=? ORDER BY created_at DESC'
+  ).all(defaultVenueId());
+  res.json({ lifecycle: rows.map(r => ({ ...r, alert_flags: JSON.parse(r.alert_flags_json || '[]') })) });
+});
+
+app.post('/api/ci/lifecycle', requireAuth(...CI_ROLES), (req, res) => {
+  const b   = req.body;
+  if (!b.cocktail_name) return res.status(400).json({ error: 'cocktail_name is required.' });
+  const now = nowIso();
+  const r   = db.prepare(`
+    INSERT INTO cocktail_lifecycle
+      (venue_id,cocktail_id,cocktail_name,date_added,season_added,times_ordered,
+       revenue_generated,cost_per_serve,status,alert_flags_json,created_at,updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+  `).run(
+    defaultVenueId(), b.cocktail_id || null, b.cocktail_name,
+    b.date_added || now.slice(0, 10), b.season_added || getCurrentSeason(),
+    b.times_ordered || 0, b.revenue_generated || 0, b.cost_per_serve || null,
+    b.status || 'active', JSON.stringify(b.alert_flags || []), now, now
+  );
+  res.status(201).json({ ok: true, id: r.lastInsertRowid });
+});
+
+app.patch('/api/ci/lifecycle/:id', requireAuth(...CI_ROLES), (req, res) => {
+  const b   = req.body;
+  const now = nowIso();
+  db.prepare(`
+    UPDATE cocktail_lifecycle
+    SET times_ordered      = COALESCE(?, times_ordered),
+        revenue_generated  = COALESCE(?, revenue_generated),
+        cost_per_serve     = COALESCE(?, cost_per_serve),
+        status             = COALESCE(?, status),
+        alert_flags_json   = COALESCE(?, alert_flags_json),
+        last_reviewed_at   = ?,
+        updated_at         = ?
+    WHERE id=? AND venue_id=?
+  `).run(
+    b.times_ordered != null ? b.times_ordered : null,
+    b.revenue_generated != null ? b.revenue_generated : null,
+    b.cost_per_serve != null ? b.cost_per_serve : null,
+    b.status || null,
+    b.alert_flags ? JSON.stringify(b.alert_flags) : null,
+    now, now, req.params.id, defaultVenueId()
+  );
+  res.json({ ok: true });
+});
+
+// ── CI TRENDS ─────────────────────────────────────────────────────────────────
+
+app.get('/api/ci/trends', requireAuth(...CI_ROLES), (req, res) => {
+  const rows = db.prepare(
+    'SELECT * FROM cocktail_trends_db WHERE (venue_id=? OR venue_id IS NULL) AND is_active=1 ORDER BY added_at DESC'
+  ).all(defaultVenueId());
+  res.json({ trends: rows.map(r => ({ ...r, tags: JSON.parse(r.tags_json || '[]') })) });
+});
+
+app.put('/api/ci/trends/:id', requireAuth('owner', 'admin'), (req, res) => {
+  const b = req.body;
+  db.prepare(`
+    UPDATE cocktail_trends_db
+    SET category=?,name=?,description=?,market=?,tags_json=?,is_kosher=?,is_active=?,updated_at=?
+    WHERE id=?
+  `).run(b.category, b.name, b.description || null, b.market || 'israel',
+    JSON.stringify(b.tags || []), b.is_kosher ? 1 : 0, b.is_active ? 1 : 0,
+    nowIso(), req.params.id);
+  res.json({ ok: true });
+});
+
+// ── CI EMERGENCY MODE ─────────────────────────────────────────────────────────
+
+app.get('/api/ci/emergency/last', requireAuth(...CI_ROLES), (req, res) => {
+  const row = db.prepare(
+    'SELECT * FROM cocktail_emergency_log WHERE venue_id=? ORDER BY created_at DESC LIMIT 1'
+  ).get(defaultVenueId());
+  if (!row) return res.json({ session: null });
+  res.json({
+    session: {
+      ...row,
+      missing_items:      JSON.parse(row.missing_items_json || '[]'),
+      affected_cocktails: JSON.parse(row.affected_cocktails_json || '[]'),
+      decisions:          JSON.parse(row.decisions_json || '[]'),
+      snapshot:           JSON.parse(row.snapshot_json || '{}'),
+    },
+  });
+});
+
+app.post('/api/ci/emergency', requireAuth(...CI_ROLES), async (req, res) => {
+  try {
+    const { missing_items, confirmed_decisions } = req.body;
+    if (!Array.isArray(missing_items) || !missing_items.length) {
+      return res.status(400).json({ error: 'missing_items array is required.' });
+    }
+
+    // If confirmed_decisions is provided, save the session and return
+    if (confirmed_decisions) {
+      db.prepare(`
+        INSERT INTO cocktail_emergency_log
+          (venue_id,session_date,missing_items_json,affected_cocktails_json,
+           decisions_json,snapshot_json,created_by,created_at)
+        VALUES (?,?,?,?,?,?,?,?)
+      `).run(
+        defaultVenueId(), nowIso().slice(0, 10),
+        JSON.stringify(missing_items),
+        JSON.stringify(req.body.affected_cocktails || []),
+        JSON.stringify(confirmed_decisions),
+        JSON.stringify(req.body.snapshot || {}),
+        req.user.full_name, nowIso()
+      );
+      return res.json({ ok: true, saved: true });
+    }
+
+    const activeCocktails = db.prepare('SELECT name, ingredients_text_json FROM cocktails WHERE is_active=1').all();
+    const dna             = getCIDna(defaultVenueId());
+
+    const prompt = `You are a Beverage Director doing rapid pre-service prep for ${dna?.venue_name || 'the venue'}.
+
+ACTIVE COCKTAIL MENU:
+${activeCocktails.map(c => `- ${c.name}: ${c.ingredients_text_json}`).join('\n')}
+
+MISSING OR UNAVAILABLE TONIGHT:
+${missing_items.join(', ')}
+
+For each affected cocktail, assess impact and suggest the best substitution. Return ONLY valid JSON:
+{
+  "affected_cocktails": [{
+    "cocktail_name": "string",
+    "severity": "cannot_be_made | can_be_modified | minor_impact",
+    "reason": "string",
+    "substitution_ingredient": "string or null",
+    "modified_recipe_note": "string or null",
+    "recommendation": "86 | modify | serve_as_is"
+  }],
+  "unaffected_cocktails": ["string"],
+  "snapshot_notes": "string (brief summary for team briefing)"
+}`;
+
+    const raw      = await askGemini(prompt, { jsonMode: true });
+    const analysis = JSON.parse(raw);
+    res.json({ ok: true, analysis, missing_items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── CI DAILY CLOSE ────────────────────────────────────────────────────────────
+
+app.get('/api/ci/daily-close/active-menu/:venueId', requireAuth(...CI_ROLES), (req, res) => {
+  const venueId = defaultVenueId();
+
+  const active = db.prepare(
+    "SELECT * FROM cocktail_menus WHERE venue_id=? AND status='active' ORDER BY created_at DESC LIMIT 1"
+  ).get(venueId) || null;
+
+  const allMenusRaw = db.prepare(
+    "SELECT * FROM cocktail_menus WHERE venue_id=? ORDER BY created_at DESC"
+  ).all(venueId);
+
+  const allMenus = allMenusRaw.map(m => ({
+    id:             m.id,
+    name:           m.name,
+    occasion:       m.occasion,
+    season:         m.season,
+    status:         m.status,
+    cocktail_count: db.prepare('SELECT COUNT(*) as c FROM cocktails WHERE menu_id=?').get(m.id).c
+  }));
+
+  res.json({ active, allMenus });
+});
+
+app.get('/api/ci/daily-close/cocktails/:menuId', requireAuth(...CI_ROLES), (req, res) => {
+  const rows = db.prepare(`
+    SELECT id, name, category,
+           COALESCE(suggested_price_ils, 0)  AS suggested_price_ils,
+           COALESCE(estimated_cost_ils, 0)   AS estimated_cost_ils,
+           COALESCE(estimated_gp_percent, 0) AS estimated_gp_percent
+    FROM cocktails
+    WHERE menu_id=? AND is_active=1
+    ORDER BY category, name
+  `).all(req.params.menuId);
+  res.json({ cocktails: rows });
+});
+
+app.post('/api/ci/daily-close/submit', requireAuth(...CI_ROLES), (req, res) => {
+  const { menuId, saleDate, entries } = req.body;
+  const venueId = defaultVenueId();
+
+  if (!saleDate || !Array.isArray(entries)) {
+    return res.status(400).json({ error: 'saleDate and entries are required.' });
+  }
+
+  const valid = entries.filter(e => Number(e.unitsSold) > 0);
+  if (!valid.length) return res.json({ success: true, saved: 0 });
+
+  const insertSale = db.prepare(`
+    INSERT INTO cocktail_sales
+      (venue_id, cocktail_id, cocktail_name, sale_date, period_type,
+       units_sold, sale_price, cost_per_unit, revenue, gross_profit, gp_percent, created_at)
+    VALUES (?, ?, ?, ?, 'daily', ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  db.exec('BEGIN');
+  try {
+    for (const e of valid) {
+      const units    = Number(e.unitsSold);
+      const price    = Number(e.salePrice)    || 0;
+      const cost     = Number(e.costPerUnit)  || 0;
+      const revenue  = units * price;
+      const gp       = revenue - (units * cost);
+      const gpPct    = revenue > 0 ? Math.round((gp / revenue) * 100) : null;
+      insertSale.run(
+        venueId,
+        e.cocktailId  ? Number(e.cocktailId) : null,
+        String(e.cocktailName),
+        saleDate,
+        units,
+        price  || null,
+        cost   || null,
+        revenue > 0 ? revenue  : null,
+        revenue > 0 ? gp       : null,
+        gpPct,
+        nowIso()
+      );
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    return res.status(500).json({ error: err.message || 'Failed to save close.' });
+  }
+
+  res.json({ success: true, saved: valid.length });
+});
+
+// ── CI EXPORTS ────────────────────────────────────────────────────────────────
+
+app.get('/api/ci/export/:type', requireAuth(...CI_ROLES), (req, res) => {
+  const { type }       = req.params;
+  const cocktailIds    = req.query.cocktail_ids;
+  const venueId        = defaultVenueId();
+  const dna            = getCIDna(venueId);
+  const venueName      = dna?.venue_name || 'HESTIA Venue';
+  const date           = new Date().toLocaleDateString('en-GB');
+
+  let cocktails;
+  if (cocktailIds) {
+    const ids = cocktailIds.split(',').map(Number).filter(Boolean);
+    cocktails = ids.map(cid => db.prepare('SELECT * FROM cocktails WHERE id=?').get(cid)).filter(Boolean);
+  } else {
+    cocktails = db.prepare('SELECT * FROM cocktails WHERE is_active=1').all();
+  }
+
+  const parseIng = c => { try { return JSON.parse(c.ingredients_text_json || '[]'); } catch { return []; } };
+
+  const BASE_CSS = `body{font-family:Georgia,serif;max-width:800px;margin:40px auto;color:#1a1a1a;}
+    h1{font-size:1.9em;border-bottom:2px solid #c9a96e;padding-bottom:12px;letter-spacing:1px;}
+    p.meta{color:#888;margin-top:4px;} @media print{body{margin:20px;}}`;
+
+  let html = '';
+
+  if (type === 'guest_menu') {
+    html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${venueName} — Menu</title>
+<style>${BASE_CSS}.item{margin:28px 0;}.name{font-size:1.2em;font-weight:bold;letter-spacing:.5px;}
+.desc{font-style:italic;color:#444;margin-top:6px;line-height:1.65;}</style></head>
+<body><h1>${venueName}</h1><p class="meta">${date}</p>`;
+    for (const c of cocktails) {
+      const n = db.prepare('SELECT menu_description FROM cocktail_narratives WHERE cocktail_id=? ORDER BY generated_at DESC LIMIT 1').get(c.id);
+      html += `<div class="item"><div class="name">${c.name}</div><div class="desc">${n?.menu_description || c.description || ''}</div></div>`;
+    }
+    html += '</body></html>';
+
+  } else if (type === 'spec_sheet') {
+    html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${venueName} — Spec Sheet</title>
+<style>${BASE_CSS}body{font-family:Arial,sans-serif;}.card{margin:28px 0;padding:20px;border:1px solid #ddd;border-radius:4px;page-break-inside:avoid;}
+.card h2{margin:0 0 8px;font-size:1.15em;}table{width:100%;border-collapse:collapse;margin:10px 0;}
+td,th{padding:6px 8px;border:1px solid #ddd;font-size:.9em;}th{background:#f5f5f5;}</style></head>
+<body><h1>${venueName} — Bartender Spec Sheet</h1><p class="meta">${date}</p>`;
+    for (const c of cocktails) {
+      const ings = parseIng(c);
+      const rows = ings.map(i => {
+        const name = typeof i === 'object' ? (i.name || '') : String(i);
+        const amt  = typeof i === 'object' ? `${i.amount || ''} ${i.unit || ''}`.trim() : '';
+        return `<tr><td>${name}</td><td>${amt}</td></tr>`;
+      }).join('');
+      html += `<div class="card"><h2>${c.name}</h2>
+<p><strong>Method:</strong> ${c.method || '—'} &nbsp; <strong>Glass:</strong> ${c.glass_type || '—'} &nbsp; <strong>Garnish:</strong> ${c.garnish || '—'}</p>
+<table><tr><th>Ingredient</th><th>Amount</th></tr>${rows}</table></div>`;
+    }
+    html += '</body></html>';
+
+  } else if (type === 'staff_briefing') {
+    html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${venueName} — Staff Briefing</title>
+<style>${BASE_CSS}body{font-family:Arial,sans-serif;}.card{margin:28px 0;padding:20px;border:1px solid #ddd;border-radius:4px;page-break-inside:avoid;}
+.card h2{margin:0 0 12px;}.label{font-weight:bold;margin-top:14px;color:#555;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;}</style></head>
+<body><h1>${venueName} — Staff Briefing Cards</h1><p class="meta">${date}</p>`;
+    for (const c of cocktails) {
+      const n = db.prepare('SELECT server_script,story_card FROM cocktail_narratives WHERE cocktail_id=? ORDER BY generated_at DESC LIMIT 1').get(c.id);
+      html += `<div class="card"><h2>${c.name}</h2>
+<div class="label">How to Sell</div><p>${n?.server_script || '—'}</p>
+<div class="label">Story Card (Internal)</div><p>${n?.story_card || '—'}</p></div>`;
+    }
+    html += '</body></html>';
+
+  } else if (type === 'costing_sheet') {
+    html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${venueName} — Costing</title>
+<style>${BASE_CSS}body{font-family:Arial,sans-serif;}table{width:100%;border-collapse:collapse;margin-top:20px;}
+td,th{padding:8px 10px;border:1px solid #ddd;}th{background:#f5f5f5;}
+.est{color:#999;font-style:italic;font-size:.8em;}</style></head>
+<body><h1>${venueName} — Costing Sheet</h1><p class="meta">${date} — All figures are estimates unless marked verified.</p>
+<table><tr><th>Cocktail</th><th>Cost (ILS)</th><th>Sell (ILS)</th><th>GP%</th></tr>`;
+    for (const c of cocktails) {
+      const p    = db.prepare('SELECT * FROM cocktail_pricing WHERE cocktail_id=?').get(c.id);
+      const cost = p?.cost_price != null ? p.cost_price : '—';
+      const sell = p?.sell_price != null ? p.sell_price : '—';
+      const gp   = (p?.cost_price && p?.sell_price) ? Math.round((1 - p.cost_price / p.sell_price) * 100) + '%' : '—';
+      const flag = (p?.cost_price || p?.sell_price) ? '<span class="est">est.</span>' : '';
+      html += `<tr><td>${c.name}</td><td>${cost} ${flag}</td><td>${sell} ${flag}</td><td>${gp}</td></tr>`;
+    }
+    html += '</table></body></html>';
+
+  } else if (type === 'sales_report') {
+    const sales  = db.prepare('SELECT * FROM cocktail_sales WHERE venue_id=? ORDER BY sale_date DESC LIMIT 500').all(venueId);
+    const byName = {};
+    for (const s of sales) {
+      if (!byName[s.cocktail_name]) byName[s.cocktail_name] = { units: 0, revenue: 0, gp: 0 };
+      byName[s.cocktail_name].units   += s.units_sold || 0;
+      byName[s.cocktail_name].revenue += s.revenue || 0;
+      byName[s.cocktail_name].gp      += s.gross_profit || 0;
+    }
+    const sorted = Object.entries(byName).sort((a, b) => b[1].revenue - a[1].revenue);
+    html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${venueName} — Sales Report</title>
+<style>${BASE_CSS}body{font-family:Arial,sans-serif;}table{width:100%;border-collapse:collapse;margin-top:20px;}
+td,th{padding:8px 10px;border:1px solid #ddd;}th{background:#f5f5f5;}</style></head>
+<body><h1>${venueName} — Sales Performance Report</h1><p class="meta">${date}</p>
+<table><tr><th>Cocktail</th><th>Units Sold</th><th>Revenue (ILS)</th><th>Gross Profit (ILS)</th><th>GP%</th></tr>`;
+    for (const [name, d] of sorted) {
+      const gp = d.revenue ? Math.round((d.gp / d.revenue) * 100) + '%' : '—';
+      html += `<tr><td>${name}</td><td>${d.units}</td><td>${Math.round(d.revenue)}</td><td>${Math.round(d.gp)}</td><td>${gp}</td></tr>`;
+    }
+    html += '</table></body></html>';
+
+  } else {
+    return res.status(400).json({ error: `Unknown export type: ${type}. Valid: guest_menu, spec_sheet, staff_briefing, costing_sheet, sales_report` });
+  }
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(html);
+});
+
+// ── Beverage Director Chat ────────────────────────────────────────────────────
+app.post('/api/ci/director/chat', requireAuth(...CI_ROLES), async (req, res) => {
+  try {
+    const { message, history = [], menuCocktails = [] } = req.body;
+    debugLog({ event: 'director_chat_received', message: message?.slice(0, 80), history_turns: history.length, menu_cocktail_count: menuCocktails.length });
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'message is required.' });
+    }
+    const dna = getCIDna(defaultVenueId());
+    const systemInstruction = buildDirectorSystemInstruction(dna, menuCocktails);
+    const reply = await askGeminiChat(systemInstruction, history, message.trim());
+    res.json({ reply });
+  } catch (err) {
+    debugLog({ event: 'director_chat_threw', error: err.message, stack: err.stack?.slice(0, 300) });
+    res.status(500).json({ error: err.message || 'Chat request failed.' });
+  }
+});
+
+// ── CI VISUAL MENU ────────────────────────────────────────────────────────────
+
+app.get('/api/ci/visual-menu/:menuId', requireAuth(...CI_ROLES), (req, res) => {
+  const rows = db.prepare(
+    'SELECT * FROM visual_menu_designs WHERE menu_id=?'
+  ).all(req.params.menuId);
+  res.json({ designs: rows });
+});
+
+app.post('/api/ci/visual-menu/:cocktailId/save', requireAuth(...CI_ROLES), (req, res) => {
+  const { menu_id, image_prompt, image_url, status } = req.body;
+  if (!menu_id) return res.status(400).json({ error: 'menu_id is required.' });
+  db.prepare(`
+    INSERT INTO visual_menu_designs (menu_id, cocktail_id, image_prompt, image_url, status)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(menu_id, cocktail_id) DO UPDATE SET
+      image_prompt = excluded.image_prompt,
+      image_url    = excluded.image_url,
+      status       = excluded.status
+  `).run(menu_id, req.params.cocktailId, image_prompt || null, image_url || null, status || 'done');
+  res.json({ ok: true });
+});
+
+// ── CI FINAL MENU DESIGN (HESTIA Cocktail Menu Skill v5.2) ────────────────────
+
+// Canonical classics list — name match (case-insensitive) triggers auto-classification
+// even when the "classic" tag was not applied at approval time.
+const KNOWN_CLASSICS = new Set([
+  'negroni', 'old fashioned', 'manhattan', 'sazerac', 'martini',
+  'daiquiri', 'margarita', 'whiskey sour', 'aperol spritz',
+  'espresso martini', 'moscow mule', 'cosmopolitan', 'mojito',
+  'boulevardier', 'vieux carré', 'last word', 'paper plane',
+]);
+
+function buildMenuDesignUserMessage({ dna, menu, signatures, nonAlcoholic, classics, outputContext, languageMode }) {
+  const meta = dna ? JSON.parse(dna.meta_json || '{}') : {};
+  const dnaLines = dna ? [
+    `Venue Name: ${dna.venue_name || 'Unknown'}`,
+    `Concept: ${meta.concept || dna.atmosphere || 'Not specified'}`,
+    `Price Tier: ${dna.price_range || 'Not specified'}`,
+    `Atmosphere / Vibe: ${dna.atmosphere || 'Not specified'}`,
+    `Hero Ingredient: ${dna.hero_ingredient || 'Not specified'}`,
+    `Signature Style: ${meta.signature_style || 'Not specified'}`,
+    `Flavor Identity: ${JSON.parse(dna.flavor_identity_json || '[]').join(', ') || 'Not specified'}`,
+    `Cuisine Style: ${dna.cuisine_style || 'Not specified'}`,
+    `Kosher Policy: ${dna.is_kosher || 'Not specified'}`,
+    meta.notes ? `Director Notes: ${meta.notes}` : null,
+  ].filter(Boolean).join('\n') : 'No Bar DNA configured for this venue.';
+
+  // Strip leading quantities/units from an ingredient string so AI receives clean names only.
+  // e.g. "50ml Elite Arak" → "Elite Arak", "6leaves Fresh Mint Leaves" → "Fresh Mint Leaves"
+  const stripIngredientQty = (s) =>
+    String(s).replace(/^\d+(\.\d+)?(ml|cl|oz|dash(es)?|leaf|leaves|sprig|piece|drop|tsp|tbsp|g|kg)?\s*/i, '').trim();
+
+  // Spec-oriented: name, ingredients (names only), base spirit, price. No glass/method/garnish.
+  const fmtCocktail = (c) => {
+    const ings = JSON.parse(c.ingredients_text_json || '[]');
+    // DEBUG — confirm full ingredients array before sending to AI
+    console.log('[PRE-AI INGREDIENTS]', c.name, JSON.stringify(ings));
+    const ingStr = Array.isArray(ings)
+      ? ings
+          .map(i => typeof i === 'string' ? i : (i.name || i.ingredient || ''))
+          .filter(Boolean)
+          .map(stripIngredientQty)
+          .filter(Boolean)
+          .join(', ')
+      : stripIngredientQty(String(ings));
+    return [
+      `Name: ${c.name}`,
+      ingStr ? `Ingredients (${ingStr.split(',').length} total, include ALL of them): ${ingStr}` : null,
+      c.base_spirit  ? `Base Spirit: ${c.base_spirit}` : null,
+      c.suggested_price_ils != null ? `Price: ${c.suggested_price_ils}` : null,
+    ].filter(Boolean).join(' | ');
+  };
+
+  const sigsBlock = signatures.map(fmtCocktail).join('\n');
+  const naBlock   = nonAlcoholic.map(fmtCocktail).join('\n');
+  const clsBlock  = classics.map(c => `Name: ${c.name}${c.suggested_price_ils != null ? ` | Price: ${c.suggested_price_ils}` : ''}`).join('\n');
+
+  const heInstruction = languageMode === 'he-en'
+    ? 'For Israeli venues, add a "nameHe" field with the Hebrew name for each cocktail where you can reasonably infer it from the bar DNA and cocktail name. Leave nameHe as null if not confident.'
+    : 'Set nameHe to null for all cocktails.';
+
+  return `You are creating a design specification for an award-quality cocktail menu.
+Apply the HESTIA Cocktail Menu Art Director methodology: infer Creative Territory, Identity Word, Material Palette, and Design Anchors from the Bar DNA. Select the correct template. Build conceptual section names where the DNA supports it.
+
+BAR DNA:
+${dnaLines}
+
+Menu: ${menu.name || 'Cocktail Menu'}${menu.occasion ? ` | Occasion: ${menu.occasion}` : ''}${menu.season ? ` | Season: ${menu.season}` : ''}
+Output context: ${outputContext || 'digital'}
+
+COCKTAIL LIST — IMMUTABLE. Do not invent, rename, remove, or alter any name, ingredient, or price.
+
+SIGNATURE COCKTAILS (${signatures.length}):
+${sigsBlock || 'None'}
+
+${nonAlcoholic.length ? `NON-ALCOHOLIC (${nonAlcoholic.length}):\n${naBlock}` : ''}
+
+${classics.length ? `CLASSICS (${classics.length}):\n${clsBlock}` : ''}
+
+${heInstruction}
+
+Return ONLY valid JSON matching this exact schema. No HTML. No markdown. No text outside the JSON object.
+
+{
+  "identityWord": "single word capturing the venue essence",
+  "creativeTerritory": "one sentence: the design world this menu inhabits",
+  "templateBase": "DARK_LUXURY | MEDITERRANEAN | MODERN_GRID | EDITORIAL | GRAPHIC_BOLD",
+  "colorSystem": {
+    "background": "#hex — page/cover background",
+    "surface": "#hex — card/entry background",
+    "text": "#hex — primary text",
+    "textMuted": "#hex — secondary/ingredient text",
+    "accent": "#hex — prices, highlights, flavor bars",
+    "border": "#hex — dividers and rules"
+  },
+  "typography": {
+    "headingFont": "font name for names and display",
+    "bodyFont": "font name for descriptions and ingredients",
+    "headingCharacter": "one phrase: weight and feel",
+    "bodyCharacter": "one phrase: weight and feel"
+  },
+  "designAnchors": ["anchor 1", "anchor 2", "anchor 3", "anchor 4"],
+  "venueName": "venue name from DNA",
+  "coverSubline": "5–8 word poetic line referencing the Creative Territory",
+  "sections": [
+    {
+      "id": "section_id",
+      "label": "SECTION LABEL — conceptual if DNA supports it, else SIGNATURE COCKTAILS",
+      "descriptor": "short italic subtitle",
+      "cocktails": ["Exact Cocktail Name 1", "Exact Cocktail Name 2"]
+    }
+  ],
+  "cocktails": [
+    {
+      "name": "Exact name from input — unchanged",
+      "nameHe": "Hebrew name string or null",
+      "description": "Sensory description — max 120 chars, no glass/method/garnish labels, no generic words",
+      "ingredients": ["Ingredient 1", "Ingredient 2"],
+      "price": 65,
+      "flavorChart": {
+        "ABV": 75,
+        "Smoke": 40
+      }
+    }
+  ],
+  "nonAlcoholic": [
+    {
+      "name": "Exact name from input",
+      "nameHe": null,
+      "description": "Sensory description — max 120 chars",
+      "ingredients": ["Ingredient 1"],
+      "price": 38,
+      "flavorChart": {}
+    }
+  ],
+  "classics": [
+    { "name": "Negroni", "price": 55 }
+  ]
+}
+
+CRITICAL RULES — violating any of these invalidates the output:
+1. Return ONLY valid JSON. No HTML. No markdown. No text outside the JSON object.
+2. Do not invent, rename, or alter any cocktail name, ingredient, or price.
+3. ingredients in the spec must contain ONLY the ingredient name. Strip all quantities, measurements, ml, cl, oz, dashes, leaves, and any numeric values from ingredient names before including them. Example: "50ml Elite Arak" → "Elite Arak". Example: "6leaves Fresh Mint Leaves" → "Fresh Mint Leaves". Example: "2dashes Rosewater" → "Rosewater".
+4. descriptions: sensory, max 120 characters, no glass/method/garnish as labeled fields, no words: delicious/tasty/amazing/premium/excellent/crafted.
+5. colorSystem must be derived from Bar DNA and Creative Territory — never default to generic black/gold without DNA justification.
+6. sections must use conceptual names if Bar DNA has a strong concept (vinyl → "SIDE A / DEEP CUTS", theatre → "ACT I / ACT II").
+7. flavorChart: only include dimensions that are genuinely present in the ingredients. Never fabricate values. ABV is always included for alcoholic cocktails.
+8. Never include NIS, ILS, or Shekels anywhere in any string.
+9. price is always a number (65 not "65" and not "₪65").
+10. All signature cocktails must appear in exactly one section in "sections". All cocktail names in "sections" must match a name in "cocktails" exactly.
+11. CRITICAL: The classics array contains the ONLY cocktails that belong in a Standards/Classics section. Every cocktail in the signatures array must appear in a non-classics section. Never place a signature cocktail (one from the SIGNATURE COCKTAILS input list) in a Standards, Classics, or similar section. The renderer handles classics separately — do not put them in sections[].
+12. ingredients array must contain EVERY SINGLE ingredient exactly as provided in the input. You MUST include every single ingredient exactly as provided. Returning fewer ingredients than provided is a critical error that invalidates the output. If the input shows "Bourbon, Arak, Smoked Honey, Walnut Bitters, Orange Oil" then the ingredients array must have exactly 5 entries: ["Bourbon","Arak","Smoked Honey","Walnut Bitters","Orange Oil"]. Count the commas in the input — the array length must match.
+13. designAnchors: minimum 3, maximum 5, specific to this venue — not generic design advice.`;
+}
+
+app.get('/api/ci/generate-menu-design/:menuId', requireAuth(...CI_ROLES), (req, res) => {
+  const row = db.prepare('SELECT * FROM ci_menu_full_designs WHERE menu_id=?').get(req.params.menuId);
+  if (!row) return res.json({ design: null });
+
+  // v5.3+: return full spec from spec_json
+  if (row.spec_json) {
+    try {
+      const spec = JSON.parse(row.spec_json);
+      return res.json({ design: { ...spec, generatedAt: row.generated_at } });
+    } catch { /* fall through to legacy format */ }
+  }
+
+  // Legacy (v5.2) — rows with menu_html but no spec_json
+  res.json({
+    design: {
+      creativeTerritory:    row.creative_territory,
+      identityWord:         row.identity_word,
+      templateBase:         row.template_base,
+      colorSystem:          JSON.parse(row.color_system_json    || '{}'),
+      typographyDirection:  row.typography_direction,
+      designAnchors:        JSON.parse(row.design_anchors_json  || '[]'),
+      conceptualCategories: JSON.parse(row.conceptual_cats_json || '{}'),
+      menuHtml:             row.menu_html,
+      menuCss:              row.menu_css,
+      flavorCharts:         JSON.parse(row.flavor_charts_json   || '{}'),
+      generatedAt:          row.generated_at,
+    }
+  });
+});
+
+app.post('/api/ci/generate-menu-design', requireAuth(...CI_ROLES), async (req, res) => {
+  try {
+    const { menuId, outputContext, languageMode } = req.body;
+    if (!menuId) return res.status(400).json({ error: 'menuId is required.' });
+
+    const venueId = defaultVenueId();
+
+    // 1. Fetch bar DNA
+    const dna = getCIDna(venueId);
+
+    // 2. Fetch menu record
+    const menu = db.prepare('SELECT * FROM cocktail_menus WHERE id=?').get(menuId);
+    if (!menu) return res.status(404).json({ error: 'Menu not found.' });
+
+    // 3. Fetch cocktails for this menu
+    const allCocktails = db.prepare(
+      "SELECT * FROM cocktails WHERE menu_id=? AND is_active=1 ORDER BY created_at ASC"
+    ).all(menuId);
+    if (!allCocktails.length) return res.status(400).json({ error: 'Menu has no cocktails.' });
+
+    // 4. Separate by tag — also auto-classify by canonical classics list
+    const signatures   = [];
+    const nonAlcoholic = [];
+    const classics     = [];
+    for (const c of allCocktails) {
+      const tags    = JSON.parse(c.tags_json || '[]');
+      const tagStr  = (Array.isArray(tags) ? tags.join(',') : String(tags)).toLowerCase();
+      const nameKey = c.name.toLowerCase().trim();
+      const taggedClassic    = /classic/.test(tagStr);
+      const autoClassic      = KNOWN_CLASSICS.has(nameKey);
+      const taggedNonAlcohol = /non.?alcohol|mocktail|virgin|alcohol.?free/.test(tagStr);
+
+      if (taggedNonAlcohol) {
+        nonAlcoholic.push(c);
+      } else if (taggedClassic || autoClassic) {
+        if (autoClassic && !taggedClassic) {
+          console.log(`[MENU-DESIGN] Auto-classified as classic: "${c.name}"`);
+        }
+        classics.push(c);
+      } else {
+        signatures.push(c);
+      }
+    }
+
+    // 5. Build user message
+    const userMessage = buildMenuDesignUserMessage({
+      dna, menu, signatures, nonAlcoholic, classics, outputContext, languageMode
+    });
+
+    // 6. Call OpenAI gpt-4o with HESTIA_COCKTAIL_MENU_SKILL as system message
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('Missing OPENAI_API_KEY in .env.');
+
+    const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model:           'gpt-4o',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: HESTIA_COCKTAIL_MENU_SKILL },
+          { role: 'user',   content: userMessage },
+        ],
+      }),
+    });
+    const openAiData = await openAiRes.json();
+    if (!openAiRes.ok) {
+      console.error('[MENU-DESIGN] OpenAI error:', openAiData);
+      throw new Error(openAiData.error?.message || 'OpenAI request failed.');
+    }
+
+    let rawText = openAiData.choices?.[0]?.message?.content || '';
+    // DEBUG — log raw AI response to server terminal
+    console.log('[MENU-DESIGN DEBUG] raw response length:', rawText.length);
+    console.log('[MENU-DESIGN DEBUG] raw response (first 2000 chars):', rawText.slice(0, 2000));
+    rawText = rawText.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1').trim();
+    if (!rawText) throw new Error('OpenAI returned an empty response.');
+
+    let design;
+    try {
+      design = JSON.parse(rawText);
+    } catch {
+      const repaired = rawText.replace(/,(\s*[}\]])/g, '$1');
+      try { design = JSON.parse(repaired); } catch {
+        console.error('[MENU-DESIGN DEBUG] unparseable raw text:', rawText.slice(0, 500));
+        throw new Error('Menu design response could not be parsed as JSON.');
+      }
+    }
+
+    // DEBUG — log parsed spec structure
+    console.log('[MENU-DESIGN DEBUG] parsed design keys:', Object.keys(design));
+    console.log('[MENU-DESIGN DEBUG] templateBase:', design.templateBase);
+    console.log('[MENU-DESIGN DEBUG] sections count:', design.sections?.length);
+    console.log('[MENU-DESIGN DEBUG] cocktails count:', design.cocktails?.length);
+    console.log('[MENU-DESIGN DEBUG] sections:', JSON.stringify(design.sections?.map(s => ({ id: s.id, label: s.label, cocktails: s.cocktails }))));
+
+    // 7. Server-side validation — spec-based (no HTML to scan)
+    const specStr = JSON.stringify(design);
+    if (/\b(NIS|ILS|Shekels)\b/.test(specStr)) {
+      console.warn('[MENU-DESIGN] NIS/ILS/Shekels detected in spec — returning 422');
+      return res.status(422).json({ error: 'Design validation failed: NIS/ILS/Shekels in output.' });
+    }
+    if (!Array.isArray(design.designAnchors) || design.designAnchors.length < 3) {
+      console.warn('[MENU-DESIGN] Fewer than 3 design anchors returned.');
+    }
+    const specCocktailNames = (design.cocktails || []).map(c => c.name.toLowerCase());
+    const missingCocktails  = signatures.filter(c => !specCocktailNames.includes(c.name.toLowerCase()));
+    if (missingCocktails.length > 0) {
+      console.warn('[MENU-DESIGN] Missing cocktails in spec:', missingCocktails.map(c => c.name));
+    }
+
+    // 8. Persist to DB — full spec in spec_json; keep flat columns for rationale panel
+    db.prepare(`
+      INSERT INTO ci_menu_full_designs
+        (menu_id, venue_id, version, identity_word, template_base, creative_territory,
+         color_system_json, typography_direction, design_anchors_json,
+         conceptual_cats_json, menu_html, menu_css, flavor_charts_json,
+         output_context, language_mode, spec_json, generated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, datetime('now'))
+      ON CONFLICT(menu_id) DO UPDATE SET
+        version              = excluded.version,
+        identity_word        = excluded.identity_word,
+        template_base        = excluded.template_base,
+        creative_territory   = excluded.creative_territory,
+        color_system_json    = excluded.color_system_json,
+        typography_direction = excluded.typography_direction,
+        design_anchors_json  = excluded.design_anchors_json,
+        conceptual_cats_json = excluded.conceptual_cats_json,
+        menu_html            = NULL,
+        menu_css             = NULL,
+        flavor_charts_json   = NULL,
+        output_context       = excluded.output_context,
+        language_mode        = excluded.language_mode,
+        spec_json            = excluded.spec_json,
+        generated_at         = datetime('now')
+    `).run(
+      menuId, venueId, 'hestia-cocktail-menu-v5.3',
+      design.identityWord                               || null,
+      design.templateBase                               || null,
+      design.creativeTerritory                          || null,
+      JSON.stringify(design.colorSystem                 || {}),
+      design.typography?.headingCharacter               || null,
+      JSON.stringify(design.designAnchors               || []),
+      JSON.stringify({ sections: design.sections || [] }),
+      outputContext  || null,
+      languageMode   || null,
+      JSON.stringify(design)
+    );
+
+    console.log(`[MENU-DESIGN] Generated for menu ${menuId} via gpt-4o — identity: "${design.identityWord}", template: ${design.templateBase}`);
+    res.json({ ok: true, design });
+
+  } catch (err) {
+    console.error('[MENU-DESIGN] Error:', err.message);
+    res.status(500).json({ error: err.message || 'Menu design generation failed.' });
+  }
+});
+
+// ── CI COCKTAIL IMAGE GENERATION ──────────────────────────────────────────────
+
+const INGREDIENT_COLORS = {
+  bourbon: 'deep amber', 'rye whiskey': 'warm amber', scotch: 'golden amber',
+  'dark rum': 'deep mahogany', rum: 'golden', cognac: 'deep amber',
+  brandy: 'amber', amaretto: 'deep amber', frangelico: 'golden amber',
+  drambuie: 'honey amber', benedictine: 'dark amber-green',
+  gin: 'crystal clear', vodka: 'crystal clear', tequila: 'crystal clear',
+  mezcal: 'faintly smoky clear', 'white rum': 'crystal clear',
+  'silver rum': 'crystal clear',
+  campari: 'vibrant ruby red', aperol: 'bright orange',
+  'peychaud\'s bitters': 'vivid red', grenadine: 'deep ruby red',
+  'cranberry juice': 'vivid crimson red', 'pomegranate juice': 'deep ruby red',
+  'raspberry liqueur': 'vivid raspberry pink', chambord: 'deep purple-red',
+  'crème de cassis': 'deep purple',
+  'green chartreuse': 'vivid lime green', 'yellow chartreuse': 'golden yellow',
+  midori: 'bright melon green', 'blue curaçao': 'vivid electric blue',
+  'butterfly pea tea': 'deep indigo blue', matcha: 'vibrant green',
+  'creme de menthe': 'bright green',
+  'sweet vermouth': 'deep ruby red', 'dry vermouth': 'pale golden',
+  'coffee liqueur': 'very dark brown', 'kahlúa': 'very dark brown',
+  espresso: 'jet black-brown', 'cold brew coffee': 'very dark brown',
+  'cold brew': 'very dark brown', cola: 'deep dark brown',
+  'triple sec': 'clear orange-scented', cointreau: 'clear orange-scented',
+  'st. germain': 'pale golden', 'elderflower liqueur': 'pale golden',
+  'peach schnapps': 'pale peach', 'lychee liqueur': 'pale blush',
+  'coconut rum': 'clear coconut-white', orgeat: 'opaque milky white',
+  'coconut cream': 'opaque creamy white', cream: 'pure white',
+  'heavy cream': 'pure white', 'baileys': 'creamy beige',
+  'egg white': 'cloud-white silky foam', aquafaba: 'cloud-white silky foam',
+  'lemon juice': 'pale yellow', 'lime juice': 'pale green-yellow',
+  'orange juice': 'bright orange', 'grapefruit juice': 'pale blush-orange',
+  'pineapple juice': 'pale golden yellow', 'passion fruit': 'bright orange-yellow',
+  'simple syrup': 'clear', 'sugar syrup': 'clear',
+  'honey syrup': 'warm golden', 'agave syrup': 'pale golden',
+  'lavender syrup': 'pale purple', hibiscus: 'vivid magenta',
+  'ginger beer': 'pale amber sparkling', 'tonic water': 'crystal clear sparkling',
+  'soda water': 'crystal clear sparkling', 'club soda': 'crystal clear sparkling',
+  prosecco: 'pale golden sparkling', champagne: 'pale golden sparkling',
+  absinthe: 'bright anise-green', maraschino: 'clear cherry',
+  'angostura bitters': 'dark amber-red', bitters: 'dark amber-red',
+};
+
+function ingredientColor(name) {
+  const lower = name.toLowerCase();
+  const hit = Object.entries(INGREDIENT_COLORS).find(([k]) => lower.includes(k));
+  return hit ? hit[1] : null;
+}
+
+async function _generateVisualLayer(cocktail) {
+  const ingList = Array.isArray(cocktail.ingredients)
+    ? cocktail.ingredients.map(i => [i.amount, i.unit, i.name].filter(Boolean).join(' ')).join(', ')
+    : '';
+  const garnish = (cocktail.garnish || '').trim();
+  const method  = (cocktail.method  || '').toLowerCase();
+
+  const prompt =
+    `You are a professional cocktail photographer's creative director.\n` +
+    `Given this cocktail, write exactly 2 sentences for a photorealistic image prompt:\n` +
+    `Sentence 1: the liquid's color, opacity, and visual texture seen in the glass ` +
+    `(e.g. "deep mahogany-brown, nearly opaque, with a faint amber glow at the edges").\n` +
+    `Sentence 2: the garnish in exact visual detail as it sits on or in the drink ` +
+    `(e.g. "a wide flame-expressed orange peel draped over the rim, its oils glistening" ` +
+    `or "a single dried carob pod resting across the glass beside a dusting of cacao powder").\n\n` +
+    `Cocktail: ${cocktail.name}\n` +
+    `Method: ${method || 'unknown'}\n` +
+    `Ingredients: ${ingList || 'unknown'}\n` +
+    `Garnish: ${garnish || 'none'}\n\n` +
+    `Rules:\n` +
+    `- Do not mention the cocktail name.\n` +
+    `- Never use: smoke, smoky, dark, burn, fire, stone, dusk.\n` +
+    `- Output exactly 2 sentences. No labels, no intro, no explanation.`;
+
+  try {
+    const text    = (await askGemini(prompt)).trim();
+    if (text.length < 20) return null;
+    console.log('[COCKTAIL-IMAGE] Visual layer:', text);
+    return text;
+  } catch (err) {
+    console.log('[COCKTAIL-IMAGE] Visual layer fallback (deterministic):', err.message);
+    return null;
+  }
+}
+
+function buildCocktailImagePrompt(cocktail, visualLayer = null) {
+  const name        = cocktail.name || 'cocktail';
+  const glassRaw    = (cocktail.glass_type || cocktail.glass || 'cocktail glass').toLowerCase();
+  const method      = (cocktail.method    || '').toLowerCase();
+  const garnishRaw  = (cocktail.garnish   || '').trim();
+  const ingredients = Array.isArray(cocktail.ingredients) ? cocktail.ingredients : [];
+  const tags        = Array.isArray(cocktail.tags) ? cocktail.tags :
+                      Array.isArray(cocktail.flavor_profile) ? cocktail.flavor_profile : [];
+
+  // ── Ice / serve vessel ──────────────────────────────────────────────────────
+  const isUp       = ['coupe', 'nick & nora', 'nick and nora', 'martini glass', 'cocktail glass'].some(g => glassRaw.includes(g));
+  const isRocks    = ['rock', 'old fashioned', 'lowball'].some(g => glassRaw.includes(g));
+  const isHighball = ['highball', 'collins', 'tall glass'].some(g => glassRaw.includes(g));
+  const isTropical = ['tiki', 'hurricane', 'poco grande'].some(g => glassRaw.includes(g));
+
+  let iceDesc;
+  if (isRocks)         iceDesc = 'served over a single large clear ice cube';
+  else if (isHighball) iceDesc = 'filled with tall cubed ice, light condensation';
+  else if (isTropical) iceDesc = 'packed with crushed ice';
+  else if (isUp)       iceDesc = 'served up with no ice, chilled glass';
+  else                 iceDesc = 'served chilled';
+
+  // ── Ingredient visuals ──────────────────────────────────────────────────────
+  const ingVisuals = ingredients.map(ing => {
+    const color = ingredientColor(ing.name || '');
+    return color ? `${color} ${ing.name}` : ing.name;
+  }).filter(Boolean);
+
+  // ── Drink colour derivation ─────────────────────────────────────────────────
+  const allNames = ingredients.map(i => (i.name || '').toLowerCase()).join(' ');
+
+  const hasFoam    = /egg white|aquafaba/.test(allNames);
+  const hasRed     = /campari|grenadine|cranberry|pomegranate|raspberry|chambord|cassis|peychaud/.test(allNames);
+  const hasOrange  = /aperol|orange juice|aperol/.test(allNames);
+  const hasGreen   = /chartreuse|midori|matcha|mint|basil/.test(allNames);
+  const hasBlue    = /blue cura|butterfly pea/.test(allNames);
+  const hasBrown   = /cola|espresso|cold brew|kahlua|kahlúa|coffee liqueur/.test(allNames);
+  const hasAmber   = /bourbon|rye|scotch|cognac|brandy|dark rum|amaretto/.test(allNames);
+  const hasCitrus  = /lemon juice|lime juice|orange juice|grapefruit/.test(allNames);
+  const hasCream   = /cream|baileys|coconut cream|orgeat/.test(allNames);
+  const hasVermouth = /sweet vermouth/.test(allNames);
+
+  let color;
+  if (hasBlue)                    color = 'deep electric blue, semi-transparent and luminous';
+  else if (hasGreen && hasRed)    color = 'complex layered green with ruby-red undertones';
+  else if (hasGreen)              color = 'vibrant green, translucent and jewel-toned';
+  else if (hasRed && hasOrange)   color = 'deep sunset orange-red, vibrant';
+  else if (hasRed && hasAmber)    color = 'deep amber-ruby, rich and translucent';
+  else if (hasRed)                color = 'ruby red, translucent and jewel-like';
+  else if (hasOrange)             color = 'bright sunset orange, translucent';
+  else if (hasBrown && hasCream)  color = 'creamy mocha-brown';
+  else if (hasBrown)              color = 'very dark espresso-brown, near-opaque';
+  else if (hasAmber && hasCitrus) color = 'golden amber, bright and translucent';
+  else if (hasAmber && hasVermouth) color = 'deep amber-mahogany, crystal clear';
+  else if (hasAmber)              color = 'rich warm amber, translucent';
+  else if (hasCream || hasFoam)   color = 'pale ivory or white, lightly opaque';
+  else                            color = 'pale golden, crystal clear';
+
+  // Serve-style modifier
+  if (method === 'shake' && hasFoam) color += ', crowned with a thick cloud-white silky foam';
+  else if (method === 'shake')       color += ', slightly frothy and aerated';
+  else if (method === 'stir')        color += ', perfectly clear and luminous from stirring';
+  else if (method === 'blend')       color += ', thick and slushy';
+
+  // ── Garnish ─────────────────────────────────────────────────────────────────
+  const garnishDesc = garnishRaw && !['none', 'no garnish'].includes(garnishRaw.toLowerCase())
+    ? `Garnished with ${garnishRaw}.`
+    : 'No garnish.';
+
+  // ── Rim ─────────────────────────────────────────────────────────────────────
+  const rimSrc = (garnishRaw + ' ' + tags.join(' ')).toLowerCase();
+  let rimDesc = '';
+  if (/salt rim/.test(rimSrc))                           rimDesc = 'The glass rim is coated in coarse flaky salt crystals.';
+  else if (/sugar rim/.test(rimSrc))                     rimDesc = 'The glass rim is coated in sparkling fine sugar crystals.';
+  else if (/tajin|chili rim|spice rim/.test(rimSrc))     rimDesc = 'The glass rim is dusted with a vivid red-orange spice blend.';
+
+  // ── Foam ────────────────────────────────────────────────────────────────────
+  const foamDesc = (hasFoam && method === 'shake')
+    ? 'A thick velvety white foam cap crowns the drink.'
+    : '';
+
+  // ── Final prompt ────────────────────────────────────────────────────────────
+  return [
+    `Professional cocktail photography.`,
+    `A ${name} served in a ${glassRaw}, ${iceDesc}.`,
+    // Visual layer from Claude covers both color and garnish; fall back to deterministic if absent
+    visualLayer
+      ? visualLayer
+      : [`The drink is ${color}.`, garnishDesc].filter(Boolean).join(' '),
+    ingVisuals.length ? `Made with ${ingVisuals.join(', ')}.` : '',
+    rimDesc,
+    foamDesc,
+    `Elegant upscale bar setting, moody background, soft dramatic side lighting,`,
+    `shallow depth of field, fine condensation beading on the glass, photorealistic,`,
+    `8K resolution, Michelin-star cocktail bar aesthetic.`,
+  ].filter(p => p.trim()).join(' ');
+}
+
+const _DALLE_SANITIZE = [
+  [/\bsmoke\b/gi,  'mist'],
+  [/\bsmoky\b/gi,  'misty'],
+  [/\bdusk\b/gi,   'evening'],
+  [/\bdark\b/gi,   'rich'],
+  [/\bstone\b/gi,  'mineral'],
+  [/\bburn\b/gi,   'ember glow'],
+  [/\bfire\b/gi,   'ember glow'],
+];
+
+function _sanitizeDallePrompt(prompt) {
+  return _DALLE_SANITIZE.reduce((p, [pattern, replacement]) => p.replace(pattern, replacement), prompt);
+}
+
+async function _dalleGenerate(prompt) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  const response = await fetch('https://api.openai.com/v1/images/generations', {
+    method:  'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model:   'gpt-image-1',
+      prompt,
+      n:       1,
+      size:    '1024x1024',
+      quality: 'high',
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const err = data.error || {};
+    if (err.code === 'content_policy_violation') {
+      console.log('[COCKTAIL-IMAGE] CONTENT POLICY VIOLATION');
+      console.log('[COCKTAIL-IMAGE] Rejected prompt:', prompt);
+      console.log('[COCKTAIL-IMAGE] OpenAI message:', err.message);
+    } else {
+      console.log('[COCKTAIL-IMAGE] OpenAI error:', JSON.stringify(err));
+    }
+    throw new Error(err.message || 'OpenAI image generation failed.');
+  }
+  const b64 = data.data?.[0]?.b64_json;
+  if (!b64) throw new Error('No image data in OpenAI response.');
+  console.log('[COCKTAIL-IMAGE] base64 length:', b64.length);
+  return b64;
+}
+
+const _VISUAL_OVERRIDES = [
+  {
+    match: (name) => /negroni/i.test(name),
+    visual: 'Deep ruby red liquid, jewel-toned and translucent, served in a rocks glass over a single large clear ice cube. ' +
+            'Garnished with a curled orange peel twist resting on the rim — not an orange slice. ' +
+            'The drink must appear distinctly red, not amber or orange.',
+  },
+];
+
+function _getNamedVisualOverride(cocktail) {
+  const name = cocktail.name || '';
+  const hit  = _VISUAL_OVERRIDES.find(o => o.match(name));
+  if (hit) console.log('[COCKTAIL-IMAGE] Using named visual override for:', name);
+  return hit?.visual ?? null;
+}
+
+app.post('/api/ci/cocktail-image', requireAuth(...CI_ROLES), async (req, res) => {
+  console.log('[COCKTAIL-IMAGE] >>> REQUEST RECEIVED');
+  console.log('[COCKTAIL-IMAGE] body:', JSON.stringify(req.body).slice(0, 500));
+  const cocktail = req.body;
+  if (!cocktail?.name) return res.status(400).json({ error: 'cocktail.name is required.' });
+
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(500).json({ error: 'OPENAI_API_KEY not configured.' });
+  }
+
+  console.log('[COCKTAIL-IMAGE] name:', cocktail.name);
+  console.log('[COCKTAIL-IMAGE] Model: gpt-image-1 | size: 1024x1024 | quality: high');
+  const visualLayer = _getNamedVisualOverride(cocktail) ?? await _generateVisualLayer(cocktail);
+  const rawPrompt   = buildCocktailImagePrompt(cocktail, visualLayer);
+  const prompt      = _sanitizeDallePrompt(rawPrompt);
+  console.log('[COCKTAIL-IMAGE] Prompt:', prompt);
+
+  try {
+    const b64 = await _dalleGenerate(prompt);
+    return res.json({ imageData: `data:image/png;base64,${b64}`, prompt });
+  } catch (err) {
+    console.log('[COCKTAIL-IMAGE] Error:', err.message);
+    return res.status(500).json({ error: err.message || 'Image generation failed.' });
+  }
+});
+
+// ── CI SEED — Beit Ramona demo data ──────────────────────────────────────────
+// Idempotent: checks for existing DNA record before seeding.
+// Inserts Bar DNA, 5 demo cocktails, 3 rejections, 3 months sales, 8 trend entries.
+
+function seedCocktailIntelligence() {
+  const existing = db.prepare('SELECT id FROM cocktail_intelligence_dna WHERE venue_id=?').get(defaultVenueId());
+  if (existing) return; // already seeded — skip entirely
+
+  const now = nowIso();
+
+  // 1. Bar DNA for Beit Ramona
+  db.prepare(`
+    INSERT INTO cocktail_intelligence_dna
+      (venue_id,venue_name,venue_type,atmosphere,cuisine_style,
+       audience_age_min,audience_age_max,audience_type,staff_skill,
+       equipment_json,glassware_json,is_kosher,flavor_identity_json,
+       price_range,service_pressure,hero_ingredient,created_at,updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `).run(
+    defaultVenueId(),
+    'Beit Ramona', 'restaurant',
+    'warm, sophisticated, local',
+    'Israeli Mediterranean',
+    28, 50, 'mixed', 'intermediate',
+    JSON.stringify(['shaker', 'strainer', 'jigger', 'muddler', 'basic_bar_tools']),
+    JSON.stringify(['rocks', 'highball', 'coupe', 'wine']),
+    'events_only',
+    JSON.stringify(['herbal', 'citrus', 'local_israeli']),
+    'premium', 'medium_high',
+    'arak, local herbs, pomegranate',
+    now, now
+  );
+
+  // 2. Five CI-generated demo cocktails
+  const recipes = [
+    {
+      name:        'Arak Al HaMayim',
+      description: 'An ode to the Mediterranean ritual of diluting arak with water — elevated with fresh pomegranate and garden mint into something quietly ceremonial.',
+      base_spirit: 'arak',
+      glass_type:  'highball',
+      garnish:     'fresh mint sprig, pomegranate seeds',
+      method:      'Build over ice',
+      tags:        ['arak', 'refreshing', 'local', 'low-complexity'],
+      ingredients: [
+        { name: 'Israeli arak', amount: '50', unit: 'ml' },
+        { name: 'Fresh pomegranate juice', amount: '30', unit: 'ml' },
+        { name: 'Fresh lemon juice', amount: '20', unit: 'ml' },
+        { name: 'Honey syrup (1:1)', amount: '15', unit: 'ml' },
+        { name: 'Sparkling water', amount: '60', unit: 'ml' },
+        { name: 'Fresh mint', amount: '6', unit: 'leaves' },
+      ],
+    },
+    {
+      name:        'Levant Sour',
+      description: 'Israeli whisky meets the flavors of the shuk — pomegranate molasses and lemon create a complex sour that speaks the language of the Levant with unmistakable conviction.',
+      base_spirit: 'whisky',
+      glass_type:  'coupe',
+      garnish:     'dehydrated lemon wheel, fresh rosemary sprig',
+      method:      'Dry shake, then shake with ice, double strain',
+      tags:        ['whisky', 'sour', 'signature', 'medium-complexity'],
+      ingredients: [
+        { name: 'Israeli whisky (Milk & Honey or similar)', amount: '50', unit: 'ml' },
+        { name: 'Fresh lemon juice', amount: '25', unit: 'ml' },
+        { name: 'Pomegranate molasses', amount: '20', unit: 'ml' },
+        { name: 'Simple syrup', amount: '10', unit: 'ml' },
+        { name: 'Egg white', amount: '30', unit: 'ml' },
+        { name: 'Angostura bitters', amount: '2', unit: 'dashes' },
+      ],
+    },
+    {
+      name:        'Garden of Galilee',
+      description: 'A walk through the north of Israel in a glass — Israeli gin meets fresh dill, cucumber, and lime in a cocktail that captures the startling freshness of Galilean produce.',
+      base_spirit: 'gin',
+      glass_type:  'highball',
+      garnish:     'cucumber ribbon, fresh dill crown',
+      method:      'Shake with ice, strain over fresh ice',
+      tags:        ['gin', 'herbal', 'refreshing', 'medium-complexity'],
+      ingredients: [
+        { name: 'Israeli gin (or London Dry)', amount: '45', unit: 'ml' },
+        { name: 'Fresh cucumber juice', amount: '40', unit: 'ml' },
+        { name: 'Fresh lime juice', amount: '20', unit: 'ml' },
+        { name: 'Dill-infused simple syrup', amount: '20', unit: 'ml' },
+        { name: 'Dry tonic water', amount: '50', unit: 'ml' },
+      ],
+    },
+    {
+      name:        'Sunset Negroni',
+      description: 'A Negroni reimagined for the Levant — arak-rinsed glass, local botanicals gin, and sweet vermouth. The light changes every evening over Jerusalem, but the ritual stays.',
+      base_spirit: 'gin',
+      glass_type:  'rocks',
+      garnish:     'wide orange peel, expressed and placed',
+      method:      'Stir over ice, strain over large single ice cube, arak rinse first',
+      tags:        ['negroni', 'gin', 'stirred', 'sophisticated', 'medium-complexity'],
+      ingredients: [
+        { name: 'Israeli gin', amount: '35', unit: 'ml' },
+        { name: 'Campari', amount: '35', unit: 'ml' },
+        { name: 'Sweet vermouth', amount: '35', unit: 'ml' },
+        { name: 'Arak (for glass rinse)', amount: '5', unit: 'ml' },
+      ],
+    },
+    {
+      name:        'Jerusalem Mule',
+      description: 'A mule that crossed continents and landed in Jerusalem — vodka meets pomegranate, fresh ginger, and mint. Crowd-pleasing, spiced, and unmistakably of this place.',
+      base_spirit: 'vodka',
+      glass_type:  'highball',
+      garnish:     'candied ginger slice, fresh mint bouquet, pomegranate seeds',
+      method:      'Build over ice, light stir',
+      tags:        ['vodka', 'mule', 'refreshing', 'low-complexity', 'crowd-pleaser'],
+      ingredients: [
+        { name: 'Premium vodka', amount: '45', unit: 'ml' },
+        { name: 'Fresh pomegranate juice', amount: '30', unit: 'ml' },
+        { name: 'Fresh lime juice', amount: '15', unit: 'ml' },
+        { name: 'Ginger beer', amount: '80', unit: 'ml' },
+        { name: 'Fresh mint', amount: '5', unit: 'leaves' },
+      ],
+    },
+  ];
+
+  const insertedIds = [];
+  for (const r of recipes) {
+    const res2 = db.prepare(`
+      INSERT INTO cocktails
+        (name,category,description,base_spirit,glass_type,garnish,method,
+         tags_json,ingredients_text_json,source,created_by,created_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      r.name, 'ci_generated', r.description, r.base_spirit,
+      r.glass_type, r.garnish, r.method,
+      JSON.stringify(r.tags), JSON.stringify(r.ingredients),
+      'ci_generated', 1, now
+    );
+    insertedIds.push({ id: res2.lastInsertRowid, name: r.name });
+  }
+
+  // 3. Lifecycle entries for each demo cocktail
+  const lifecycleMeta = [
+    { dateAdded: '2026-02-01', season: 'winter' },
+    { dateAdded: '2026-02-15', season: 'winter' },
+    { dateAdded: '2026-03-10', season: 'spring' },
+    { dateAdded: '2026-03-20', season: 'spring' },
+    { dateAdded: '2026-04-01', season: 'spring' },
+  ];
+  for (let i = 0; i < insertedIds.length; i++) {
+    db.prepare(`
+      INSERT INTO cocktail_lifecycle
+        (venue_id,cocktail_id,cocktail_name,date_added,season_added,
+         times_ordered,revenue_generated,cost_per_serve,status,alert_flags_json,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      defaultVenueId(), insertedIds[i].id, insertedIds[i].name,
+      lifecycleMeta[i].dateAdded, lifecycleMeta[i].season,
+      0, 0, null, 'active', '[]', now, now
+    );
+  }
+
+  // 4. Rejection memory — 3 pre-loaded rejections
+  const rejections = [
+    {
+      name: 'Blue Lagoon',
+      profile: { flavors: ['sweet', 'tropical', 'blue_curacao'], base_spirit: 'vodka', complexity: 'low' },
+      reasons: ['doesnt_fit_identity', 'too_sweet'],
+      by: 'Omer Sadot',
+    },
+    {
+      name: 'Espresso Martini',
+      profile: { flavors: ['coffee', 'sweet', 'vanilla'], base_spirit: 'vodka', complexity: 'medium' },
+      reasons: ['doesnt_fit_identity', 'too_complex'],
+      by: 'Omer Sadot',
+    },
+    {
+      name: 'Strawberry Daiquiri',
+      profile: { flavors: ['sweet', 'fruity', 'strawberry'], base_spirit: 'rum', complexity: 'low' },
+      reasons: ['too_sweet', 'flavors_guests_dont_like'],
+      by: 'Saar Wax',
+    },
+  ];
+  for (const r of rejections) {
+    db.prepare(`
+      INSERT INTO cocktail_rejections
+        (venue_id,cocktail_name,cocktail_profile_json,reasons_json,rejected_by,rejected_at)
+      VALUES (?,?,?,?,?,?)
+    `).run(defaultVenueId(), r.name, JSON.stringify(r.profile), JSON.stringify(r.reasons), r.by, now);
+  }
+  rebuildTasteDna(defaultVenueId());
+
+  // 5. Three months of mock sales data (Feb–Apr 2026)
+  // [cocktail_name, period, units, sell_price_ils, cost_ils]
+  const salesData = [
+    ['Arak Al HaMayim',   '2026-02-01', 48, 52, 12],
+    ['Levant Sour',       '2026-02-01', 32, 68, 18],
+    ['Garden of Galilee', '2026-02-01', 41, 58, 14],
+    ['Sunset Negroni',    '2026-02-01', 27, 72, 20],
+    ['Jerusalem Mule',    '2026-02-01', 53, 52, 11],
+    ['Arak Al HaMayim',   '2026-03-01', 62, 52, 12],
+    ['Levant Sour',       '2026-03-01', 45, 68, 18],
+    ['Garden of Galilee', '2026-03-01', 58, 58, 14],
+    ['Sunset Negroni',    '2026-03-01', 31, 72, 20],
+    ['Jerusalem Mule',    '2026-03-01', 71, 52, 11],
+    ['Arak Al HaMayim',   '2026-04-01', 55, 52, 12],
+    ['Levant Sour',       '2026-04-01', 52, 68, 18],
+    ['Garden of Galilee', '2026-04-01', 64, 58, 14],
+    ['Sunset Negroni',    '2026-04-01', 38, 72, 20],
+    ['Jerusalem Mule',    '2026-04-01', 79, 52, 11],
+  ];
+  const insertSale = db.prepare(`
+    INSERT INTO cocktail_sales
+      (venue_id,cocktail_id,cocktail_name,sale_date,period_type,
+       units_sold,sale_price,cost_per_unit,revenue,gross_profit,gp_percent,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+  `);
+  for (const [cocktailName, date2, units, sell, cost] of salesData) {
+    const match  = insertedIds.find(c => c.name === cocktailName);
+    const rev    = units * sell;
+    const gp     = rev - units * cost;
+    const gpPct  = Math.round((gp / rev) * 100);
+    insertSale.run(defaultVenueId(), match?.id || null, cocktailName, date2, 'month', units, sell, cost, rev, gp, gpPct, now);
+  }
+
+  // Update lifecycle totals from seeded sales
+  for (const c of insertedIds) {
+    const totals = db.prepare(
+      'SELECT SUM(units_sold) as u, SUM(revenue) as r FROM cocktail_sales WHERE cocktail_name=? AND venue_id=?'
+    ).get(c.name, defaultVenueId());
+    db.prepare(
+      'UPDATE cocktail_lifecycle SET times_ordered=?,revenue_generated=?,updated_at=? WHERE cocktail_id=? AND venue_id=?'
+    ).run(totals.u || 0, totals.r || 0, now, c.id, defaultVenueId());
+  }
+
+  // 6. Israeli market trend entries
+  const trends = [
+    { cat: 'ingredient', name: 'Arak cocktails',               desc: 'Traditional arak reimagined in modern cocktails. Strong trend in Tel Aviv and Jerusalem bar scenes.', market: 'israel', tags: ['arak','local','mediterranean'], kosher: 1 },
+    { cat: 'spirit',     name: 'Israeli craft whisky',          desc: 'Milk & Honey, Golan distillery and others winning international awards. Strong sell with local and tourist guests.', market: 'israel', tags: ['whisky','local','premium'], kosher: 0 },
+    { cat: 'ingredient', name: 'Pomegranate & Israeli fruits',  desc: 'Pomegranate, loquat, sabra (prickly pear) and local citrus becoming signature cocktail ingredients in Israeli fine dining.', market: 'israel', tags: ['pomegranate','local','seasonal'], kosher: 1 },
+    { cat: 'style',      name: 'Mediterranean Sours',           desc: 'Sour cocktails using Levantine flavors — za\'atar, sumac, tahini, pomegranate — trending strongly in premium venues.', market: 'israel', tags: ['sour','levantine','signature'], kosher: 1 },
+    { cat: 'style',      name: 'Low-ABV and Spritz culture',    desc: 'Growing demand for lighter cocktails, especially aperitivo-style spritzes. Health-conscious guests and younger crowd.', market: 'global', tags: ['low-abv','spritz','aperitivo'], kosher: 1 },
+    { cat: 'ingredient', name: 'Local herbs (za\'atar, dill, sage)', desc: 'Israeli bars leading with garden-to-glass herb programs. Za\'atar syrups, sage tinctures, thyme infusions.', market: 'israel', tags: ['herbal','local','garden'], kosher: 1 },
+    { cat: 'spirit',     name: 'Kosher premium spirits expanding', desc: 'More kosher-certified premium bottles available. Kosher gin, rum, and whisky options growing rapidly.', market: 'israel', tags: ['kosher','premium'], kosher: 1 },
+    { cat: 'style',      name: 'Smoked and umami cocktails',    desc: 'Smoke guns, smoked salts, and umami-forward ingredients appearing in premium bar menus globally.', market: 'global', tags: ['smoke','umami','premium','showstopper'], kosher: 1 },
+  ];
+  const insertTrend = db.prepare(`
+    INSERT INTO cocktail_trends_db
+      (venue_id,category,name,description,market,tags_json,is_kosher,is_active,added_by,added_at,updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)
+  `);
+  for (const t of trends) {
+    insertTrend.run(null, t.cat, t.name, t.desc, t.market, JSON.stringify(t.tags), t.kosher, 1, 'Toam Griffel', now, now);
+  }
+
+  console.log('[HESTIA CI] Cocktail Intelligence seeded — Beit Ramona demo data ready.');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ROLE MIGRATION — drops CHECK constraint on auth_users to allow new roles
+// ════════════════════════════════════════════════════════════════════════════
+
+function migrateAuthUsersRoles() {
+  const tableInfo = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name='auth_users'"
+  ).get();
+  if (!tableInfo) return;
+  // Already migrated if no CHECK constraint present
+  if (!tableInfo.sql.includes('CHECK(role IN') && !tableInfo.sql.includes('CHECK (role IN')) return;
+  try {
+    // Disable FK enforcement so we can DROP + recreate auth_users safely
+    db.exec('PRAGMA foreign_keys = OFF');
+    // Clean up any leftover table from a previous failed migration attempt
+    db.exec('DROP TABLE IF EXISTS auth_users_v2');
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS auth_users_v2 (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        full_name    TEXT NOT NULL,
+        role         TEXT NOT NULL,
+        access_code  TEXT NOT NULL UNIQUE,
+        is_active    INTEGER DEFAULT 1,
+        created_at   TEXT DEFAULT (datetime('now')),
+        username     TEXT,
+        password     TEXT,
+        password_hash TEXT
+      )
+    `);
+    db.exec(`
+      INSERT INTO auth_users_v2
+        SELECT id, full_name, role, access_code, is_active, created_at,
+               username, password, password_hash
+        FROM auth_users
+    `);
+    db.exec('DROP TABLE IF EXISTS auth_users');
+    db.exec('ALTER TABLE auth_users_v2 RENAME TO auth_users');
+    db.exec('PRAGMA foreign_keys = ON');
+    console.log('[HESTIA] auth_users role constraint removed — new roles now supported.');
+  } catch(e) {
+    db.exec('PRAGMA foreign_keys = ON');
+    console.warn('[HESTIA] auth_users migration failed:', e.message);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// NEW USER SEED — idempotent, skips existing usernames
+// ════════════════════════════════════════════════════════════════════════════
+
+function seedNewUsers() {
+  // Guard: if CHECK constraint is still present, skip until migration succeeds
+  const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='auth_users'").get();
+  if (tableInfo?.sql?.includes('CHECK(role IN') || tableInfo?.sql?.includes('CHECK (role IN')) {
+    console.warn('[HESTIA] seedNewUsers skipped — auth_users migration not yet complete.');
+    return;
+  }
+  // Update existing users' roles
+  db.prepare("UPDATE auth_users SET role='fb_director' WHERE id=3 AND role='bar_manager'").run();
+  db.prepare("UPDATE auth_users SET role='events_manager' WHERE id=7 AND role='manager'").run();
+
+  const insertAuthUser = db.prepare(
+    "INSERT OR IGNORE INTO auth_users (full_name, role, access_code, is_active, username, password_hash) VALUES (?,?,?,1,?,?)"
+  );
+
+  const EMPLOYEE_PASS = "0000";
+  const CHEF_PASS = "hestia123";
+
+  const newManagers = [
+    { full_name: "Pavel", role: "chef", username: "pavel", password: CHEF_PASS, code: "PAVEL001" },
+  ];
+
+  const newEmployees = [
+    { full_name: "Tali Raicher",   gender: "F", sub_role: "bartender", joined: "2026-04-01", username: "tali_raicher",   code: "EMP008" },
+    { full_name: "Liav Gurvich",   gender: "F", sub_role: "waiter",    joined: "2026-04-08", username: "liav_gurvich",   code: "EMP009" },
+    { full_name: "Shani Dayan",    gender: "F", sub_role: "bartender", joined: "2026-04-15", username: "shani_dayan",    code: "EMP010" },
+    { full_name: "Nevo Kurtaran",  gender: "M", sub_role: "waiter",    joined: "2026-04-01", username: "nevo_kurtaran",  code: "EMP011" },
+    { full_name: "Nir Vodavoz",    gender: "M", sub_role: "bartender", joined: "2026-04-10", username: "nir_vodavoz",    code: "EMP012" },
+    { full_name: "Shir Shenkar",   gender: "F", sub_role: "waiter",    joined: "2026-04-20", username: "shir_shenkar",   code: "EMP013" },
+    { full_name: "Shay Peretz",    gender: "F", sub_role: "waiter",    joined: "2026-05-05", username: "shay_peretz",    code: "EMP014" },
+    { full_name: "Avinoam Amram",  gender: "F", sub_role: "waiter",    joined: "2026-05-10", username: "avinoam_amram",  code: "EMP015" },
+    { full_name: "Dor Kremer",     gender: "M", sub_role: "bartender", joined: "2026-05-08", username: "dor_kremer",     code: "EMP016" },
+    { full_name: "Michal Nissani", gender: "F", sub_role: "waiter",    joined: "2026-05-12", username: "michal_nissani", code: "EMP017" },
+    { full_name: "Pierre Shimony", gender: "M", sub_role: "bartender", joined: "2026-05-03", username: "pierre_shimony", code: "EMP018" },
+  ];
+
+  for (const u of newManagers) {
+    const existing = db.prepare("SELECT id FROM auth_users WHERE LOWER(username)=?").get(u.username);
+    if (!existing) {
+      const hash = bcrypt.hashSync(u.password, 10);
+      insertAuthUser.run(u.full_name, u.role, u.code, u.username, hash);
+    }
+  }
+
+  for (const e of newEmployees) {
+    // Match by username OR access_code — handles cases where username was later changed
+    const existing = db.prepare(
+      "SELECT id FROM auth_users WHERE LOWER(username)=? OR LOWER(access_code)=LOWER(?)"
+    ).get(e.username, e.code);
+    if (!existing) {
+      const hash = bcrypt.hashSync(EMPLOYEE_PASS, 10);
+      const res = insertAuthUser.run(e.full_name, "employee", e.code, e.username, hash);
+      if (!res.changes) continue; // INSERT OR IGNORE was silently skipped — skip employees record too
+      const userId = res.lastInsertRowid;
+      // create employees record
+      const empExists = db.prepare("SELECT id FROM employees WHERE user_id=?").get(userId);
+      if (!empExists) {
+        db.prepare(
+          "INSERT INTO employees (user_id, display_name, gender, sub_role, joined_date) VALUES (?,?,?,?,?)"
+        ).run(userId, e.full_name, e.gender, e.sub_role, e.joined);
+      }
+    } else {
+      // ensure employees record exists for existing auth user
+      const empExists = db.prepare("SELECT id FROM employees WHERE user_id=?").get(existing.id);
+      if (!empExists) {
+        db.prepare(
+          "INSERT INTO employees (user_id, display_name, gender, sub_role, joined_date) VALUES (?,?,?,?,?)"
+        ).run(existing.id, e.full_name, e.gender, e.sub_role, e.joined);
+      }
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// EMAIL SERVICE
+// ════════════════════════════════════════════════════════════════════════════
+
+// Generate App Password at https://myaccount.google.com/apppasswords
+// Requires 2FA enabled on Gmail. Set EMAIL_USER and EMAIL_PASS in .env.
+
+const emailTransporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+async function sendEmail({ to, subject, html }) {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
+  if (!to) return;
+  try {
+    await emailTransporter.sendMail({
+      from: `"HESTIA" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html,
+    });
+  } catch (e) {
+    console.warn('[HESTIA EMAIL] Send failed:', e.message);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CHEF MODULE ROUTES
+// ════════════════════════════════════════════════════════════════════════════
+
+const CHEF_ROLES = ['chef', 'fb_director', 'owner', 'admin'];
+
+// Gemini model for chef (use configured model or flash-lite)
+async function askGeminiChef(prompt) {
+  const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'PASTE_KEY_HERE') throw new Error('Missing GEMINI_API_KEY');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
+  const body = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: 'application/json' },
+  };
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || 'Gemini chef request failed.');
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  try { return JSON.parse(text); } catch {
+    const repaired = text.replace(/,(\s*[}\]])/g, '$1');
+    return JSON.parse(repaired);
+  }
+}
+
+// POST /api/chef/generate-menu — chef only
+app.post('/api/chef/generate-menu', requireAuth('chef', 'fb_director', 'owner', 'admin'), async (req, res) => {
+  try {
+    const { menuType, occasion, season, notes, menuName } = req.body;
+    const prompt = `You are an elite culinary director for a premium Israeli restaurant.
+Generate a complete, sophisticated food menu with dishes that tell a story.
+Price range: ₪32 (focaccia/bread) to ₪186 (steak/premium mains).
+Each dish must have: name, category (starter/main/dessert/bread/side),
+description (2 sentences), story (1 evocative sentence), price_ils,
+estimated food_cost_ils (typically 28-35% of price), ingredients array, allergens.
+
+Menu type: ${menuType || 'regular'}
+Occasion: ${occasion || 'daily service'}
+Season: ${season || 'current'}
+Notes: ${notes || 'none'}
+
+Return ONLY valid JSON: { "menuName": "string", "menuStory": "string", "dishes": [{ "name": "string", "category": "string", "description": "string", "story": "string", "price_ils": number, "food_cost_ils": number, "ingredients": ["string"], "allergens": "string" }] }
+No markdown, no backticks, no preamble.`;
+
+    const generated = await askGeminiChef(prompt);
+    const now = nowIso();
+    const menuResult = db.prepare(`
+      INSERT INTO food_menus (venue_id, name, menu_type, story, status, created_by, created_at, updated_at)
+      VALUES (?,?,?,?,'draft',?,?,?)
+    `).run(defaultVenueId(), generated.menuName || menuName || 'Generated Menu',
+      menuType || 'regular', generated.menuStory || null,
+      req.user.id, now, now);
+    const menuId = menuResult.lastInsertRowid;
+
+    const insertDish = db.prepare(`
+      INSERT INTO food_dishes (menu_id, name, description, story, category, price_ils, food_cost_ils, food_cost_percent, ingredients, allergens, created_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)
+    `);
+    for (const d of (generated.dishes || [])) {
+      const cost = Number(d.food_cost_ils) || 0;
+      const price = Number(d.price_ils) || 0;
+      const pct = price > 0 ? Math.round((cost / price) * 100) : null;
+      insertDish.run(menuId, d.name, d.description || null, d.story || null,
+        d.category || null, price, cost, pct,
+        JSON.stringify(d.ingredients || []), d.allergens || null, now);
+    }
+
+    const menu = db.prepare('SELECT * FROM food_menus WHERE id=?').get(menuId);
+    const dishes = db.prepare('SELECT * FROM food_dishes WHERE menu_id=? ORDER BY id ASC').all(menuId);
+    res.status(201).json({ menu, dishes });
+  } catch (e) {
+    console.error('[CHEF GENERATE]', e);
+    res.status(500).json({ error: e.message || 'Menu generation failed.' });
+  }
+});
+
+// POST /api/chef/save-menu/:menuId — changes status to pending_approval
+app.post('/api/chef/save-menu/:menuId', requireAuth('chef', 'fb_director', 'owner', 'admin'), (req, res) => {
+  const menuId = parseInt(req.params.menuId, 10);
+  const menu = db.prepare('SELECT * FROM food_menus WHERE id=?').get(menuId);
+  if (!menu) return res.status(404).json({ error: 'Menu not found.' });
+  const now = nowIso();
+  db.prepare("UPDATE food_menus SET status='pending_approval', updated_at=? WHERE id=?").run(now, menuId);
+  const insertNotif = db.prepare(`
+    INSERT INTO menu_notifications (type, reference_id, target_role, message, created_at)
+    VALUES (?,?,?,?,?)
+  `);
+  insertNotif.run('food_menu_pending', menuId, 'fb_director', 'New food menu pending your approval', now);
+  insertNotif.run('food_menu_pending', menuId, 'owner', 'New food menu pending your approval', now);
+  res.json({ ok: true, status: 'pending_approval' });
+});
+
+// POST /api/chef/approve-menu/:menuId — fb_director or owner
+app.post('/api/chef/approve-menu/:menuId', requireAuth('fb_director', 'owner', 'admin'), (req, res) => {
+  const menuId = parseInt(req.params.menuId, 10);
+  const menu = db.prepare('SELECT * FROM food_menus WHERE id=?').get(menuId);
+  if (!menu) return res.status(404).json({ error: 'Menu not found.' });
+  const now = nowIso();
+  const role = req.user.role;
+
+  if (role === 'fb_director' || role === 'admin') {
+    db.prepare('UPDATE food_menus SET fb_approved_at=?, updated_at=? WHERE id=?').run(now, now, menuId);
+  }
+  if (role === 'owner' || role === 'admin') {
+    db.prepare('UPDATE food_menus SET owner_approved_at=?, updated_at=? WHERE id=?').run(now, now, menuId);
+  }
+
+  // Re-fetch to check if both approved
+  const updated = db.prepare('SELECT * FROM food_menus WHERE id=?').get(menuId);
+  if (updated.fb_approved_at && updated.owner_approved_at && updated.status !== 'published') {
+    db.prepare("UPDATE food_menus SET status='published', updated_at=? WHERE id=?").run(now, menuId);
+    db.prepare(`
+      INSERT INTO menu_notifications (type, reference_id, target_role, message, created_at)
+      VALUES ('food_menu_approved',?,?,'Food menu has been approved and published',?)
+    `).run(menuId, 'all', now);
+  }
+
+  res.json({ ok: true, menu: db.prepare('SELECT * FROM food_menus WHERE id=?').get(menuId) });
+});
+
+// GET /api/chef/menus — role-aware
+app.get('/api/chef/menus', requireAuth('chef', 'fb_director', 'owner', 'admin', 'manager', 'employee', 'bar_manager', 'events_manager'), (req, res) => {
+  const role = req.user.role;
+  let menus;
+  if (role === 'employee') {
+    menus = db.prepare("SELECT * FROM food_menus WHERE status='published' AND visible_to_staff=1 ORDER BY created_at DESC").all();
+  } else if (role === 'chef') {
+    menus = db.prepare('SELECT * FROM food_menus WHERE created_by=? ORDER BY created_at DESC').all(req.user.id);
+  } else {
+    menus = db.prepare('SELECT * FROM food_menus ORDER BY created_at DESC').all();
+  }
+  const menuIds = menus.map(m => m.id);
+  const allDishes = menuIds.length
+    ? db.prepare(`SELECT * FROM food_dishes WHERE menu_id IN (${menuIds.map(() => '?').join(',')}) ORDER BY id ASC`).all(...menuIds)
+    : [];
+  const dishesByMenu = {};
+  for (const d of allDishes) {
+    if (!dishesByMenu[d.menu_id]) dishesByMenu[d.menu_id] = [];
+    dishesByMenu[d.menu_id].push(d);
+  }
+  res.json({ menus: menus.map(m => ({ ...m, dishes: dishesByMenu[m.id] || [] })) });
+});
+
+// GET /api/chef/notifications — unread for the logged-in user's role
+app.get('/api/chef/notifications', requireAuth('fb_director', 'owner', 'admin'), (req, res) => {
+  const role = req.user.role;
+  const target = role === 'admin' ? null : role;
+  const rows = target
+    ? db.prepare("SELECT * FROM menu_notifications WHERE (target_role=? OR target_role='all') AND is_read=0 ORDER BY created_at DESC").all(target)
+    : db.prepare("SELECT * FROM menu_notifications WHERE is_read=0 ORDER BY created_at DESC").all();
+  // Mark as read
+  if (rows.length) {
+    db.prepare("UPDATE menu_notifications SET is_read=1 WHERE id IN (" + rows.map(() => '?').join(',') + ")").run(...rows.map(r => r.id));
+  }
+  res.json({ notifications: rows });
+});
+
+// PATCH /api/chef/menus/:menuId/visible — toggle staff visibility
+app.patch('/api/chef/menus/:menuId/visible', requireAuth('fb_director', 'owner', 'admin'), (req, res) => {
+  const { visible_to_staff } = req.body;
+  db.prepare('UPDATE food_menus SET visible_to_staff=?, updated_at=? WHERE id=?')
+    .run(visible_to_staff ? 1 : 0, nowIso(), parseInt(req.params.menuId, 10));
+  res.json({ ok: true });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// FOOD SALES ROUTES
+// ════════════════════════════════════════════════════════════════════════════
+
+app.post('/api/ci/daily-close/submit-food', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+  const { venueId, saleDate, entries } = req.body;
+  if (!Array.isArray(entries) || !entries.length) return res.status(400).json({ error: 'entries required.' });
+  const vid = venueId || defaultVenueId();
+  const now = nowIso();
+  const insert = db.prepare(`
+    INSERT INTO food_sales (venue_id, dish_name, sale_date, units_sold, sale_price, cost_per_unit, revenue, gross_profit, gp_percent, created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?)
+  `);
+  let saved = 0;
+  for (const e of entries) {
+    const rev = (e.unitsSold || 0) * (e.salePrice || 0);
+    const gp  = rev - (e.unitsSold || 0) * (e.costPerUnit || 0);
+    const gpPct = rev > 0 ? Math.round((gp / rev) * 100) : 0;
+    insert.run(vid, e.dishName, saleDate, e.unitsSold || 0, e.salePrice || 0, e.costPerUnit || 0, rev, gp, gpPct, now);
+    saved++;
+  }
+  res.json({ ok: true, saved });
+});
+
+app.get('/api/food-sales', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+  const { start, end } = req.query;
+  let rows;
+  if (start && end) {
+    rows = db.prepare('SELECT * FROM food_sales WHERE venue_id=? AND sale_date>=? AND sale_date<=? ORDER BY sale_date DESC').all(defaultVenueId(), start, end);
+  } else {
+    rows = db.prepare('SELECT * FROM food_sales WHERE venue_id=? ORDER BY sale_date DESC LIMIT 200').all(defaultVenueId());
+  }
+  res.json({ sales: rows });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// STAFF TAB ROUTES
+// ════════════════════════════════════════════════════════════════════════════
+
+app.get('/api/staff/employees', requireAuth('fb_director', 'bar_manager', 'owner', 'admin', 'manager'), (req, res) => {
+  const rows = db.prepare(`
+    SELECT e.*,
+      CASE WHEN julianday('now') - julianday(e.joined_date) <= 30 THEN 1 ELSE 0 END AS is_trainee,
+      CAST(julianday('now') - julianday(e.joined_date) AS INTEGER) AS days_since_join
+    FROM employees e
+    ORDER BY e.joined_date ASC
+  `).all();
+  res.json({ employees: rows });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// EMPLOYEE SHIFT CONSTRAINT ROUTES
+// ════════════════════════════════════════════════════════════════════════════
+
+function getEmployeeForUser(userId) {
+  return db.prepare('SELECT * FROM employees WHERE user_id=?').get(userId);
+}
+
+// GET /api/employee-shifts/constraints?week_start=YYYY-MM-DD
+app.get('/api/employee-shifts/constraints', requireAuth('employee', 'bar_manager', 'manager', 'owner', 'admin'), (req, res) => {
+  const { week_start } = req.query;
+  const role = req.user.role;
+  let rows;
+  if (role === 'employee') {
+    const emp = getEmployeeForUser(req.user.id);
+    if (!emp) return res.json({ constraints: [] });
+    rows = week_start
+      ? db.prepare('SELECT * FROM employee_shift_constraints WHERE employee_id=? AND week_start=?').all(emp.id, week_start)
+      : db.prepare('SELECT * FROM employee_shift_constraints WHERE employee_id=? ORDER BY submitted_at DESC LIMIT 10').all(emp.id);
+  } else {
+    rows = week_start
+      ? db.prepare(`
+          SELECT c.*, e.display_name, e.sub_role, e.gender,
+            CASE WHEN julianday('now') - julianday(e.joined_date) <= 30 THEN 1 ELSE 0 END AS is_trainee
+          FROM employee_shift_constraints c
+          JOIN employees e ON c.employee_id = e.id
+          WHERE c.week_start=?
+        `).all(week_start)
+      : db.prepare(`
+          SELECT c.*, e.display_name, e.sub_role, e.gender,
+            CASE WHEN julianday('now') - julianday(e.joined_date) <= 30 THEN 1 ELSE 0 END AS is_trainee
+          FROM employee_shift_constraints c
+          JOIN employees e ON c.employee_id = e.id
+          ORDER BY c.submitted_at DESC LIMIT 50
+        `).all();
+  }
+  res.json({
+    constraints: rows.map(r => ({
+      ...r,
+      constraints: r.constraints_json ? JSON.parse(r.constraints_json) : {},
+    })),
+  });
+});
+
+// POST /api/employee-shifts/constraints — employee submits availability
+app.post('/api/employee-shifts/constraints', requireAuth('employee', 'admin'), (req, res) => {
+  const emp = getEmployeeForUser(req.user.id);
+  if (!emp) return res.status(400).json({ error: 'Employee record not found for this user.' });
+
+  // Submission window: Sunday–Thursday before 23:00
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ..., 4=Thu, 5=Fri, 6=Sat
+  const hour = now.getHours();
+  if (dayOfWeek === 5 || dayOfWeek === 6 || (dayOfWeek === 4 && hour >= 23)) {
+    return res.status(400).json({ error: 'Constraint submission window is Sunday–Thursday before 23:00.' });
+  }
+
+  const { week_start, constraints } = req.body;
+  if (!week_start) return res.status(400).json({ error: 'week_start is required.' });
+
+  // Upsert
+  const existing = db.prepare('SELECT id FROM employee_shift_constraints WHERE employee_id=? AND week_start=?').get(emp.id, week_start);
+  if (existing) {
+    db.prepare('UPDATE employee_shift_constraints SET constraints_json=?, submitted_at=? WHERE id=?')
+      .run(JSON.stringify(constraints || {}), nowIso(), existing.id);
+  } else {
+    db.prepare('INSERT INTO employee_shift_constraints (employee_id, week_start, constraints_json) VALUES (?,?,?)')
+      .run(emp.id, week_start, JSON.stringify(constraints || {}));
+  }
+
+  // Notify managers
+  db.prepare(`
+    INSERT INTO employee_shift_notifications (type, employee_id, week_start, created_at) VALUES ('constraints_submitted',?,?,?)
+  `).run(emp.id, week_start, nowIso());
+
+  res.json({ ok: true });
+});
+
+// GET /api/employee-shifts/schedule?week_start=YYYY-MM-DD
+app.get('/api/employee-shifts/schedule', requireAuth('employee', 'bar_manager', 'manager', 'owner', 'admin'), (req, res) => {
+  const { week_start } = req.query;
+  const role = req.user.role;
+  let row;
+  if (week_start) {
+    row = db.prepare('SELECT * FROM employee_weekly_schedules WHERE week_start=?').get(week_start);
+  } else {
+    row = db.prepare('SELECT * FROM employee_weekly_schedules ORDER BY week_start DESC LIMIT 1').get();
+  }
+  if (!row) return res.json({ schedule: null });
+
+  let shifts = row.shifts_json ? JSON.parse(row.shifts_json) : {};
+
+  // For employees, filter to only their own shifts
+  if (role === 'employee') {
+    const emp = getEmployeeForUser(req.user.id);
+    if (!emp) return res.json({ schedule: null });
+    const myShifts = {};
+    for (const [day, services] of Object.entries(shifts)) {
+      const lunch = (services.lunch || []).filter(e => e.employee_id === emp.id);
+      const dinner = (services.dinner || []).filter(e => e.employee_id === emp.id);
+      if (lunch.length || dinner.length) myShifts[day] = { lunch, dinner };
+    }
+    shifts = myShifts;
+  }
+
+  res.json({ schedule: { ...row, shifts } });
+});
+
+// POST /api/employee-shifts/generate — AI shift generation (bar_manager + up)
+app.post('/api/employee-shifts/generate', requireAuth('bar_manager', 'manager', 'owner', 'admin'), async (req, res) => {
+  try {
+    const { week_start } = req.body;
+    if (!week_start) return res.status(400).json({ error: 'week_start required.' });
+
+    const employees = db.prepare(`
+      SELECT e.*,
+        CASE WHEN julianday('now') - julianday(e.joined_date) <= 30 THEN 1 ELSE 0 END AS is_trainee
+      FROM employees e
+    `).all();
+
+    const constraints = db.prepare(
+      'SELECT c.*, e.display_name, e.sub_role FROM employee_shift_constraints c JOIN employees e ON c.employee_id=e.id WHERE c.week_start=?'
+    ).all(week_start);
+
+    const constraintsMap = {};
+    for (const c of constraints) {
+      constraintsMap[c.employee_id] = JSON.parse(c.constraints_json || '{}');
+    }
+
+    const employeeList = employees.map(e => ({
+      id: e.id,
+      name: e.display_name,
+      sub_role: e.sub_role,
+      gender: e.gender,
+      is_trainee: Boolean(e.is_trainee),
+      availability: constraintsMap[e.id] || {},
+    }));
+
+    const prompt = `You are an expert restaurant shift manager. Build an optimal weekly shift schedule.
+Rules:
+- Each service (lunch + dinner) needs: 1 opener bartender, 1 second bartender (or trainee), 1 opener waiter/waitress, 1-2 second waiters, 1 host (waiter role)
+- Trainees must always be paired with a regular (non-trainee) of the same sub_role
+- Respect submitted constraints — never schedule unavailable employees
+- Minimize overtime (flag if any employee exceeds 6 shifts/week)
+- Balance gender distribution across shifts where possible
+- Calculate estimated labor cost per shift (bartender ₪65/hour × 8h, waiter ₪55/hour × 8h, trainee ₪45/hour × 8h)
+Return ONLY valid JSON: { "week_start": "${week_start}", "total_labor_cost": number, "overtime_warnings": [], "shifts": { "sunday": { "lunch": [], "dinner": [] }, "monday": {}, "tuesday": {}, "wednesday": {}, "thursday": {}, "friday": {}, "saturday": {} } }
+Each shift entry: { "employee_id": number, "display_name": "string", "sub_role": "string", "position": "string", "is_trainee": boolean, "estimated_cost": number }
+
+Employees: ${JSON.stringify(employeeList)}`;
+
+    const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'PASTE_KEY_HERE') throw new Error('Missing GEMINI_API_KEY');
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || 'Gemini shift generation failed.');
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    let schedule;
+    try { schedule = JSON.parse(text); } catch {
+      schedule = JSON.parse(text.replace(/,(\s*[}\]])/g, '$1'));
+    }
+
+    res.json({ schedule });
+  } catch (e) {
+    console.error('[SHIFT GENERATE]', e);
+    res.status(500).json({ error: e.message || 'Shift generation failed.' });
+  }
+});
+
+// POST /api/employee-shifts/publish — save and notify employees
+app.post('/api/employee-shifts/publish', requireAuth('bar_manager', 'manager', 'owner', 'admin'), async (req, res) => {
+  const { week_start, shifts, total_labor_cost, overtime_warnings } = req.body;
+  if (!week_start) return res.status(400).json({ error: 'week_start required.' });
+
+  const now = nowIso();
+  const existing = db.prepare('SELECT id FROM employee_weekly_schedules WHERE week_start=?').get(week_start);
+  if (existing) {
+    db.prepare('UPDATE employee_weekly_schedules SET shifts_json=?, published_at=?, published_by=? WHERE id=?')
+      .run(JSON.stringify(shifts || {}), now, req.user.id, existing.id);
+  } else {
+    db.prepare('INSERT INTO employee_weekly_schedules (venue_id, week_start, published_at, published_by, shifts_json) VALUES (?,?,?,?,?)')
+      .run(defaultVenueId(), week_start, now, req.user.id, JSON.stringify(shifts || {}));
+  }
+
+  // Notify each employee + send email
+  const employeeIds = new Set();
+  for (const day of Object.values(shifts || {})) {
+    for (const service of Object.values(day)) {
+      for (const slot of (Array.isArray(service) ? service : [])) {
+        if (slot.employee_id) employeeIds.add(slot.employee_id);
+      }
+    }
+  }
+
+  const weekEnd = new Date(week_start);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const weekEndStr = weekEnd.toISOString().slice(0, 10);
+
+  for (const empId of employeeIds) {
+    db.prepare('INSERT INTO employee_shift_notifications (type, employee_id, week_start, created_at) VALUES (?,?,?,?)')
+      .run('shift_published', empId, week_start, now);
+
+    // Build personal shift list
+    const empRecord = db.prepare('SELECT e.*, a.full_name FROM employees e JOIN auth_users a ON e.user_id=a.id WHERE e.id=?').get(empId);
+    if (empRecord?.email) {
+      const myShiftLines = [];
+      for (const [day, services] of Object.entries(shifts || {})) {
+        for (const [service, slots] of Object.entries(services)) {
+          for (const slot of (Array.isArray(slots) ? slots : [])) {
+            if (slot.employee_id === empId) {
+              myShiftLines.push(`${day.charAt(0).toUpperCase() + day.slice(1)} – ${service.charAt(0).toUpperCase() + service.slice(1)} – ${slot.position || slot.sub_role}`);
+            }
+          }
+        }
+      }
+      const shiftsHtml = myShiftLines.map(l => `<p>${l}</p>`).join('');
+      await sendEmail({
+        to: empRecord.email,
+        subject: `Your shifts for the week of ${week_start}`,
+        html: `<p>Hi ${empRecord.display_name},</p>
+<p>Your shifts for the week of ${week_start} – ${weekEndStr}:</p>
+${shiftsHtml || '<p>No shifts assigned this week.</p>'}
+<p>See your full schedule in HESTIA.</p>
+<p>— The HESTIA Team</p>`,
+      });
+    }
+  }
+
+  res.json({ ok: true, week_start, employee_count: employeeIds.size });
+});
+
+// GET /api/employee-shifts/notifications — unread shift notifications for managers
+app.get('/api/employee-shifts/notifications', requireAuth('bar_manager', 'manager', 'owner', 'admin'), (req, res) => {
+  const rows = db.prepare(`
+    SELECT n.*, e.display_name, e.sub_role
+    FROM employee_shift_notifications n
+    JOIN employees e ON n.employee_id = e.id
+    WHERE n.type='constraints_submitted' AND n.is_read=0
+    ORDER BY n.created_at DESC LIMIT 50
+  `).all();
+  res.json({ notifications: rows });
+});
+
+app.patch('/api/employee-shifts/notifications/read', requireAuth('bar_manager', 'manager', 'owner', 'admin'), (req, res) => {
+  db.prepare("UPDATE employee_shift_notifications SET is_read=1 WHERE type='constraints_submitted'").run();
+  res.json({ ok: true });
+});
+
+// GET /api/employee-shifts/my-shifts — employee's own current/next week shifts
+app.get('/api/employee-shifts/my-shifts', requireAuth('employee', 'admin'), (req, res) => {
+  const emp = getEmployeeForUser(req.user.id);
+  if (!emp) return res.json({ shifts: [] });
+
+  const today = new Date();
+  const getMonday = (d) => {
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  };
+  const thisMonday = getMonday(new Date(today));
+  const nextMonday = new Date(thisMonday);
+  nextMonday.setDate(thisMonday.getDate() + 7);
+
+  const weeks = [
+    thisMonday.toISOString().slice(0, 10),
+    nextMonday.toISOString().slice(0, 10),
+  ];
+
+  const result = [];
+  for (const weekStart of weeks) {
+    const sched = db.prepare('SELECT * FROM employee_weekly_schedules WHERE week_start=?').get(weekStart);
+    if (!sched) {
+      result.push({ week_start: weekStart, published: false, shifts: [] });
+      continue;
+    }
+    const allShifts = JSON.parse(sched.shifts_json || '{}');
+    const myShifts = [];
+    for (const [day, services] of Object.entries(allShifts)) {
+      for (const [service, slots] of Object.entries(services)) {
+        for (const slot of (Array.isArray(slots) ? slots : [])) {
+          if (slot.employee_id === emp.id) {
+            myShifts.push({ day, service, position: slot.position, sub_role: slot.sub_role });
+          }
+        }
+      }
+    }
+    result.push({ week_start: weekStart, published: true, shifts: myShifts });
+  }
+  res.json({ shifts: result });
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.log('[UNHANDLED REJECTION]', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.log('[UNCAUGHT EXCEPTION]', err.message, err.stack?.slice(0, 400));
 });
 
 app.listen(PORT, () => {

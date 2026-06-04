@@ -1,0 +1,314 @@
+/*
+ * magazine.css — Classic Cocktails editorial design system
+ * All rules scoped under .magazine-shell to prevent any collision
+ * with HESTIA's Tailwind v3 classes and hospia.* color tokens.
+ *
+ * Font imports — @fontsource packages installed via npm
+ */
+
+@import "@fontsource/fraunces/300.css";
+@import "@fontsource/fraunces/400.css";
+@import "@fontsource/fraunces/400-italic.css";
+@import "@fontsource/fraunces/500.css";
+@import "@fontsource/fraunces/600.css";
+@import "@fontsource/fraunces/700.css";
+@import "@fontsource/inter-tight/300.css";
+@import "@fontsource/inter-tight/400.css";
+@import "@fontsource/inter-tight/500.css";
+@import "@fontsource/inter-tight/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+/* ─── Design tokens (scoped) ─────────────────────────────────────────────── */
+
+.magazine-shell {
+  /* Palette */
+  --mag-ink:        oklch(0.14 0.012 50);
+  --mag-ink-deep:   oklch(0.08 0.008 50);
+  --mag-paper:      oklch(0.94 0.022 85);
+  --mag-paper-dim:  oklch(0.86 0.028 82);
+  --mag-amber:      oklch(0.74 0.13 65);
+  --mag-amber-deep: oklch(0.55 0.12 55);
+  --mag-brass:      oklch(0.62 0.08 75);
+  --mag-vermouth:   oklch(0.42 0.13 25);
+  --mag-rule:       oklch(0.55 0.08 70 / 0.4);
+  --mag-muted-fg:   oklch(0.66 0.02 70);
+  --mag-card:       oklch(0.18 0.014 50);
+
+  /* Typography */
+  --mag-font-display: "Fraunces", "Times New Roman", serif;
+  --mag-font-sans:    "Inter Tight", system-ui, sans-serif;
+  --mag-font-mono:    "JetBrains Mono", ui-monospace, monospace;
+
+  /* Type scale — fluid */
+  --mag-text-kicker: 0.6875rem;
+  --mag-text-folio:  0.75rem;
+  --mag-text-meta:   0.8125rem;
+  --mag-text-body:   1.0625rem;
+  --mag-text-deck:   clamp(1.25rem, 1rem + 0.8vw, 1.625rem);
+  --mag-text-h3:     clamp(1.5rem, 1.2rem + 1.4vw, 2.25rem);
+  --mag-text-h2:     clamp(2rem, 1.4rem + 3vw, 3.75rem);
+  --mag-text-h1:     clamp(2.75rem, 1.6rem + 5.6vw, 6rem);
+  --mag-text-cover:  clamp(3.5rem, 1.8rem + 9vw, 10rem);
+
+  --mag-tracking-kicker: 0.32em;
+  --mag-tracking-meta:   0.18em;
+  --mag-leading-display: 0.95;
+
+  /* Shell */
+  position: relative;
+  background-color: var(--mag-ink);
+  color: var(--mag-paper);
+  font-family: var(--mag-font-sans);
+  font-size: var(--mag-text-body);
+  line-height: 1.65;
+  font-feature-settings: "ss01", "ss02", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ─── Reset inside magazine shell ────────────────────────────────────────── */
+
+.magazine-shell *, .magazine-shell *::before, .magazine-shell *::after {
+  box-sizing: border-box;
+}
+
+/* ─── Utility: Color ─────────────────────────────────────────────────────── */
+
+.magazine-shell .text-amber        { color: var(--mag-amber); }
+.magazine-shell .text-amber-deep   { color: var(--mag-amber-deep); }
+.magazine-shell .text-paper        { color: var(--mag-paper); }
+.magazine-shell .text-paper-dim    { color: var(--mag-paper-dim); }
+.magazine-shell .text-ink          { color: var(--mag-ink); }
+.magazine-shell .text-ink-deep     { color: var(--mag-ink-deep); }
+.magazine-shell .text-muted-foreground { color: var(--mag-muted-fg); }
+.magazine-shell .text-brass        { color: var(--mag-brass); }
+.magazine-shell .text-vermouth     { color: var(--mag-vermouth); }
+
+.magazine-shell .bg-ink            { background-color: var(--mag-ink); }
+.magazine-shell .bg-ink-deep       { background-color: var(--mag-ink-deep); }
+.magazine-shell .bg-background     { background-color: var(--mag-ink); }
+.magazine-shell .bg-card           { background-color: var(--mag-card); }
+
+.magazine-shell .fill-muted-foreground { fill: var(--mag-muted-fg); }
+
+/* Gradient utilities that reference ink color */
+.magazine-shell .from-ink          { --tw-gradient-from: var(--mag-ink) var(--tw-gradient-from-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.magazine-shell .to-ink            { --tw-gradient-to: var(--mag-ink) var(--tw-gradient-to-position); }
+.magazine-shell .via-ink           { --tw-gradient-via: var(--mag-ink); --tw-gradient-stops: var(--tw-gradient-from), var(--mag-ink) var(--tw-gradient-via-position), var(--tw-gradient-to); }
+.magazine-shell .from-ink\/55      { --tw-gradient-from: oklch(0.14 0.012 50 / 0.55) var(--tw-gradient-from-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.magazine-shell .from-ink\/80      { --tw-gradient-from: oklch(0.14 0.012 50 / 0.80) var(--tw-gradient-from-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.magazine-shell .via-ink\/40       { --tw-gradient-stops: var(--tw-gradient-from), oklch(0.14 0.012 50 / 0.40) var(--tw-gradient-via-position), var(--tw-gradient-to); }
+.magazine-shell .via-ink\/30       { --tw-gradient-stops: var(--tw-gradient-from), oklch(0.14 0.012 50 / 0.30) var(--tw-gradient-via-position), var(--tw-gradient-to); }
+.magazine-shell .via-ink\/20       { --tw-gradient-stops: var(--tw-gradient-from), oklch(0.14 0.012 50 / 0.20) var(--tw-gradient-via-position), var(--tw-gradient-to); }
+.magazine-shell .to-ink\/60        { --tw-gradient-to: oklch(0.14 0.012 50 / 0.60) var(--tw-gradient-to-position); }
+.magazine-shell .to-transparent    { --tw-gradient-to: transparent; }
+.magazine-shell .from-ink\/40      { --tw-gradient-from: oklch(0.14 0.012 50 / 0.40) var(--tw-gradient-from-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.magazine-shell .via-ink\/60       { --tw-gradient-stops: var(--tw-gradient-from), oklch(0.14 0.012 50 / 0.60) var(--tw-gradient-via-position), var(--tw-gradient-to); }
+
+/* Border */
+.magazine-shell .border-rule\/40   { border-color: oklch(0.55 0.08 70 / 0.4); }
+.magazine-shell .border-rule\/30   { border-color: oklch(0.55 0.08 70 / 0.3); }
+.magazine-shell .border-rule       { border-color: var(--mag-rule); }
+.magazine-shell .bg-rule           { background-color: var(--mag-rule); }
+
+/* Amber opacity variants used in backgrounds */
+.magazine-shell .bg-amber\/10      { background-color: oklch(0.74 0.13 65 / 0.10); }
+.magazine-shell .text-amber\/40    { color: oklch(0.74 0.13 65 / 0.40); }
+
+/* ─── Utility: Typography ────────────────────────────────────────────────── */
+
+.magazine-shell .font-display {
+  font-family: var(--mag-font-display);
+  font-feature-settings: "ss01";
+}
+
+.magazine-shell .font-mono-ed {
+  font-family: var(--mag-font-mono);
+}
+
+/* ─── Editorial classes ───────────────────────────────────────────────────── */
+
+.magazine-shell .kicker {
+  font-family: var(--mag-font-mono);
+  font-size: var(--mag-text-kicker);
+  letter-spacing: var(--mag-tracking-kicker);
+  text-transform: uppercase;
+  color: var(--mag-amber);
+  font-weight: 500;
+}
+
+.magazine-shell .meta {
+  font-family: var(--mag-font-mono);
+  font-size: var(--mag-text-meta);
+  letter-spacing: var(--mag-tracking-meta);
+  text-transform: uppercase;
+  color: var(--mag-muted-fg);
+}
+
+.magazine-shell .folio {
+  font-family: var(--mag-font-mono);
+  font-size: var(--mag-text-folio);
+  letter-spacing: 0.1em;
+  color: var(--mag-amber-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.magazine-shell .h-display {
+  font-family: var(--mag-font-display);
+  font-weight: 400;
+  line-height: var(--mag-leading-display);
+  letter-spacing: -0.022em;
+  font-feature-settings: "ss01";
+}
+
+.magazine-shell .h-cover {
+  font-family: var(--mag-font-display);
+  font-weight: 300;
+  font-size: var(--mag-text-cover);
+  line-height: 0.88;
+  letter-spacing: -0.035em;
+}
+
+.magazine-shell .deck {
+  font-family: var(--mag-font-display);
+  font-style: italic;
+  font-weight: 300;
+  font-size: var(--mag-text-deck);
+  line-height: 1.4;
+  color: var(--mag-paper-dim);
+}
+
+/* Type scale utilities */
+.magazine-shell .text-h1 { font-size: var(--mag-text-h1); }
+.magazine-shell .text-h2 { font-size: var(--mag-text-h2); }
+.magazine-shell .text-h3 { font-size: var(--mag-text-h3); }
+.magazine-shell .text-cover { font-size: var(--mag-text-cover); }
+.magazine-shell .text-body  { font-size: var(--mag-text-body); }
+
+/* ─── Prose editorial ────────────────────────────────────────────────────── */
+
+.magazine-shell .prose-editorial p {
+  font-size: var(--mag-text-body);
+  line-height: 1.78;
+  color: oklch(0.86 0.02 70);
+  margin-bottom: 1.4em;
+}
+
+.magazine-shell .prose-editorial p:first-of-type::first-letter {
+  font-family: var(--mag-font-display);
+  font-weight: 400;
+  float: left;
+  font-size: 5.2em;
+  line-height: 0.82;
+  padding: 0.05em 0.12em 0 0;
+  color: var(--mag-amber);
+}
+
+/* ─── Special effects ─────────────────────────────────────────────────────── */
+
+/* Grain — absolute (not fixed) so it stays within the shell */
+.magazine-shell .grain-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.85 0 0 0 0 0.6 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Hairline gold rule */
+.magazine-shell .hairline {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--mag-rule) 12%, var(--mag-rule) 88%, transparent);
+}
+
+.magazine-shell .hairline-solid {
+  height: 1px;
+  background: var(--mag-rule);
+}
+
+/* Underline reveal for buttons/links */
+.magazine-shell .reveal-link {
+  position: relative;
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.magazine-shell .reveal-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  width: 100%;
+  height: 1px;
+  background: var(--mag-amber);
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.magazine-shell .reveal-link:hover::after {
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+/* Ambient glow blob */
+.magazine-shell .ambient-glow {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, oklch(0.74 0.13 65 / 0.22), transparent 65%);
+  filter: blur(40px);
+}
+
+/* Cinematic image treatment */
+.magazine-shell .img-plate {
+  filter: contrast(1.05) saturate(0.92);
+}
+
+/* ─── Internal magazine nav ──────────────────────────────────────────────── */
+
+.magazine-shell .mag-nav {
+  position: sticky;
+  top: 5rem; /* slot below HESTIA TopNav (min-h-20) */
+  z-index: 30;
+  transition: background-color 0.5s ease, border-color 0.5s ease;
+}
+
+.magazine-shell .mag-nav.scrolled {
+  background-color: oklch(0.08 0.008 50 / 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid oklch(0.55 0.08 70 / 0.3);
+}
+
+/* ─── Magazine internal nav transitions ──────────────────────────────────── */
+
+.magazine-shell button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ─── Selection ──────────────────────────────────────────────────────────── */
+
+.magazine-shell ::selection {
+  background: var(--mag-amber);
+  color: var(--mag-ink);
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .magazine-shell *, .magazine-shell *::before, .magazine-shell *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

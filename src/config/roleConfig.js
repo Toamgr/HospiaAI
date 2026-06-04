@@ -4,15 +4,21 @@ export const ROLE_NAMES = {
   employee: 'Employee',
   manager: 'Manager',
   bar_manager: 'Bar Manager',
+  fb_director: 'F&B Director',
+  events_manager: 'Events Manager',
+  chef: 'Chef',
   owner: 'Owner',
   admin: 'Admin'
 }
 
 export const MODULE_ACCESS_RULES = {
-  employee: ['employeeWorkflow', 'academy'],
-  manager: ['operations', 'planning', 'staffProgression', 'academy'],
-  bar_manager: ['operations', 'planning', 'staffProgression', 'academy', 'barManagement'],
-  owner: ['command', 'planning', 'ownerIntelligence', 'system'],
+  employee: ['employeeWorkflow', 'academy', 'employeeShifts', 'cocktailsMagazineArea'],
+  manager: ['dailyOps', 'cocktailIntelligence', 'cocktailsMagazineArea'],
+  bar_manager: ['barManagement', 'cocktailIntelligence', 'shiftOrganizer', 'staffArea', 'cocktailsMagazineArea'],
+  fb_director: ['barManagement', 'cocktailIntelligence', 'staffArea', 'cocktailsMagazineArea'],
+  events_manager: ['eventsArea', 'cocktailsMagazineArea'],
+  chef: ['chefArea', 'cocktailsMagazineArea'],
+  owner: ['command', 'planning', 'ownerIntelligence', 'system', 'cocktailIntelligence', 'staffArea', 'chefApproval', 'cocktailsMagazineArea'],
   admin: Object.keys(NAV_GROUPS)
 }
 
@@ -35,7 +41,7 @@ export function userCanManageCocktails(userOrRole) {
 
 export function canAccessBottlePrices(userOrRole) {
   const role = getRole(userOrRole)
-  return ['admin', 'owner', 'bar_manager'].includes(role)
+  return ['admin', 'owner', 'bar_manager', 'fb_director'].includes(role)
 }
 
 export function canAccessPage(userOrRole, page) {

@@ -2,7 +2,28 @@ export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        display: ['Cormorant Garamond', 'Cormorant', 'serif'],
+        serif: ['Cormorant Garamond', 'serif'],
+      },
       colors: {
+        // Wine Atlas editorial palette
+        wa: {
+          background: '#f5f0e8',
+          foreground: '#2a1c14',
+          ivory:      '#f5f0e8',
+          parchment:  '#ede6d5',
+          ink:        '#261512',
+          burgundy:   '#7a1818',
+          'burgundy-deep': '#3f0d0d',
+          oak:        '#5c4020',
+          amber:      '#c4950a',
+          vine:       '#48602a',
+          card:       '#f0e5cc',
+          border:     '#ccb898',
+          muted:      '#e5d5b5',
+          'muted-fg': '#6b4e38',
+        },
         hospia: {
           black:    '#080806',
           graphite: '#0d0c09',
