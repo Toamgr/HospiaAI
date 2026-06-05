@@ -1115,6 +1115,11 @@ migrateUserCredentials();
 seedNewUsers();
 seedCocktailIntelligence(); // CI MODULE ADDITION — idempotent, skips if already seeded
 
+// Phase 5 Step 1: add roles_json column to notifications table so frontend-created
+// multi-role notifications can be stored and retrieved per-role from the backend.
+// Idempotent — safe to run on every startup.
+try { db.exec("ALTER TABLE notifications ADD COLUMN roles_json TEXT"); } catch { /* already exists */ }
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -3392,14 +3397,45 @@ app.post('/api/guest-portal/:token/rsvp', portalCors, (req, res) => {
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 
-app.get('/api/notifications', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
-  const rows = db.prepare(
-    `SELECT * FROM notifications WHERE venue_id=? AND target_role=? ORDER BY created_at DESC LIMIT 50`
-  ).all(defaultVenueId(), req.user.role);
+// Phase 5 Step 1: GET now allows all authenticated roles and supports roles_json
+// for multi-role notifications created by the frontend.
+app.get('/api/notifications', requireAuth(), (req, res) => {
+  const role = req.user.role;
+  const rows = db.prepare(`
+    SELECT * FROM notifications
+    WHERE venue_id=?
+      AND (
+        target_role=?
+        OR (roles_json IS NOT NULL AND EXISTS (
+          SELECT 1 FROM json_each(roles_json) WHERE value=?
+        ))
+      )
+    ORDER BY created_at DESC LIMIT 50
+  `).all(defaultVenueId(), role, role);
   res.json({ notifications: rows });
 });
 
-app.patch('/api/notifications/:id/read', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+// Phase 5 Step 1: create a notification from the frontend.
+// Inserts one row with target_role = roles[0] (backward compat) and
+// roles_json storing the full array for multi-role filtering in GET.
+app.post('/api/notifications', requireAuth(), (req, res) => {
+  const { id: clientId, roles, title, body, type, page, created_at } = req.body;
+  if (!title || !body || !Array.isArray(roles) || !roles.length) {
+    return res.status(400).json({ error: 'title, body, and roles[] are required.' });
+  }
+  const notifId = clientId || randomUUID();
+  db.prepare(`
+    INSERT OR IGNORE INTO notifications (id, venue_id, target_role, title, body, type, page, read, created_at, roles_json)
+    VALUES (?,?,?,?,?,?,?,0,?,?)
+  `).run(
+    notifId, defaultVenueId(), String(roles[0]),
+    String(title), String(body), String(type || 'info'),
+    page || null, created_at || nowIso(), JSON.stringify(roles)
+  );
+  res.status(201).json({ ok: true });
+});
+
+app.patch('/api/notifications/:id/read', requireAuth(), (req, res) => {
   db.prepare('UPDATE notifications SET read=1 WHERE id=? AND venue_id=?').run(req.params.id, defaultVenueId());
   res.json({ ok: true });
 });
