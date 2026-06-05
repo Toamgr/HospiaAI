@@ -203,6 +203,38 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
     return () => { mounted = false }
   }, [currentUser?.id])
 
+  // Phase 5 Step 4: serviceIncidents prefer backend when available.
+  // Fetches /api/incidents on mount and merges with localStorage state.
+  // Backend wins for matching IDs; local-only incidents are preserved.
+  // Backend fields are aliased to frontend names expected by UI consumers.
+  // Falls back silently to localStorage data if backend is unavailable.
+  useEffect(() => {
+    const INCIDENT_ROLES = ['manager', 'bar_manager', 'owner', 'admin']
+    if (!currentUser || !INCIDENT_ROLES.includes(currentUser.role)) return
+    let mounted = true
+    apiGet('/api/incidents')
+      .then(data => {
+        if (!mounted || !Array.isArray(data?.incidents) || !data.incidents.length) return
+        const backendIncidents = data.incidents.map(r => ({
+          ...r,
+          issueType:    r.type,
+          guestTable:   r.table_number,
+          employeeName: r.reported_by
+        }))
+        setServiceIncidents(prev => {
+          const byId = new Map(backendIncidents.map(r => [r.id, r]))
+          const merged = prev.map(r => byId.has(r.id) ? byId.get(r.id) : r)
+          const localIds = new Set(prev.map(r => r.id))
+          backendIncidents.forEach(r => { if (!localIds.has(r.id)) merged.push(r) })
+          return merged
+        })
+      })
+      .catch(() => {
+        // Backend unavailable — localStorage data already in state, no action needed
+      })
+    return () => { mounted = false }
+  }, [currentUser?.id])
+
   const updateIncident = useCallback((incidentId, patch) => {
     setServiceIncidents(prev => prev.map(item => item.id === incidentId ? { ...item, ...patch } : item))
     apiPatch(`/api/incidents/${incidentId}`, patch).catch(() => {})
