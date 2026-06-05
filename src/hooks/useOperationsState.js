@@ -5,7 +5,7 @@ import { loadEmailJS } from '../utils/emailjs'
 import { generateExecutiveEventSummary } from '../prompts/eventPrompts'
 import { INITIAL_FUTURE_EVENTS } from '../data/events'
 import { INITIAL_BUDGET_REQUESTS, INITIAL_SERVICE_INCIDENTS, INITIAL_EMPLOYEE_TASKS, INITIAL_OWNER_NOTES } from '../data/operations'
-import { apiPost, apiPatch } from '../services/api/client'
+import { apiGet, apiPost, apiPatch } from '../services/api/client'
 import { enqueue, dequeue } from '../services/pendingSyncQueue'
 
 function normalizeText(value) {
@@ -170,6 +170,38 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
   useEffect(() => {
     localStorage.setItem(STORAGE.assignedTasks, JSON.stringify(assignedTasks))
   }, [assignedTasks])
+
+  // Phase 5 Step 2: actionItems prefer backend when available.
+  // Fetches /api/actions on mount and merges with localStorage state.
+  // Backend wins for matching IDs; local-only items are preserved.
+  // Falls back silently to localStorage data if backend is unavailable.
+  //
+  // Gap (not fixed here): saveEventPlan-generated actions are local-only
+  // (never written to backend). Tracked as a separate future improvement.
+  useEffect(() => {
+    const ACTION_ROLES = ['manager', 'bar_manager', 'owner', 'admin']
+    if (!currentUser || !ACTION_ROLES.includes(currentUser.role)) return
+    let mounted = true
+    apiGet('/api/actions')
+      .then(data => {
+        if (!mounted || !Array.isArray(data?.actions) || !data.actions.length) return
+        const backendActions = data.actions.map(a => ({
+          ...a,
+          status: a.done ? 'Completed' : (a.status || 'New'),
+          priority: a.priority || 'Medium',
+          comments: a.comments || []
+        }))
+        setActionItems(prev => {
+          const backendIds = new Set(backendActions.map(a => a.id))
+          const localOnly = prev.filter(a => !backendIds.has(a.id))
+          return [...backendActions, ...localOnly].slice(0, 80)
+        })
+      })
+      .catch(() => {
+        // Backend unavailable — localStorage data already in state, no action needed
+      })
+    return () => { mounted = false }
+  }, [currentUser?.id])
 
   const updateIncident = useCallback((incidentId, patch) => {
     setServiceIncidents(prev => prev.map(item => item.id === incidentId ? { ...item, ...patch } : item))

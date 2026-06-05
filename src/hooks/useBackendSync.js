@@ -14,7 +14,7 @@ export function useBackendSync({ role, setReportArchive, setBusinessMemory, setE
       apiGet('/api/business-memory')
     ]
 
-    if (['manager', 'bar_manager', 'admin'].includes(role)) {
+    if (['manager', 'bar_manager', 'owner', 'admin'].includes(role)) {
       requests.push(apiGet('/api/actions'))
       requests.push(apiGet('/api/incidents'))
     } else {
@@ -53,7 +53,16 @@ export function useBackendSync({ role, setReportArchive, setBusinessMemory, setE
             priority: a.priority || 'Medium',
             comments: a.comments || []
           }))
-          setActionItems(backendActions)
+          // Phase 5 Step 2: MERGE instead of REPLACE.
+          // Backend wins for matching IDs; local-only items (e.g. event-task
+          // actions not yet synced to backend) are preserved.
+          if (backendActions.length) {
+            setActionItems(prev => {
+              const backendIds = new Set(backendActions.map(a => a.id))
+              const localOnly = prev.filter(a => !backendIds.has(a.id))
+              return [...backendActions, ...localOnly].slice(0, 80)
+            })
+          }
         }
         if (incidentsResult?.status === 'fulfilled' && Array.isArray(incidentsResult.value?.incidents) && incidentsResult.value.incidents.length) {
           const backendIncidents = incidentsResult.value.incidents.map(i => ({

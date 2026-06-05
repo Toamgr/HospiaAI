@@ -1554,7 +1554,7 @@ app.get("/api/business-memory", requireAuth("manager", "bar_manager", "owner", "
   res.json({ memory: rows });
 });
 
-app.get("/api/actions", requireAuth("manager", "bar_manager", "admin"), (req, res) => {
+app.get("/api/actions", requireAuth("manager", "bar_manager", "owner", "admin"), (req, res) => {
   const rows = db.prepare(`
     SELECT id, priority, title, owner, due, signal, page, done, created_at, updated_at
     FROM actions
