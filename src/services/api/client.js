@@ -5,6 +5,14 @@ let _authToken = null
 export function setAuthToken(token) { _authToken = token }
 export function clearAuthToken() { _authToken = null }
 
+// Loads a previously stored token into the in-memory API client state.
+// Called once at app startup before the silent session restore attempt.
+// MVP: pairs with localStorage token storage — replace with cookie-based auth
+// when the httpOnly-cookie hardening phase is implemented.
+export function initAuthToken(token) {
+  if (token) _authToken = token
+}
+
 async function apiRequest(method, path, body = null) {
   const headers = { 'Content-Type': 'application/json' }
   if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`

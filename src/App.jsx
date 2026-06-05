@@ -57,7 +57,7 @@ import SidePanel from './features/shell/SidePanel'
 import NotificationPanel from './features/shell/NotificationPanel'
 import { cx } from './utils/format'
 import { isEnabled } from './config/featureFlags'
-import { clearSession } from './services/authService'
+import { clearSession, saveToken } from './services/authService'
 import { loginWithCredentials } from './services/api/sessionApi'
 import { setAuthToken, clearAuthToken, apiPost } from './services/api/client'
 import { enqueue, dequeue } from './services/pendingSyncQueue'
@@ -83,7 +83,7 @@ import WineAtlas from './features/wine-atlas/WineAtlas'
 
 
 export default function App() {
-  const { lang, setLang, currentUser, setCurrentUser, role, users, setUsers, logout } = useSessionState()
+  const { lang, setLang, currentUser, setCurrentUser, role, users, setUsers, logout, sessionRestoring, showIdleWarning, dismissIdleWarning } = useSessionState()
   const t = TEXT.en
 
   const { area, page, collapsed, setCollapsed, navigate, goToArea, goToPage, pageContext } = useNavigationState({ currentUser })
@@ -168,6 +168,7 @@ export default function App() {
   async function login({ username, password }) {
     const { token, user: apiUser } = await loginWithCredentials(username, password)
     setAuthToken(token)
+    saveToken(token)  // MVP: persist token so refresh restores the session
     const sessionUser = {
       id: apiUser.id,
       username: apiUser.full_name,
@@ -215,6 +216,18 @@ export default function App() {
     return archived
   }, [currentUser?.username, pushNotification])
 
+  // Briefly show a neutral loading screen while a stored token is being validated.
+  // Prevents the login screen from flashing before session restore completes.
+  if (sessionRestoring) {
+    return (
+      <div className="min-h-screen bg-[#0d0c09] flex items-center justify-center">
+        <span className="text-[#c9a96e] text-xs tracking-[0.25em] uppercase opacity-60">
+          Restoring session…
+        </span>
+      </div>
+    )
+  }
+
   if (!currentUser) {
     return <LoginScreen t={t} onLogin={login} />
   }
@@ -222,11 +235,17 @@ export default function App() {
   // Wine Atlas: full-screen takeover — no HESTIA shell when active
   if (page === 'wineKnowledge') {
     const exitAtlas = () => goToPage('courses')
-    return <WineAtlas onExit={exitAtlas} />
+    return (
+      <>
+        <IdleWarningBanner show={showIdleWarning} onDismiss={dismissIdleWarning} />
+        <WineAtlas onExit={exitAtlas} />
+      </>
+    )
   }
 
   return (
     <div className="min-h-screen bg-[#0d0c09] text-[#f5f5f0]">
+      <IdleWarningBanner show={showIdleWarning} onDismiss={dismissIdleWarning} />
       <TopNav
         t={t}
         currentUser={currentUser}
@@ -457,5 +476,26 @@ function PageRenderer({ t, page, goToPage, pageContext, session, reports, operat
   }
 
   return pages[page] || <MissingPage t={t} page={page} />
+}
+
+// Shown when the user has been inactive for 25 minutes (5 minutes before auto-logout).
+// Dismissing it resets the idle timer because the click fires a 'mousedown' event.
+function IdleWarningBanner({ show, onDismiss }) {
+  if (!show) return null
+  return (
+    <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-4 bg-[#1a160e] border-b border-[#c9a96e]/30 px-4 py-2.5 text-sm">
+      <span className="text-[#f5f5f0]/80">
+        You have been inactive for 25 minutes.{' '}
+        <span className="text-[#c9a96e]">You will be logged out in 5 minutes.</span>
+      </span>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="shrink-0 rounded border border-[#c9a96e]/40 px-3 py-1 text-[#c9a96e] text-xs tracking-wide hover:bg-[#c9a96e]/10 transition-colors"
+      >
+        Stay logged in
+      </button>
+    </div>
+  )
 }
 

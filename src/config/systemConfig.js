@@ -1,4 +1,5 @@
 ﻿export const STORAGE = {
+  token: 'hospia.token',        // MVP: JWT stored in localStorage until httpOnly-cookie phase
   users: 'hospia.users',
   currentUser: 'hospia.currentUser',
   role: 'hospia.role',

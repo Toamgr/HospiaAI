@@ -1428,7 +1428,10 @@ app.post("/api/auth/login", (req, res) => {
     return res.status(401).json({ error: "Invalid username or password." });
   }
   const token = randomUUID();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  // MVP: 7-day expiry so stored tokens survive across sessions.
+  // The 30-minute client-side idle timeout is the primary logout mechanism.
+  // Reduce back to 24h once httpOnly-cookie auth hardening is in place.
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   db.prepare("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)").run(
     token, user.id, nowIso(), expiresAt
   );
@@ -1446,6 +1449,17 @@ app.post("/api/auth/logout", (req, res) => {
     db.prepare("DELETE FROM sessions WHERE token = ?").run(authHeader.slice(7));
   }
   res.json({ ok: true });
+});
+
+// Validates the stored session token and returns the current user profile.
+// Used by the frontend for silent session restore on app load.
+app.get("/api/auth/me", requireAuth(), (req, res) => {
+  const userResp = { id: req.user.id, full_name: req.user.full_name, role: req.user.role };
+  if (req.user.role === "employee") {
+    const emp = db.prepare("SELECT sub_role FROM employees WHERE user_id = ?").get(req.user.id);
+    if (emp?.sub_role) userResp.sub_role = emp.sub_role;
+  }
+  res.json({ ok: true, user: userResp });
 });
 
 app.get("/api/shift-reports", requireAuth("manager", "bar_manager", "owner", "admin"), (req, res) => {
