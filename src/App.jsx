@@ -63,7 +63,6 @@ import { setAuthToken, clearAuthToken, apiPost } from './services/api/client'
 import { enqueue, dequeue } from './services/pendingSyncQueue'
 import { useUserManagement } from './hooks/useUserManagement'
 import { TEXT } from './config/textConfig'
-import { firstAllowedArea, firstAllowedPage } from './config/roleConfig'
 import { useNotificationState } from './hooks/useNotificationState'
 import { useSessionState } from './hooks/useSessionState'
 import { useNavigationState } from './hooks/useNavigationState'
@@ -86,7 +85,7 @@ export default function App() {
   const { lang, setLang, currentUser, setCurrentUser, role, users, setUsers, logout, sessionRestoring, showIdleWarning, dismissIdleWarning } = useSessionState()
   const t = TEXT.en
 
-  const { area, page, collapsed, setCollapsed, navigate, goToArea, goToPage, pageContext } = useNavigationState({ currentUser })
+  const { area, page, collapsed, setCollapsed, navigate, goToArea, goToPage, pageContext, navigateAfterLogin } = useNavigationState({ currentUser })
   const {
     notifications,
     showNotifications,
@@ -177,10 +176,8 @@ export default function App() {
       sub_role: apiUser.sub_role || null,
       canManageCocktails: ['admin', 'bar_manager'].includes(apiUser.role)
     }
-    const nextArea = firstAllowedArea(sessionUser)
-    const nextPage = firstAllowedPage(sessionUser, nextArea)
     setCurrentUser(sessionUser)
-    navigate(nextArea, nextPage)
+    navigateAfterLogin(sessionUser)
   }
 
   const archiveEndOfDayReport = useCallback(async report => {

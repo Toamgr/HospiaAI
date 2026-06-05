@@ -6298,6 +6298,23 @@ app.get('/api/employee-shifts/my-shifts', requireAuth('employee', 'admin'), (req
   res.json({ shifts: result });
 });
 
+// ── Production SPA catch-all ───────────────────────────────────────────────────
+// Serves index.html for all non-API GET requests so React Router can handle
+// deep links and refreshes on any route (e.g. /bar/lab, /events, /academy/wine).
+//
+// IMPORTANT: This must be the LAST route declaration.
+// All /api/* routes, /event/:token/guest, and any other explicit routes are
+// registered above — they take precedence over this catch-all.
+//
+// In development, Vite's dev server handles non-API routes and this block is skipped.
+if (process.env.NODE_ENV === 'production') {
+  const distDir = path.join(__dirname, 'dist');
+  app.use(express.static(distDir));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distDir, 'index.html'));
+  });
+}
+
 process.on('unhandledRejection', (reason, promise) => {
   console.log('[UNHANDLED REJECTION]', reason);
 });
