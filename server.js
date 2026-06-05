@@ -1544,7 +1544,7 @@ app.post("/api/shift-reports", requireAuth("manager", "bar_manager", "admin"), (
 
 app.get("/api/business-memory", requireAuth("manager", "bar_manager", "owner", "admin"), (req, res) => {
   const rows = db.prepare(`
-    SELECT type, title, detail, event_date AS date, created_at
+    SELECT id, type, title, detail, event_date AS date, created_at
     FROM business_memory
     WHERE venue_id = ?
     ORDER BY created_at DESC
@@ -1687,8 +1687,9 @@ app.patch("/api/incidents/:id", requireAuth("manager", "bar_manager", "admin"), 
 });
 
 app.post("/api/business-memory", requireAuth("manager", "bar_manager", "owner", "admin"), (req, res) => {
+  const clientId = String(req.body.id || "").trim();
   const entry = {
-    id: id("memory"),
+    id: clientId || id("memory"),
     venue_id: defaultVenueId(),
     type: String(req.body.type || "note"),
     title: String(req.body.title || ""),
@@ -1697,7 +1698,7 @@ app.post("/api/business-memory", requireAuth("manager", "bar_manager", "owner", 
     created_at: nowIso()
   };
 
-  db.prepare("INSERT INTO business_memory (id, venue_id, type, title, detail, event_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
+  db.prepare("INSERT OR IGNORE INTO business_memory (id, venue_id, type, title, detail, event_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
     entry.id, entry.venue_id, entry.type, entry.title, entry.detail, entry.event_date, entry.created_at
   );
 

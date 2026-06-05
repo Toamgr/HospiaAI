@@ -96,7 +96,7 @@ export default function App() {
     markNotificationsRead
   } = useNotificationState({ role, currentUser })
 
-  const { reportArchive, setReportArchive, businessMemory, setBusinessMemory, addBusinessMemoryEvent } = useReportsState()
+  const { reportArchive, setReportArchive, businessMemory, setBusinessMemory, addBusinessMemoryEvent } = useReportsState({ currentUser })
 
   const {
     activeShift,

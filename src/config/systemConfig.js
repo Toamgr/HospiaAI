@@ -15,6 +15,7 @@
   employeePerformance: 'hospia.employeePerformance',
   employeeTasks: 'hospia.employeeTasks',
   employeeRequests: 'hospia.employeeRequests',
+  businessMemory: 'hospia.businessMemory',
   notifications: 'hospia.notifications',
   cocktailDrafts: 'hospia.cocktailDrafts',
   approvedCocktails: 'hospia.approvedCocktails',
