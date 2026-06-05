@@ -3416,27 +3416,48 @@ app.get('/api/notifications', requireAuth(), (req, res) => {
 });
 
 // Phase 5 Step 1: create a notification from the frontend.
-// Inserts one row with target_role = roles[0] (backward compat) and
-// roles_json storing the full array for multi-role filtering in GET.
+// Hardened (security patch): validates roles against known values, sets
+// created_at server-side, and truncates string fields.
+const NOTIFICATION_VALID_ROLES = new Set([
+  'owner', 'manager', 'bar_manager', 'employee',
+  'fb_director', 'events_manager', 'chef', 'admin'
+]);
 app.post('/api/notifications', requireAuth(), (req, res) => {
-  const { id: clientId, roles, title, body, type, page, created_at } = req.body;
+  const { id: clientId, roles, title, body, type, page } = req.body;
   if (!title || !body || !Array.isArray(roles) || !roles.length) {
     return res.status(400).json({ error: 'title, body, and roles[] are required.' });
   }
-  const notifId = clientId || randomUUID();
+  // Strip unknown role values to prevent arbitrary strings reaching the DB
+  const validRoles = roles.filter(r => typeof r === 'string' && NOTIFICATION_VALID_ROLES.has(r));
+  if (!validRoles.length) {
+    return res.status(400).json({ error: 'At least one valid role is required.' });
+  }
+  const notifId = (typeof clientId === 'string' && clientId.length <= 200) ? clientId : randomUUID();
   db.prepare(`
     INSERT OR IGNORE INTO notifications (id, venue_id, target_role, title, body, type, page, read, created_at, roles_json)
     VALUES (?,?,?,?,?,?,?,0,?,?)
   `).run(
-    notifId, defaultVenueId(), String(roles[0]),
-    String(title), String(body), String(type || 'info'),
-    page || null, created_at || nowIso(), JSON.stringify(roles)
+    notifId, defaultVenueId(), validRoles[0],
+    String(title).slice(0, 200), String(body).slice(0, 500),
+    String(type || 'info').slice(0, 50),
+    page ? String(page).slice(0, 100) : null,
+    nowIso(),  // always server-side — client created_at is ignored
+    JSON.stringify(validRoles)
   );
   res.status(201).json({ ok: true });
 });
 
+// Hardened (security patch): role ownership check added so users can only
+// mark notifications that are actually visible to their own role as read.
 app.patch('/api/notifications/:id/read', requireAuth(), (req, res) => {
-  db.prepare('UPDATE notifications SET read=1 WHERE id=? AND venue_id=?').run(req.params.id, defaultVenueId());
+  const role = req.user.role;
+  db.prepare(`
+    UPDATE notifications SET read=1
+    WHERE id=? AND venue_id=?
+      AND (target_role=? OR (roles_json IS NOT NULL AND EXISTS (
+        SELECT 1 FROM json_each(roles_json) WHERE value=?
+      )))
+  `).run(req.params.id, defaultVenueId(), role, role);
   res.json({ ok: true });
 });
 
