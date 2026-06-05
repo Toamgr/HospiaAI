@@ -1126,11 +1126,6 @@ function normalizeConsultationDecision(parsed) {
 }
 
 export async function consultGeminiCocktailDirection({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, conversationHistory = [], previousProposal = null }) {
-  const key = import.meta.env?.VITE_GEMINI_API_KEY
-  if (!key || key === 'PASTE_KEY_HERE') {
-    throw new Error('AI connection not configured.')
-  }
-
   const prompt = buildDirectorConsultationPrompt({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, conversationHistory, previousProposal })
 
   // CI MODULE ADDITION - auth fix: apiPost sends Authorization header automatically
@@ -1141,11 +1136,6 @@ export async function consultGeminiCocktailDirection({ agentPrompt, form, approv
 }
 
 export async function generateGeminiCocktailProposal({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, variation = '', previousProposal = null }) {
-  const key = import.meta.env?.VITE_GEMINI_API_KEY;
-  if (!key || key === 'PASTE_KEY_HERE') {
-    throw new Error('AI connection not configured.');
-  }
-
   const isCompactRevision = Boolean(previousProposal && (variation || agentPrompt));
   const prompt = isCompactRevision
     ? buildCompactRevisionPrompt({ agentPrompt, form, menuAnalysis, variation, previousProposal })

@@ -1349,9 +1349,9 @@ function actionRow(row) {
 }
 
 async function askGemini(prompt, { jsonMode = false } = {}) {
-  const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === 'PASTE_KEY_HERE') {
-    throw new Error("Missing VITE_GEMINI_API_KEY in .env.");
+    throw new Error("Missing GEMINI_API_KEY in .env.");
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
@@ -3592,9 +3592,9 @@ function debugLog(obj) {
 }
 
 async function askGeminiChat(systemInstruction, history, message) {
-  const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === 'PASTE_KEY_HERE') {
-    throw new Error('Missing VITE_GEMINI_API_KEY in .env.');
+    throw new Error('Missing GEMINI_API_KEY in .env.');
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
@@ -5774,7 +5774,7 @@ const CHEF_ROLES = ['chef', 'fb_director', 'owner', 'admin'];
 
 // Gemini model for chef (use configured model or flash-lite)
 async function askGeminiChef(prompt) {
-  const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === 'PASTE_KEY_HERE') throw new Error('Missing GEMINI_API_KEY');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
   const body = {
@@ -6136,7 +6136,7 @@ Each shift entry: { "employee_id": number, "display_name": "string", "sub_role":
 
 Employees: ${JSON.stringify(employeeList)}`;
 
-    const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey || apiKey === 'PASTE_KEY_HERE') throw new Error('Missing GEMINI_API_KEY');
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`;
     const response = await fetch(url, {
