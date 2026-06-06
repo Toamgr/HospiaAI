@@ -424,6 +424,36 @@ section('4. KNOWN AUDIT ISSUES')
   }
 }
 
+// ── Issue O: Employee Milestones / Rewards MVP ────────────────────────────────
+{
+  const achievementsContent = read('src/features/employee/EmployeeAchievements.jsx') || ''
+  const dailyWorkContent    = read('src/features/employee/DailyWork.jsx') || ''
+
+  const hasRewardTypes    = achievementsContent.includes('Free staff meal') &&
+                            achievementsContent.includes('Shift preference') &&
+                            achievementsContent.includes('Training certificate') &&
+                            achievementsContent.includes('Bar tasting session') &&
+                            achievementsContent.includes('Dinner')
+  const hasMilestonesLabel = achievementsContent.includes("eyebrow=\"Milestones\"") ||
+                             achievementsContent.includes("eyebrow='Milestones'")
+  const noFakeFormula     = !achievementsContent.includes('* 0.58') &&
+                            !achievementsContent.includes("'Reserve Ready'") &&
+                            !achievementsContent.includes("'Floor Fluent'")
+  const dailyWorkRoutes   = dailyWorkContent.includes('employeeAchievements')
+
+  if (hasRewardTypes && hasMilestonesLabel && noFakeFormula && dailyWorkRoutes) {
+    row(PASS, 'Employee Milestones — reward catalog present, Milestones label, no fake readiness formula, Daily Work routing intact')
+  } else if (!hasRewardTypes) {
+    row(WARN, 'Employee Milestones — approved reward types not found in EmployeeAchievements; Phase 9 incomplete')
+  } else if (!hasMilestonesLabel) {
+    row(WARN, 'Employee Milestones — Milestones eyebrow label missing; Phase 9 incomplete')
+  } else if (!noFakeFormula) {
+    row(WARN, 'Employee Milestones — fake readiness formula or invented level names still present; Phase 9 incomplete')
+  } else {
+    row(WARN, 'Employee Milestones — partial implementation; check reward types, label, and Daily Work routing')
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  5. SECRET SAFETY CHECK
 // ─────────────────────────────────────────────────────────────────────────────

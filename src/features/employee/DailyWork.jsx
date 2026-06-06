@@ -94,7 +94,7 @@ export default function DailyWork({ currentUser, goToPage, employeeRequests = []
       title: 'Milestones',
       description: 'Readiness, completed paths, and service growth.',
       actions: [
-        { label: 'View Milestones', page: 'employeeAchievements', sub: 'Progress and readiness score' },
+        { label: 'View Milestones', page: 'employeeAchievements', sub: 'Progress and reward eligibility' },
       ]
     }
   ]
