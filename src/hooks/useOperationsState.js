@@ -484,6 +484,12 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
       created_at: new Date().toISOString()
     }
     setEventPlans(prev => [eventPlan, ...prev.filter(item => item.id !== eventPlan.id)].slice(0, 80))
+    apiPost('/api/event-plans', {
+      id: eventPlan.id,
+      name: eventPlan.name,
+      config: eventPlan.config,
+      calculations: eventPlan.calculations
+    }).catch(() => {})
     const generatedTasks = generateEmployeeTasksForEvent(eventPlan)
     if (generatedTasks.length) {
       setEmployeeTasks(prev => [...generatedTasks, ...prev.filter(item => item.eventId !== eventPlan.id)].slice(0, 160))

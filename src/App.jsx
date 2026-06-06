@@ -158,7 +158,7 @@ export default function App() {
   const eventState = useEventState({ currentUser, pushNotification })
   const cocktailIntelligenceState = useCocktailIntelligenceState({ currentUser }) // CI MODULE ADDITION
 
-  useBackendSync({ role, setReportArchive, setBusinessMemory, setEventPlans, setActionItems, setUsers, setServiceIncidents })
+  useBackendSync({ role, setReportArchive, setBusinessMemory, setActionItems, setUsers, setServiceIncidents })
 
   const { handleCreateUser, handleUpdateUser, handleDisableUser } = useUserManagement({
     currentUser, users, setUsers, setCurrentUser, logout, pushNotification

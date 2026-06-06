@@ -3,14 +3,17 @@ import { apiGet, apiPost } from '../services/api/client'
 import { syncUsersFromBackend, persistUsers } from '../services/userService'
 import { loadPendingQueue, dequeue } from '../services/pendingSyncQueue'
 
-export function useBackendSync({ role, setReportArchive, setBusinessMemory, setEventPlans, setActionItems, setUsers, setServiceIncidents }) {
+// Phase 5 Step 5: setEventPlans removed from this hook.
+// eventPlans write-side is now handled by saveEventPlan in useOperationsState.
+// Read-side (mount fetch) is deferred until approveEventEnquiry also writes to
+// backend via PATCH /api/event-plans/:id, preventing approval-status regression.
+export function useBackendSync({ role, setReportArchive, setBusinessMemory, setActionItems, setUsers, setServiceIncidents }) {
   useEffect(() => {
     let active = true
     if (!['manager', 'bar_manager', 'owner', 'admin'].includes(role)) return undefined
 
     const requests = [
       apiGet('/api/shift-reports'),
-      apiGet('/api/event-plans'),
       apiGet('/api/business-memory')
     ]
 
@@ -23,20 +26,13 @@ export function useBackendSync({ role, setReportArchive, setBusinessMemory, setE
     }
 
     Promise.allSettled(requests)
-      .then(([reportsResult, plansResult, memoryResult, actionsResult, incidentsResult]) => {
+      .then(([reportsResult, memoryResult, actionsResult, incidentsResult]) => {
         if (!active) return
         if (reportsResult.status === 'fulfilled' && Array.isArray(reportsResult.value.reports) && reportsResult.value.reports.length) {
           setReportArchive(prev => {
             const merged = [...reportsResult.value.reports]
             prev.forEach(local => { if (!merged.some(b => b.id === local.id)) merged.push(local) })
             return merged
-          })
-        }
-        if (plansResult.status === 'fulfilled' && Array.isArray(plansResult.value.eventPlans) && plansResult.value.eventPlans.length) {
-          setEventPlans(prev => {
-            const merged = [...plansResult.value.eventPlans]
-            prev.forEach(local => { if (!merged.some(b => b.id === local.id)) merged.push(local) })
-            return merged.slice(0, 80)
           })
         }
         if (memoryResult.status === 'fulfilled' && Array.isArray(memoryResult.value.memory) && memoryResult.value.memory.length) {

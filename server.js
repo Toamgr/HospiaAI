@@ -1921,8 +1921,9 @@ app.patch("/api/tasks/:id", requireAuth("manager", "bar_manager", "admin"), (req
 });
 
 app.post("/api/event-plans", requireAuth("manager", "owner", "admin"), (req, res) => {
+  const clientId = String(req.body.id || "").trim();
   const plan = {
-    id: id("event"),
+    id: clientId || id("event"),
     venue_id: defaultVenueId(),
     name: String(req.body.name || "Untitled Event Plan"),
     config_json: JSON.stringify(req.body.config || {}),
@@ -1934,7 +1935,7 @@ app.post("/api/event-plans", requireAuth("manager", "owner", "admin"), (req, res
   };
 
   db.prepare(`
-    INSERT INTO event_plans (
+    INSERT OR IGNORE INTO event_plans (
       id, venue_id, name, config_json, calculations_json,
       projected_revenue, projected_profit, projected_margin, created_at
     )
