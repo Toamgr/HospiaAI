@@ -79,6 +79,49 @@ async function sendOwnerEnquiryApprovalEmail(eventPlan) {
   )
 }
 
+function mapBackendEventPlan(row) {
+  const config = row.config || {}
+  const calculations = row.calculations || {}
+  return {
+    ...row,
+    config,
+    calculations,
+    eventType:       config.eventType        || '',
+    eventDate:       config.eventDate        || '',
+    contactPerson:   config.contactPerson    || '',
+    phone:           config.phone            || '',
+    budget:          Number(config.eventBudget) || row.projected_revenue || 0,
+    summary:         config.eventSummary     || '',
+    guests:          calculations.guests     || config.guests || 0,
+    fnbBreakdown:    config.fnbBreakdown     || null,
+    specialRequests: config.specialRequests  || '',
+    staffingNotes:   config.staffingNotes    || '',
+    status:          row.status              || config.eventStatus || 'Saved',
+    approvedBy:      row.approved_by         || null,
+    approved_at:     row.approved_at         || null
+  }
+}
+
+function isEventPlanApproved(plan) {
+  return plan.status === 'ENQUIRY_APPROVED' || plan.config?.eventStatus === 'ENQUIRY_APPROVED'
+}
+
+function mergeEventPlans(local, backend) {
+  const byId = new Map(backend.map(r => [r.id, r]))
+  const merged = local.map(localPlan => {
+    const backendPlan = byId.get(localPlan.id)
+    if (!backendPlan) return localPlan
+    // Safety rule: never downgrade a locally approved plan to a non-approved backend version.
+    // This protects against offline PATCH failures where the local UI shows approval
+    // but the backend record still has the old pending status.
+    if (isEventPlanApproved(localPlan) && !isEventPlanApproved(backendPlan)) return localPlan
+    return backendPlan
+  })
+  const localIds = new Set(local.map(r => r.id))
+  backend.forEach(r => { if (!localIds.has(r.id)) merged.push(r) })
+  return merged.slice(0, 80)
+}
+
 export function useOperationsState({ currentUser, pushNotification, addBusinessMemoryEvent, activeShift }) {
   const [eventPlans, setEventPlans] = useState(() => {
     try {
@@ -228,6 +271,27 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
           backendIncidents.forEach(r => { if (!localIds.has(r.id)) merged.push(r) })
           return merged
         })
+      })
+      .catch(() => {
+        // Backend unavailable — localStorage data already in state, no action needed
+      })
+    return () => { mounted = false }
+  }, [currentUser?.id])
+
+  // Phase 5 Step 7: futureEvents prefer backend when available.
+  // Fetches /api/event-plans on mount and merges with localStorage state.
+  // Backend wins for matching IDs; local-only plans are preserved.
+  // Safety rule: locally approved plans (ENQUIRY_APPROVED) are never downgraded
+  // by a non-approved backend version, protecting against offline PATCH failures.
+  useEffect(() => {
+    const PLAN_ROLES = ['manager', 'owner', 'admin', 'events_manager']
+    if (!currentUser || !PLAN_ROLES.includes(currentUser.role)) return
+    let mounted = true
+    apiGet('/api/event-plans')
+      .then(data => {
+        if (!mounted || !Array.isArray(data?.eventPlans) || !data.eventPlans.length) return
+        const backendPlans = data.eventPlans.map(mapBackendEventPlan)
+        setEventPlans(prev => mergeEventPlans(prev, backendPlans))
       })
       .catch(() => {
         // Backend unavailable — localStorage data already in state, no action needed
