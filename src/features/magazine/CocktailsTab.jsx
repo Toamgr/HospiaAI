@@ -8,7 +8,7 @@ const TABS = [
   { id: 'menus', label: 'Business Menus' },
 ]
 
-export default function CocktailsTab({ approvedCocktails = [], goToPage }) {
+export default function CocktailsTab({ approvedCocktails = [], goToPage, role }) {
   const [activeTab, setActiveTab] = useState('magazine')
 
   return (
@@ -52,7 +52,7 @@ export default function CocktailsTab({ approvedCocktails = [], goToPage }) {
       </div>
 
       {/* Content */}
-      {activeTab === 'magazine' && <ClassicCocktailsMagazine />}
+      {activeTab === 'magazine' && <ClassicCocktailsMagazine isEmployee={role === 'employee'} />}
       {activeTab === 'menus' && (
         <BusinessMenusTab approvedCocktails={approvedCocktails} />
       )}

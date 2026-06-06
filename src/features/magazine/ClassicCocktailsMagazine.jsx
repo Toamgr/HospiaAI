@@ -15,7 +15,7 @@ import { GrainOverlay } from './MagazineEditorialPrimitives'
  *
  * view: 'cover' | 'stories' | { slug: string }
  */
-export default function ClassicCocktailsMagazine() {
+export default function ClassicCocktailsMagazine({ isEmployee = false }) {
   const [view, setView] = useState('cover')
   const [scrolled, setScrolled] = useState(false)
   const shellRef = useRef(null)
@@ -49,9 +49,14 @@ export default function ClassicCocktailsMagazine() {
   }
 
   return (
-    // Breakout: counteract HESTIA main's padding at every breakpoint
+    // Breakout: counteract HESTIA main's padding at every breakpoint.
+    // Employee layout uses a narrower padding (px-3 py-4 sm:px-5 lg:px-6) so the
+    // breakout must stay within those bounds to avoid clipping behind the left rail.
     <div
-      className="-mx-5 sm:-mx-7 lg:-mx-10 xl:-mx-14 2xl:-mx-20 -mt-5 sm:-mt-7 lg:-mt-10 xl:-mt-14 2xl:-mt-20"
+      className={isEmployee
+        ? '-mx-3 sm:-mx-5 lg:-mx-6 -mt-4'
+        : '-mx-5 sm:-mx-7 lg:-mx-10 xl:-mx-14 2xl:-mx-20 -mt-5 sm:-mt-7 lg:-mt-10 xl:-mt-14 2xl:-mt-20'
+      }
       ref={shellRef}
     >
       <div className="magazine-shell">

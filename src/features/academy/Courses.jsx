@@ -4,7 +4,15 @@ import { getVisibleAcademies, getUserLessonProgress, isLessonComplete, isLessonU
 import { resolveInstructorPersona } from './services/academyInstructorPersonaResolver'
 
 export default function Courses({ t, currentUser, academyProgress = {}, onOpenLesson }) {
-  const academies = useMemo(() => getVisibleAcademies(currentUser), [currentUser])
+  const academies = useMemo(() => {
+    const all = getVisibleAcademies(currentUser)
+    // Bar learning lives in Bar World; wine learning has its own nav item.
+    // Remove both from the employee course grid to avoid duplication.
+    if (currentUser?.role === 'employee') {
+      return all.filter(a => a.id !== 'bar-academy' && a.id !== 'wine-academy')
+    }
+    return all
+  }, [currentUser])
   const completedLessons = getUserLessonProgress(academyProgress, currentUser)
 
   return (

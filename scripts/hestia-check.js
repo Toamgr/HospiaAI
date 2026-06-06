@@ -496,6 +496,21 @@ section('4. KNOWN AUDIT ISSUES')
   }
 }
 
+// ── Issue Q: Employee Courses — bar/wine academy filter ───────────────────────
+{
+  const coursesContent = read('src/features/academy/Courses.jsx') || ''
+  const hasBarFilter  = coursesContent.includes("'bar-academy'") && coursesContent.includes("'employee'")
+  const hasWineFilter = coursesContent.includes("'wine-academy'") && coursesContent.includes("'employee'")
+
+  if (hasBarFilter && hasWineFilter) {
+    row(PASS, 'Employee Courses — bar-academy and wine-academy filtered for employee role (Bar World / Wine nav)')
+  } else if (!hasBarFilter && !hasWineFilter) {
+    row(WARN, 'Employee Courses — bar/wine academy employee filter not found in Courses.jsx; polish fix incomplete')
+  } else {
+    row(WARN, 'Employee Courses — partial filter; check both bar-academy and wine-academy exclusions for employee role')
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  5. SECRET SAFETY CHECK
 // ─────────────────────────────────────────────────────────────────────────────

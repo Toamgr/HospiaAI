@@ -471,7 +471,7 @@ function PageRenderer({ t, page, goToPage, pageContext, session, reports, operat
     userManagement: <UserManagement currentUser={currentUser} users={users} onCreateUser={onCreateUser} onUpdateUser={onUpdateUser} onDisableUser={onDisableUser} />,
     settings: <SettingsPage />,
     ciDashboard: <CocktailIntelligenceDashboard cocktailIntelligence={cocktailIntelligence} />, // CI MODULE ADDITION
-    cocktailsMagazine: <CocktailsTab approvedCocktails={approvedCocktails} goToPage={goToPage} />, // COCKTAILS TAB
+    cocktailsMagazine: <CocktailsTab approvedCocktails={approvedCocktails} goToPage={goToPage} role={role} />, // COCKTAILS TAB
     chefDashboard: <ChefDashboard currentUser={currentUser} />,
     staffTab: <StaffTab />,
     shiftOrganizerPage: <ShiftOrganizer currentUser={currentUser} />,

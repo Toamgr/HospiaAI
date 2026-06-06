@@ -36,8 +36,8 @@ export default function BarWorld({ goToPage }) {
     {
       eyebrow: 'Training',
       title: 'Bar Course',
-      description: 'Structured bartender learning — technique, service, classic specs, and practical bar knowledge. Bar course content is part of the HESTIA Academy course system.',
-      cta: 'Open Course Catalog',
+      description: 'Structured bar education — technique, classic specs, spirits, and service culture. The full Bar Course is being built here inside Bar World. Current academy content is available through HESTIA Courses.',
+      cta: 'Visit HESTIA Academy',
       page: 'courses',
     },
     {
