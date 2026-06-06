@@ -285,7 +285,7 @@ section('4. KNOWN AUDIT ISSUES')
   )
 }
 
-// ── Issue H: Bar World — component, routing, and content ──────────────────────
+// ── Issue H: Bar World — editorial navigation + content ───────────────────────
 {
   const barWorldContent = read('src/features/employee/BarWorld.jsx') || ''
   const componentExists = exists('src/features/employee/BarWorld.jsx')
@@ -293,17 +293,22 @@ section('4. KNOWN AUDIT ISSUES')
   const hasPageMeta = fileContains('src/config/navigationConfig.js', /barWorld\s*:/)
   const inNav       = fileContains('src/features/shell/TopNav.jsx', "'barWorld'") ||
                       fileContains('src/features/employee/EmployeeNavRail.jsx', "'barWorld'")
-  const hasBarCourse = barWorldContent.includes('Bar Course')
-  const hasMagazine  = barWorldContent.includes('cocktailsMagazine') || barWorldContent.includes('Classic Cocktails')
+  const hasBarCourse   = barWorldContent.includes('Bar Course')
+  const hasMagazine    = barWorldContent.includes('ClassicCocktailsMagazine') ||
+                         barWorldContent.includes('cocktailsMagazine') ||
+                         barWorldContent.includes('Classic Cocktails')
+  const hasAcademyTab  = barWorldContent.includes("'academy'")
+  const hasClassicsTab = barWorldContent.includes("'classics'")
+  const hasEditorialNav = hasAcademyTab && hasClassicsTab
 
-  if (componentExists && hasRoute && hasPageMeta && inNav && hasBarCourse && hasMagazine) {
-    row(PASS, 'Bar World — component, route, PAGE_META, nav entry, Bar Course and Classic Cocktails all present')
-  } else if (componentExists && hasRoute && hasPageMeta && inNav) {
-    row(WARN, 'Bar World — present but Bar Course or Classic Cocktails Magazine entry missing in BarWorld.jsx')
+  if (componentExists && hasRoute && hasPageMeta && inNav && hasBarCourse && hasMagazine && hasEditorialNav) {
+    row(PASS, 'Bar World — editorial nav with Academy + Classics tabs, Bar Course, magazine embedded, route and nav present')
+  } else if (componentExists && hasRoute && hasPageMeta && inNav && hasBarCourse && hasMagazine) {
+    row(WARN, 'Bar World — content present but Academy/Classics editorial tab navigation missing')
   } else if (!componentExists || !hasRoute || !hasPageMeta) {
     row(WARN, 'Bar World — missing component, route, or PAGE_META')
   } else {
-    row(WARN, 'Bar World — nav entry not found in TopNav or EmployeeNavRail')
+    row(WARN, 'Bar World — nav entry or content incomplete')
   }
 }
 

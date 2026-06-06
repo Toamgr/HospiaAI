@@ -1,84 +1,153 @@
-import React from 'react'
+import { useState } from 'react'
+import ClassicCocktailsMagazine from '../magazine/ClassicCocktailsMagazine'
 
-function BarWorldCard({ eyebrow, title, description, cta, onClick, upcoming }) {
+const TABS = [
+  { id: 'academy',   label: 'Academy' },
+  { id: 'classics',  label: 'Classics' },
+  { id: 'technique', label: 'Technique' },
+  { id: 'spirits',   label: 'Spirits' },
+  { id: 'service',   label: 'Service' },
+]
+
+function BarWorldHeader({ tab, setTab }) {
   return (
-    <div className={`rounded-[1.25rem] border p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.022)] ${
-      upcoming
-        ? 'border-[#6b705c]/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.014),rgba(0,0,0,0.18))]'
-        : 'border-[#6b705c]/14 bg-[linear-gradient(145deg,rgba(255,255,255,0.028),rgba(0,0,0,0.14))]'
-    }`}>
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <div className="text-[8px] font-black uppercase tracking-[0.26em] text-[#c9a96e]/75">{eyebrow}</div>
-        {upcoming && (
-          <span className="rounded-full border border-[#6b705c]/20 bg-white/[0.022] px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]/38">
-            Coming soon
-          </span>
-        )}
-      </div>
-      <h2 className="font-serif text-[1.15rem] font-black leading-tight text-[#f5f5f0]">{title}</h2>
-      <p className="mt-2 text-[11px] leading-relaxed text-[#e8dcc0]/50">{description}</p>
-      {cta && onClick && (
+    <div className="-mx-3 sm:-mx-5 lg:-mx-6 -mt-4 border-b border-[#c9a96e]/12 bg-[#080705]">
+      <div className="flex items-center justify-between gap-4 px-4 py-[1.05rem] sm:px-6">
+
+        {/* Brand */}
         <button
           type="button"
-          onClick={onClick}
-          className="group mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-[#6b705c]/12 bg-white/[0.016] px-4 py-3 text-left transition-all duration-300 hover:border-[#c9a96e]/22 hover:bg-[#c9a96e]/[0.032]"
+          onClick={() => setTab('classics')}
+          className="flex shrink-0 items-baseline gap-2.5 border-0 bg-transparent p-0 cursor-pointer"
         >
-          <span className="text-[13px] font-semibold leading-tight text-[#f5f5f0] transition duration-300 group-hover:text-[#c9a96e]">{cta}</span>
-          <span className="shrink-0 text-[10px] text-[#6b705c]/45 transition duration-300 group-hover:text-[#c9a96e]">→</span>
+          <span className="font-serif text-[1.1rem] font-black tracking-tight text-[#c9a96e]">
+            Hestia
+          </span>
+          <span
+            className="hidden sm:inline"
+            style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.67rem', letterSpacing: '0.26em', textTransform: 'uppercase', color: 'rgba(232,220,192,0.48)' }}
+          >
+            Bar World
+          </span>
         </button>
-      )}
+
+        {/* Tab navigation */}
+        <nav
+          className="flex flex-1 items-center justify-center gap-5 overflow-x-auto md:gap-8"
+          aria-label="Bar World sections"
+        >
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              style={{
+                fontFamily: 'Inter, sans-serif',
+                fontSize: '0.68rem',
+                letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+                color: tab === t.id ? '#c9a96e' : 'rgba(232,220,192,0.40)',
+                background: 'none',
+                border: 'none',
+                borderBottom: tab === t.id ? '1.5px solid #c9a96e' : '1.5px solid transparent',
+                paddingBottom: '2px',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'color 150ms',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Edition tag */}
+        <div
+          className="hidden shrink-0 md:block"
+          style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.64rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(232,220,192,0.22)' }}
+        >
+          Vol. I · MMXXVI
+        </div>
+
+      </div>
     </div>
   )
 }
 
-export default function BarWorld({ goToPage }) {
-  const cards = [
-    {
-      eyebrow: 'Training',
-      title: 'Bar Course',
-      description: 'Structured bar education — technique, classic specs, spirits, and service culture. The full Bar Course is being built here inside Bar World. Current academy content is available through HESTIA Courses.',
-      cta: 'Visit HESTIA Academy',
-      page: 'courses',
-    },
-    {
-      eyebrow: 'Reading',
-      title: 'Classic Cocktails',
-      description: "The bartender's reading world — classic specs, recipes, origin stories, and bar culture. Living magazine material for shift preparation and craft.",
-      cta: 'Open Magazine',
-      page: 'cocktailsMagazine',
-    },
-    {
-      eyebrow: 'Craft',
-      title: 'Technique',
-      description: 'Bar technique reference — stir, shake, build, and layer. Step-by-step method guides prepared for future bar course lessons.',
-      upcoming: true,
-    },
-    {
-      eyebrow: 'Service',
-      title: 'Service Notes',
-      description: 'Hospitality service standards, table etiquette, and guest interaction reference for shift preparation.',
-      upcoming: true,
-    },
-  ]
+function AcademyPanel() {
+  return (
+    <div className="mx-auto max-w-3xl py-8">
+      <div className="rounded-[1.25rem] border border-[#6b705c]/14 bg-[linear-gradient(145deg,rgba(255,255,255,0.028),rgba(0,0,0,0.14))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.022)]">
+        <div className="mb-1.5 text-[8px] font-black uppercase tracking-[0.26em] text-[#c9a96e]/75">Training</div>
+        <h2 className="font-serif text-xl font-black leading-tight text-[#f5f5f0]">Bar Course</h2>
+        <p className="mt-3 text-sm leading-relaxed text-[#e8dcc0]/60">
+          Structured bar education — technique, classic specs, spirits, and service culture.
+          The Bar Course will live here inside Bar World.
+        </p>
+        <div className="mt-5">
+          <span className="inline-block rounded-full border border-[#6b705c]/20 bg-white/[0.022] px-3 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]/35">
+            Bar Course in preparation
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ComingSoonPanel({ eyebrow, title, body }) {
+  return (
+    <div className="mx-auto max-w-3xl py-8">
+      <div className="rounded-[1.25rem] border border-[#6b705c]/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.014),rgba(0,0,0,0.18))] p-10 text-center">
+        <div className="mb-2 text-[8px] font-black uppercase tracking-[0.26em] text-[#c9a96e]/38">{eyebrow}</div>
+        <h2 className="font-serif text-lg font-black text-[#f5f5f0]/55">{title}</h2>
+        <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-[#e8dcc0]/30">{body}</p>
+        <span className="mt-5 inline-block rounded-full border border-[#6b705c]/18 bg-white/[0.018] px-3 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-[#e8dcc0]/25">
+          In preparation
+        </span>
+      </div>
+    </div>
+  )
+}
+
+export default function BarWorld() {
+  const [tab, setTab] = useState('classics')
 
   return (
     <section className="relative min-h-[calc(100vh-4.75rem)]">
-      <div className="mx-auto max-w-3xl">
-        <header className="mb-7 pt-1">
-          <div className="mb-2 text-[8px] font-black uppercase tracking-[0.34em] text-[#c9a96e]">Bar World</div>
-          <h1 className="font-serif text-[clamp(1.9rem,4vw,3rem)] font-black leading-[0.97] tracking-tight text-[#f5f5f0]">Your bar education.</h1>
-          <p className="mt-2.5 max-w-lg text-sm leading-6 text-[#e8dcc0]/60">Course material, classic specs, technique, and service reference — everything for the craft.</p>
-        </header>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {cards.map(card => (
-            <BarWorldCard
-              key={card.title}
-              {...card}
-              onClick={card.page ? () => goToPage(card.page) : undefined}
-            />
-          ))}
-        </div>
-      </div>
+
+      <BarWorldHeader tab={tab} setTab={setTab} />
+
+      {tab === 'academy' && <AcademyPanel />}
+
+      {tab === 'classics' && (
+        // noTopOffset: the BarWorldHeader already absorbed the top margin offset
+        <ClassicCocktailsMagazine isEmployee={true} noTopOffset={true} />
+      )}
+
+      {tab === 'technique' && (
+        <ComingSoonPanel
+          eyebrow="Craft"
+          title="Technique"
+          body="Bar technique reference — stir, shake, build, and layer. Step-by-step method guides are being prepared as part of the Bar Course inside Bar World."
+        />
+      )}
+
+      {tab === 'spirits' && (
+        <ComingSoonPanel
+          eyebrow="Knowledge"
+          title="Spirits"
+          body="Spirits literacy — categories, distillation, tasting foundations, and vocabulary for service. Coming as part of the structured bar education."
+        />
+      )}
+
+      {tab === 'service' && (
+        <ComingSoonPanel
+          eyebrow="Standards"
+          title="Service"
+          body="Bar service notes — guest interaction, station discipline, mise en place, and pre-service reference. Being prepared for shift use."
+        />
+      )}
+
     </section>
   )
 }
