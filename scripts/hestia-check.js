@@ -398,6 +398,32 @@ section('4. KNOWN AUDIT ISSUES')
   }
 }
 
+// ── Issue N: Employee daily login popup ───────────────────────────────────────
+{
+  const componentContent = read('src/features/employee/EmployeeDailyWelcome.jsx') || ''
+  const appContent       = read('src/App.jsx') || ''
+
+  const componentExists    = exists('src/features/employee/EmployeeDailyWelcome.jsx')
+  const checksEmployeeRole = componentContent.includes("role !== 'employee'") || componentContent.includes("role === 'employee'")
+  const hasHestiaDay       = componentContent.includes('getHestiaDay') && componentContent.includes('getHours') && componentContent.includes('< 5')
+  const usesStorage        = componentContent.includes('localStorage')
+  const wiredInApp         = appContent.includes('EmployeeDailyWelcome')
+
+  if (componentExists && checksEmployeeRole && hasHestiaDay && usesStorage && wiredInApp) {
+    row(PASS, 'Employee daily welcome popup — component present, role-gated, HESTIA day boundary, localStorage persistence')
+  } else if (!componentExists) {
+    row(NOPE, 'Employee daily welcome popup [NOT IMPLEMENTED YET — Phase 8]')
+  } else if (!wiredInApp) {
+    row(WARN, 'Employee daily welcome popup — component exists but not wired into App.jsx; Phase 8 incomplete')
+  } else if (!checksEmployeeRole) {
+    row(WARN, 'Employee daily welcome popup — missing employee role check; Phase 8 incomplete')
+  } else if (!hasHestiaDay) {
+    row(WARN, 'Employee daily welcome popup — HESTIA day 05:00 boundary not detected; Phase 8 incomplete')
+  } else {
+    row(WARN, 'Employee daily welcome popup — partial implementation; check role gate, day boundary, and localStorage')
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  5. SECRET SAFETY CHECK
 // ─────────────────────────────────────────────────────────────────────────────

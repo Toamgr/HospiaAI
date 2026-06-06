@@ -31,6 +31,7 @@ import ProfitLeaks from './features/owner/ProfitLeaks'
 import OwnerReport from './features/owner/OwnerReport'
 import BusinessMemoryPage from './features/owner/BusinessMemoryPage'
 import StrategicRecommendations from './features/owner/StrategicRecommendations'
+import EmployeeDailyWelcome from './features/employee/EmployeeDailyWelcome'
 import EmployeeHome from './features/employee/EmployeeHome'
 import DailyWork from './features/employee/DailyWork'
 import BarWorld from './features/employee/BarWorld'
@@ -245,6 +246,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0d0c09] text-[#f5f5f0]">
       <IdleWarningBanner show={showIdleWarning} onDismiss={dismissIdleWarning} />
+      <EmployeeDailyWelcome currentUser={currentUser} />
       <TopNav
         t={t}
         currentUser={currentUser}
