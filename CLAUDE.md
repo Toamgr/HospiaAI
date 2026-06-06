@@ -128,3 +128,9 @@ These still use the old "HOSPIA" name and must be migrated together:
 - `X-HOSPIA-Role` HTTP header — frontend and backend must rename simultaneously
 - `HOSPIA_LOCAL_APP` package/folder name — safe to rename anytime, no runtime effect
 - `HOSPIA_STRATEGY_FOUNDATION.md`, `HOSPIA_SYSTEM_ARCHITECTURE.md` — safe to rename if CLAUDE.md paths are updated
+
+## Design System
+Before building any HESTIA UI screen, component, or layout, read:
+skills/user/hestia-ui-design/SKILL.md
+
+This skill defines the complete HESTIA visual system — palettes, typography, components, motion, and editorial patterns. It is mandatory for all UI work.
