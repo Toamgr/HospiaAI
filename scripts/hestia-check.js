@@ -213,48 +213,67 @@ section('4. KNOWN AUDIT ISSUES')
   }
 }
 
-// ── Issue C: serviceRecovery / "Report" still visible in Employee TopNav ─────
+// ── Issue C: serviceRecovery / "Report" removed from Employee TopNav ─────────
 {
-  const label = 'Employee TopNav: serviceRecovery / "Report" item still present'
   const topNav = read('src/features/shell/TopNav.jsx') || ''
   const present = topNav.includes("'serviceRecovery'") && topNav.includes("'Report'")
-  row(present ? WARN : PASS, label)
+  row(
+    present ? WARN : PASS,
+    present
+      ? "Employee TopNav: serviceRecovery / 'Report' still present as top-level — Phase 1 incomplete"
+      : "Employee TopNav: serviceRecovery / 'Report' removed from top-level nav"
+  )
 }
 
-// ── Issue D: Availability as separate top-level employee nav item ─────────────
+// ── Issue D: Availability removed from Employee top-level nav ─────────────────
 {
-  const label = "Employee TopNav: 'Availability' (constraintsForm) still a top-level item"
   const topNav = read('src/features/shell/TopNav.jsx') || ''
   const present = topNav.includes("'constraintsForm'") && topNav.includes("'Availability'")
-  row(present ? WARN : PASS, label)
+  row(
+    present ? WARN : PASS,
+    present
+      ? "Employee TopNav: 'Availability' (constraintsForm) still a top-level item — Phase 1 incomplete"
+      : "Employee TopNav: 'Availability' (constraintsForm) removed from top-level nav"
+  )
 }
 
-// ── Issue E: Food Menu as separate top-level employee nav item ────────────────
+// ── Issue E: Food Menu removed from Employee top-level nav ────────────────────
 {
-  const label = "Employee TopNav: 'Food Menu' (foodMenuView) still a top-level item"
   const topNav = read('src/features/shell/TopNav.jsx') || ''
   const present = topNav.includes("'foodMenuView'") && (topNav.includes("'Food Menu'") || topNav.includes('"Food Menu"'))
-  row(present ? WARN : PASS, label)
+  row(
+    present ? WARN : PASS,
+    present
+      ? "Employee TopNav: 'Food Menu' (foodMenuView) still a top-level item — Phase 1 incomplete"
+      : "Employee TopNav: 'Food Menu' (foodMenuView) removed from top-level nav"
+  )
 }
 
-// ── Issue F & G: Approved Cocktails / Cocktails as top-level employee nav item ─
+// ── Issue F & G: Approved Cocktails / Cocktails removed from Employee top-level ─
 {
-  const label = "Employee TopNav: Approved Cocktails / 'Cocktails' still a top-level item"
   const topNav = read('src/features/shell/TopNav.jsx') || ''
   const present = topNav.includes("'approvedCocktails'") && (topNav.includes("'Cocktails'") || topNav.includes('"Cocktails"'))
-  row(present ? WARN : PASS, label)
+  row(
+    present ? WARN : PASS,
+    present
+      ? "Employee TopNav: Approved Cocktails / 'Cocktails' still a top-level item — Phase 1 incomplete"
+      : "Employee TopNav: Approved Cocktails / 'Cocktails' removed from top-level nav"
+  )
 }
 
-// ── Issue H: Bar World not yet built ─────────────────────────────────────────
+// ── Issue H: Bar World — label prep or full feature ───────────────────────────
 {
-  const label = 'Bar World area'
-  const featureExists = exists('src/features/bar-world') || exists('src/features/barWorld') ||
+  const topNav = read('src/features/shell/TopNav.jsx') || ''
+  const hasBarWorldLabel = topNav.includes("'cocktailsMagazine'") && topNav.includes("'Bar World'")
+  const featureBuilt = exists('src/features/bar-world') || exists('src/features/barWorld') ||
     fileContains('src/config/navigationConfig.js', 'barWorld') ||
     fileContains('src/config/navigationConfig.js', 'bar_world')
-  if (featureExists) {
-    row(PASS, `${label} — feature detected`)
+  if (featureBuilt) {
+    row(PASS, 'Bar World — full feature detected')
+  } else if (hasBarWorldLabel) {
+    row(WARN, 'Bar World — nav label prepared on cocktailsMagazine slot; full Bar World page not yet built')
   } else {
-    row(NOPE, `${label} [NOT IMPLEMENTED YET]`)
+    row(NOPE, 'Bar World area [NOT IMPLEMENTED YET]')
   }
 }
 

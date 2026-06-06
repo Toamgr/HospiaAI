@@ -11,14 +11,10 @@ export default function TopNav({ t, currentUser, role, area, page, goToArea, goT
   const employeePages = [
     ['employeeHome', 'Home'],
     ['myShifts', 'My Shifts'],
-    ['constraintsForm', 'Availability'],
     ['courses', 'Courses'],
-    ['approvedCocktails', 'Cocktails'],
-    ['cocktailsMagazine', 'Magazine'],
-    ['foodMenuView', 'Food Menu'],
+    ['cocktailsMagazine', 'Bar World'],
     ['wineKnowledge', 'Wine'],
-    ['employeeRequests', 'Requests'],
-    ['serviceRecovery', 'Report']
+    ['employeeRequests', 'Requests']
   ].filter(([key]) => canAccessPage(currentUser, key))
 
   if (role === 'employee') {
