@@ -4,7 +4,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "server": "node server.js",
-    "start": "concurrently \"npm run server\" \"npm run dev\""
+    "start": "concurrently \"npm run server\" \"npm run dev\"",
+    "hestia:check": "node scripts/hestia-check.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",

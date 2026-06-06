@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { apiGet, apiPost } from '../../services/api/client'
+import { apiGet, apiPatch, apiPost } from '../../services/api/client'
 
 const STATUS_BADGE = {
   draft: { label: 'Draft', cls: 'border-[#6b705c]/30 text-[#6b705c]' },
@@ -133,7 +133,7 @@ export default function ChefDashboard({ currentUser }) {
 
   async function handleToggleVisible(menuId, current) {
     try {
-      await apiPost(`/api/chef/menus/${menuId}/visible`, { visible_to_staff: !current })
+      await apiPatch(`/api/chef/menus/${menuId}/visible`, { visible_to_staff: !current })
       await loadMenus()
     } catch { /* silent */ }
   }

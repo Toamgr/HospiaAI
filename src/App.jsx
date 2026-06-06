@@ -20,7 +20,6 @@ import Courses from './features/academy/Courses'
 import LessonPlayer from './features/academy/LessonPlayer'
 import Simulation from './features/academy/Simulation'
 import SOPSheets from './features/academy/SOPSheets'
-import LearningProgress from './features/academy/LearningProgress'
 import CommandCenter from './features/owner/CommandCenter'
 import BudgetApprovals from './features/owner/BudgetApprovals'
 import OwnerOperationalRequests from './features/owner/OwnerOperationalRequests'
@@ -449,7 +448,6 @@ function PageRenderer({ t, page, goToPage, pageContext, session, reports, operat
     barReports: <BarReports approvedCocktails={approvedCocktails} cocktailDrafts={cocktailDrafts} archivedCocktails={archivedCocktails} />,
     bottlePrices: <BottlePrices currentUser={currentUser} />,
     approvedCocktails: <ApprovedCocktailsTraining t={t} currentUser={currentUser} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} onMarkPracticed={onMarkCocktailPracticed} />,
-    learningProgress: <LearningProgress t={t} currentUser={currentUser} academyProgress={academyProgress} />,
     ...(isEnabled('ownerExecutiveOverview') && { executiveOverview: <ExecutiveOverview t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} /> }),
     operationalPulse: <OperationalPulse actionItems={actionItems} serviceIncidents={serviceIncidents} shiftNotes={shiftNotes} reportArchive={reportArchive} pulseData={pulseData} isLoadingPulse={isLoadingPulse} trends={trends} insight={insight} isLoadingInsight={isLoadingInsight} insightError={insightError} insightCooldownSeconds={insightCooldownSeconds} onRequestInsight={onRequestInsight} />,
     ...(isEnabled('ownerBudgetApprovals') && { budgetApprovals: <BudgetApprovals t={t} budgetRequests={budgetRequests} onRespond={onBudgetResponse} /> }),
