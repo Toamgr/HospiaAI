@@ -1086,6 +1086,9 @@ try { db.exec("ALTER TABLE cocktail_menus ADD COLUMN visible_to_staff INTEGER NO
 try { db.exec("ALTER TABLE cocktails ADD COLUMN estimated_cost_ils REAL"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE cocktails ADD COLUMN suggested_price_ils REAL"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE cocktails ADD COLUMN estimated_gp_percent REAL"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE event_plans ADD COLUMN status TEXT"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE event_plans ADD COLUMN approved_by TEXT"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE event_plans ADD COLUMN approved_at TEXT"); } catch { /* already exists */ }
 
 // shift_reports extended fields
 for (const [col, def] of [
@@ -1976,6 +1979,41 @@ app.post("/api/event-plans", requireAuth("manager", "owner", "admin"), (req, res
   });
 });
 
+app.patch("/api/event-plans/:id", requireAuth("owner", "admin"), (req, res) => {
+  const existing = db.prepare("SELECT id FROM event_plans WHERE id = ? AND venue_id = ?").get(req.params.id, defaultVenueId());
+  if (!existing) return res.status(404).json({ error: "Event plan not found." });
+
+  db.prepare(`
+    UPDATE event_plans
+    SET config_json = ?, status = ?, approved_by = ?, approved_at = ?
+    WHERE id = ? AND venue_id = ?
+  `).run(
+    JSON.stringify(req.body.config || {}),
+    String(req.body.status || ""),
+    req.body.approved_by ? String(req.body.approved_by) : null,
+    req.body.approved_at ? String(req.body.approved_at) : null,
+    req.params.id,
+    defaultVenueId()
+  );
+
+  const row = db.prepare("SELECT * FROM event_plans WHERE id = ?").get(req.params.id);
+  res.json({
+    eventPlan: {
+      id: row.id,
+      name: row.name,
+      config: JSON.parse(row.config_json),
+      calculations: JSON.parse(row.calculations_json),
+      projected_revenue: row.projected_revenue,
+      projected_profit: row.projected_profit,
+      projected_margin: row.projected_margin,
+      status: row.status || null,
+      approved_by: row.approved_by || null,
+      approved_at: row.approved_at || null,
+      created_at: row.created_at
+    }
+  });
+});
+
 app.get("/api/event-plans", requireAuth("manager", "owner", "admin"), (req, res) => {
   const rows = db.prepare(`
     SELECT * FROM event_plans
@@ -1993,6 +2031,9 @@ app.get("/api/event-plans", requireAuth("manager", "owner", "admin"), (req, res)
       projected_revenue: row.projected_revenue,
       projected_profit: row.projected_profit,
       projected_margin: row.projected_margin,
+      status: row.status || null,
+      approved_by: row.approved_by || null,
+      approved_at: row.approved_at || null,
       created_at: row.created_at
     }))
   });

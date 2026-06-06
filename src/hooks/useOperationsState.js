@@ -543,6 +543,12 @@ export function useOperationsState({ currentUser, pushNotification, addBusinessM
     }
 
     setEventPlans(prev => prev.map(item => item.id === eventId ? approved : item))
+    apiPatch(`/api/event-plans/${eventId}`, {
+      config: approved.config,
+      status: approved.status,
+      approved_by: approved.approvedBy,
+      approved_at: approved.approved_at
+    }).catch(() => {})
     addBusinessMemoryEvent({
       type: 'event',
       title: `Event enquiry approved: ${approved.name}`,
