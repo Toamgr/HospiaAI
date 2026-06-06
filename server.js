@@ -12,6 +12,13 @@ import { UNIVERSITY_MANIFEST } from "./src/data/academy/universityManifest.js";
 
 dotenv.config();
 
+// Startup: confirm GEMINI_API_KEY is loaded. Never log the value.
+if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'PASTE_KEY_HERE') {
+  console.warn('[HESTIA] GEMINI_API_KEY: MISSING or placeholder — AI generation will fail until a valid key is set in .env');
+} else {
+  console.log('[HESTIA] GEMINI_API_KEY: present');
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "data");
 const DB_PATH = path.join(DATA_DIR, "hospia.sqlite");
@@ -20,7 +27,8 @@ mkdirSync(DATA_DIR, { recursive: true });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const MODEL = process.env.MODEL || "gemini-1.5-flash";
+// gemini-1.5-flash is retired; gemini-2.0-flash-lite is the stable fallback used in this repo.
+const MODEL = process.env.MODEL || "gemini-2.0-flash-lite";
 const db = new DatabaseSync(DB_PATH);
 
 // Phase 3 — real user auth via auth_users + sessions tables
@@ -1384,8 +1392,12 @@ async function askGemini(prompt, { jsonMode = false } = {}) {
 
   const data = await response.json();
   if (!response.ok) {
-    console.log("GEMINI ERROR:", data);
-    throw new Error(data.error?.message || "Gemini request failed.");
+    const geminiMsg = data.error?.message || "Gemini request failed.";
+    console.error("[GEMINI ERROR]", JSON.stringify(data));
+    if (/api.?key|key.*invalid|invalid.*key/i.test(geminiMsg)) {
+      throw new Error("AI generation is unavailable — the server API key is missing or invalid. Please contact your administrator.");
+    }
+    throw new Error(geminiMsg);
   }
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -3737,8 +3749,12 @@ async function askGeminiChat(systemInstruction, history, message) {
 
   const data = await response.json();
   if (!response.ok) {
+    const geminiMsg = data.error?.message || 'Gemini request failed.';
     debugLog({ event: 'gemini_chat_error', status: response.status, body: data });
-    throw new Error(data.error?.message || 'Gemini request failed.');
+    if (/api.?key|key.*invalid|invalid.*key/i.test(geminiMsg)) {
+      throw new Error('AI Beverage Director is unavailable — the server API key is missing or invalid. Please contact your administrator.');
+    }
+    throw new Error(geminiMsg);
   }
 
   return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
