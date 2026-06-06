@@ -4,7 +4,7 @@ import { canAccessPage } from '../../config/roleConfig'
 const RAIL_ITEMS = [
   { key: 'employeeHome',   label: 'Home' },
   { key: 'dailyWork',      label: 'Daily Work' },
-  { key: 'courses',        label: 'Courses' },
+  { key: 'courses',        label: 'Service School' },
   { key: 'barWorld',       label: 'Bar World' },
   { key: 'wineKnowledge',  label: 'Wine' },
 ]

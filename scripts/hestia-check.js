@@ -516,6 +516,21 @@ section('4. KNOWN AUDIT ISSUES')
   }
 }
 
+// ── Issue R: Phase 11B — Courses hub renamed to Service School ───────────────
+{
+  const coursesContent = read('src/features/academy/Courses.jsx') || ''
+  const hasServiceSchool = coursesContent.includes('HESTIA Service School')
+  const hasUniversity    = coursesContent.includes('HESTIA University')
+
+  if (hasUniversity) {
+    row(WARN, 'Courses hub — still contains "HESTIA University" (Phase 11B incomplete)')
+  } else if (!hasServiceSchool) {
+    row(NOPE, 'Courses hub — Phase 11B rename not yet applied [Phase 11B]')
+  } else {
+    row(PASS, 'Courses hub — renamed to "HESTIA Service School" (Phase 11B complete)')
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  5. SECRET SAFETY CHECK
 // ─────────────────────────────────────────────────────────────────────────────

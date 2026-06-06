@@ -80,7 +80,7 @@
       operationalNotes: 'Operational Notes',
       budgetRequest: 'Submit Budget Request',
       simulation: 'Practice Lab',
-      courses: 'Courses',
+      courses: 'Service School',
       lessonPlayer: 'Lesson Player',
       sopSheets: 'Service',
       knowledgeLibrary: 'Knowledge Library',

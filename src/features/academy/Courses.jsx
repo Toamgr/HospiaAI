@@ -17,13 +17,16 @@ export default function Courses({ t, currentUser, academyProgress = {}, onOpenLe
 
   return (
     <>
-      <Header eyebrow={t.areas.academy} title="HESTIA University" body="Structured hospitality academies for service, bar, wine, events, hosting, and management. Lessons unlock in order so learning builds like a professional curriculum." />
+      <Header eyebrow={t.areas.academy} title="HESTIA Service School" body="A focused school for service, guest flow, coffee, culinary confidence, and hospitality judgment. Built for employees who need practical knowledge before, during, and after service." />
+      <p className="mb-8 text-sm italic leading-relaxed text-[#e8dcc0]/40 tracking-[0.01em]">
+        Guests are not customers. Guests are people we host.
+      </p>
       <Card className="mb-6 border-[#c9a96e]/20 bg-[#0f0f0e]">
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_260px] md:items-center">
           <div>
-            <Label>University Flow</Label>
+            <Label>Learning Flow</Label>
             <p className="max-w-3xl text-sm leading-7 text-[#e8dcc0]">
-              Choose an academy, complete the first lesson, and unlock the next. Employees see operational academies; managers and admins also see Manager Academy.
+              Choose a path, complete the first lesson, and continue through a structured sequence. Each academy builds practical confidence for real service.
             </p>
           </div>
           <div className="rounded-2xl border border-[#6b705c]/30 bg-[#1a1a1a] p-4">

@@ -60,7 +60,7 @@ export default function EmployeeHome({ currentUser, goToPage }) {
             mainPage="courses"
             mainLabel="Open Academy"
             quickLinks={[
-              { label: 'Courses',   page: 'courses' },
+              { label: 'Service School', page: 'courses' },
               { label: 'Bar World', page: 'barWorld' },
               { label: 'Wine',      page: 'wineKnowledge' },
             ]}
