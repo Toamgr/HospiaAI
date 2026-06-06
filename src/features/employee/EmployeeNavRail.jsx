@@ -25,7 +25,8 @@ export default function EmployeeNavRail({ page, goToPage, currentUser }) {
             onClick={() => goToPage(item.key)}
             className={cx(
               'w-full rounded-xl px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.12em] transition-all duration-200',
-              page === item.key
+              // cocktailsMagazine lives inside Bar World — keep the rail highlight consistent
+              (page === item.key || (item.key === 'barWorld' && page === 'cocktailsMagazine'))
                 ? 'border border-[#c9a96e]/18 bg-[#c9a96e]/10 text-[#c9a96e] shadow-[0_2px_12px_rgba(201,169,110,0.06)]'
                 : 'border border-transparent text-[#e8dcc0]/50 hover:border-[#6b705c]/15 hover:bg-white/[0.03] hover:text-[#f5f5f0]'
             )}

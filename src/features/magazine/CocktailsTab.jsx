@@ -8,11 +8,25 @@ const TABS = [
   { id: 'menus', label: 'Business Menus' },
 ]
 
-export default function CocktailsTab({ approvedCocktails = [] }) {
+export default function CocktailsTab({ approvedCocktails = [], goToPage }) {
   const [activeTab, setActiveTab] = useState('magazine')
 
   return (
     <div className="min-h-screen">
+      {/* Bar World breadcrumb — subtle navigation context */}
+      {goToPage && (
+        <div className="mb-5 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => goToPage('barWorld')}
+            className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#e8dcc0]/38 transition hover:text-[#c9a96e]/65"
+          >
+            ← Bar World
+          </button>
+          <span className="text-[10px] text-[#6b705c]/28">/</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#e8dcc0]/55">Classic Cocktails</span>
+        </div>
+      )}
       {/* Sub-tab bar */}
       <div className="flex items-center gap-1 border-b border-[#6b705c]/20 pb-0 mb-6">
         {TABS.map(tab => (
