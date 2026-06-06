@@ -13,7 +13,8 @@ export const NAV_GROUPS = {
       'actionBoard',
       'managerEmployeeRequests',
       'operationalNotes',
-      'budgetRequest'
+      'budgetRequest',
+      'eventBrain'
     ]
   },
   // Trimmed nav for manager — Daily Close + Sales Tracker
@@ -166,7 +167,7 @@ export const PAGE_META = {
   },
   eventBrain: {
     area: 'operations',
-    roles: ['manager', 'owner', 'admin'],
+    roles: ['events_manager', 'manager', 'owner', 'admin'],
     code: 'EB',
     section: 'Events',
     description: 'HESTIA × Kahi — AI-powered resort event operations simulation',

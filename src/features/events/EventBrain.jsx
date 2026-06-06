@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import EventBrainFloorPlan from './components/EventBrainFloorPlan'
-import EventBriefCard from './components/EventBriefCard'
-import SelectedTablePanel from './components/SelectedTablePanel'
 import PlanningSummary from './components/PlanningSummary'
-import { InvestorValueCard, PilotValueCard } from './components/InvestorValueCards'
 import BarProgramme from './components/BarProgramme'
 import StaffNotifications from './components/StaffNotifications'
-import { DEFAULT_TABLES } from './data/eventBrainDemoData'
+import { InvestorValueCard, PilotValueCard } from './components/InvestorValueCards'
+import ZoharPanel from './components/ZoharPanel'
+import EventArchitectMetricsStrip from './components/EventArchitectMetricsStrip'
+import EventArchitectToolbar from './components/EventArchitectToolbar'
+import { DEFAULT_TABLES, EVENT_BRIEF } from './data/eventBrainDemoData'
 
 const STORAGE_KEY = 'hospia.eventBrain.v1'
 
@@ -39,17 +40,125 @@ function clearState() {
 function resolveInitialTables(stored) {
   if (!stored?.tables) return DEFAULT_TABLES
   if (!Array.isArray(stored.tables) || stored.tables.length === 0) return DEFAULT_TABLES
-  // Basic shape validation — fall back if structure is wrong
   if (typeof stored.tables[0]?.id !== 'number') return DEFAULT_TABLES
   return stored.tables
 }
 
+// ── Premium Command Bar ────────────────────────────────────────────────────────
+function CommandBar({ eventBrief }) {
+  return (
+    <div
+      style={{
+        background: '#0A0A0A',
+        borderBottom: '1px solid #1A1A1A',
+        padding: '8px 0 8px',
+        marginBottom: 20,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 8,
+        borderRadius: 8,
+        paddingLeft: 16,
+        paddingRight: 16,
+      }}
+    >
+      {/* Left: product identity */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div>
+          <div
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: '#C9A96E',
+              opacity: 0.7,
+              lineHeight: 1,
+            }}
+          >
+            HESTIA
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              color: '#9A9590',
+              lineHeight: 1.2,
+            }}
+          >
+            Event Architect Studio
+          </div>
+        </div>
+        <div
+          style={{
+            width: 1,
+            height: 24,
+            background: '#1E1E1E',
+            flexShrink: 0,
+          }}
+        />
+        <div>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#F5F0E8',
+              fontFamily: '"Cormorant Garamond", serif',
+            }}
+          >
+            {eventBrief.title}
+          </div>
+          <div style={{ fontSize: 9, color: '#5A5550' }}>{eventBrief.date}</div>
+        </div>
+      </div>
+
+      {/* Right: status indicators */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ textAlign: 'right' }}>
+          <div
+            style={{
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#C9A96E',
+              lineHeight: 1,
+            }}
+          >
+            {eventBrief.totalGuests}
+          </div>
+          <div style={{ fontSize: 8, color: '#3A3A3A', letterSpacing: '0.10em', textTransform: 'uppercase' }}>guests</div>
+        </div>
+        <div
+          style={{
+            padding: '3px 10px',
+            borderRadius: 100,
+            fontSize: 8,
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            background: 'rgba(90,84,80,0.15)',
+            color: '#9A9590',
+            border: '1px solid #2A2A2A',
+          }}
+        >
+          Demo
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function EventBrain() {
   const stored = useMemo(() => loadState(), [])
 
   const [selectedId, setSelectedId] = useState(stored?.selectedId ?? 7)
   const [hoverId, setHoverId] = useState(null)
   const [tables, setTables] = useState(() => resolveInitialTables(stored))
+  const [activeMode, setActiveMode] = useState('architect')
 
   const selectedTable = useMemo(
     () => tables.find(t => t.id === selectedId) ?? tables[0],
@@ -73,37 +182,27 @@ export default function EventBrain() {
   const handleReset = useCallback(() => {
     setTables(DEFAULT_TABLES)
     setSelectedId(7)
+    setActiveMode('architect')
     clearState()
   }, [])
 
   return (
     <div>
-      {/* ── Header ── */}
-      <div className="mb-6">
-        <div className="mb-2 text-[10px] font-black uppercase tracking-[0.4em] text-[#c9a96e]">
-          Investor Demo
-        </div>
-        <h1 className="font-serif text-3xl font-black leading-tight tracking-tighter text-[#f5f5f0] sm:text-4xl">
-          HESTIA × Kahi Event Resort
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm font-light leading-relaxed text-[#e8dcc0] opacity-80 italic">
-          AI-powered resort event operations simulation
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="rounded-full border border-[#c9a96e]/30 px-3 py-1 text-[10px] font-black uppercase tracking-[0.15em] text-[#c9a96e]">
-            Strategic Collaboration Concept
-          </span>
-          <span className="rounded-full border border-[#6b705c]/30 bg-[#6b705c]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.15em] text-[#e8dcc0]">
-            Investor Demo
-          </span>
-          <span className="rounded-full border border-[#c9a96e]/20 bg-[#c9a96e]/8 px-3 py-1 text-[10px] font-black uppercase tracking-[0.15em] text-[#c9a96e]">
-            Pilot-Ready
-          </span>
-        </div>
+      {/* ── Premium Command Bar ── */}
+      <CommandBar eventBrief={EVENT_BRIEF} />
+
+      {/* ── Event Architect Toolbar — above grid so mode controls are always visible ── */}
+      <div className="mb-4">
+        <EventArchitectToolbar
+          activeMode={activeMode}
+          onModeChange={setActiveMode}
+          onReset={handleReset}
+        />
       </div>
 
-      {/* ── Main: Floor Plan + Right Panel ── */}
-      <div className="grid gap-5 xl:grid-cols-[1fr_296px]">
+      {/* ── Main: Floor Plan + Zohar Panel ── */}
+      <div className="grid gap-5 xl:grid-cols-[1fr_316px]">
+        {/* Left column: floor plan only */}
         <EventBrainFloorPlan
           tables={tables}
           selectedId={selectedId}
@@ -112,14 +211,23 @@ export default function EventBrain() {
           onHover={setHoverId}
           onAutoArrange={handleAutoArrange}
           onReset={handleReset}
+          activeMode={activeMode}
         />
-        <div className="space-y-5">
-          <EventBriefCard />
-          <SelectedTablePanel table={selectedTable} />
-        </div>
+
+        {/* Right column: Zohar intelligence panel */}
+        <ZoharPanel
+          selectedTable={selectedTable}
+          tables={tables}
+          eventBrief={EVENT_BRIEF}
+        />
       </div>
 
-      {/* ── Bottom Section ── */}
+      {/* ── Intelligence Metrics Strip ── */}
+      <div className="mt-4">
+        <EventArchitectMetricsStrip tables={tables} eventBrief={EVENT_BRIEF} />
+      </div>
+
+      {/* ── Bottom Section — preserved ── */}
       <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <PlanningSummary />
         <BarProgramme />

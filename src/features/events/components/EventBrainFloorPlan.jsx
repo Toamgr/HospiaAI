@@ -134,6 +134,113 @@ function TableNode({ table, selected, hovered, onSelect, onHover }) {
   )
 }
 
+// ── Mode Overlays ──────────────────────────────────────────────────────────────
+// Conditional SVG groups rendered above all architecture but below the scale.
+// Do not change: viewBox, table positions, existing venue elements.
+
+function GuestFlowOverlay() {
+  return (
+    <g pointerEvents="none">
+      {/* Arrival path: bottom of hall → through seating zones → toward bar */}
+      <path
+        d="M 290 575 L 290 490 L 290 400 L 290 290 L 290 200 L 323 80"
+        stroke="rgba(201,169,110,0.55)"
+        strokeWidth="2.5"
+        strokeDasharray="6 4"
+        fill="none"
+      />
+      {/* Branch toward garden entrance */}
+      <path
+        d="M 290 300 L 400 300 L 500 250 L 540 200"
+        stroke="rgba(201,169,110,0.30)"
+        strokeWidth="1.5"
+        strokeDasharray="5 4"
+        fill="none"
+      />
+      {/* Arrival marker at bottom of hall */}
+      <circle cx="290" cy="578" r="6" fill="rgba(201,169,110,0.15)" stroke="rgba(201,169,110,0.50)" strokeWidth="1.5" />
+      <circle cx="290" cy="578" r="3" fill="rgba(201,169,110,0.60)" />
+      <text x="304" y="582" fontSize="7" fill="rgba(201,169,110,0.65)" letterSpacing="0.1em">ARRIVAL</text>
+      {/* Bar destination marker */}
+      <circle cx="323" cy="65" r="5" fill="rgba(201,169,110,0.15)" stroke="rgba(201,169,110,0.50)" strokeWidth="1.5" />
+      <text x="337" y="69" fontSize="7" fill="rgba(201,169,110,0.65)" letterSpacing="0.1em">MAIN BAR</text>
+      {/* Garden flow arrow */}
+      <path d="M 530 205 L 538 197 L 534 210" fill="rgba(201,169,110,0.40)" />
+    </g>
+  )
+}
+
+function ServiceFlowOverlay() {
+  return (
+    <g pointerEvents="none">
+      {/* Primary service path: kitchen door → corridor → garden zone */}
+      <path
+        d="M 187 124 L 187 114 L 534 114 L 534 158"
+        stroke="rgba(201,169,110,0.70)"
+        strokeWidth="2.5"
+        strokeDasharray="6 3"
+        fill="none"
+      />
+      {/* Secondary: corridor → VIP zone */}
+      <path
+        d="M 290 139 L 290 200 L 290 350 L 260 430"
+        stroke="rgba(201,169,110,0.35)"
+        strokeWidth="1.5"
+        strokeDasharray="5 4"
+        fill="none"
+      />
+      {/* Kitchen marker */}
+      <rect x="140" y="108" width="40" height="12" rx="2" fill="rgba(201,169,110,0.08)" stroke="rgba(201,169,110,0.40)" strokeWidth="0.8" />
+      <text x="160" y="118" fontSize="6.5" fill="rgba(201,169,110,0.70)" textAnchor="middle" letterSpacing="0.1em">KITCHEN</text>
+      {/* Corridor label */}
+      <text x="400" y="110" fontSize="6.5" fill="rgba(201,169,110,0.55)" textAnchor="middle" letterSpacing="0.16em">SERVICE ROUTE</text>
+      {/* Direction arrows */}
+      <path d="M 350 114 L 358 110 L 358 118 Z" fill="rgba(201,169,110,0.55)" />
+      <path d="M 500 114 L 508 110 L 508 118 Z" fill="rgba(201,169,110,0.45)" />
+    </g>
+  )
+}
+
+function AccessibilityOverlay() {
+  return (
+    <g pointerEvents="none">
+      {/* Accessible path — full brightness */}
+      <path
+        d="M 96 505 L 96 472 L 148 458"
+        stroke="#4F6B4A"
+        strokeWidth="2.5"
+        strokeDasharray="5 3"
+        fill="none"
+      />
+      {/* Extension toward table 8 and 7 */}
+      <path
+        d="M 148 458 L 155 432"
+        stroke="#4F6B4A"
+        strokeWidth="2"
+        strokeDasharray="4 3"
+        fill="none"
+      />
+      <path
+        d="M 155 432 L 262 432"
+        stroke="#4F6B4A"
+        strokeWidth="1.5"
+        strokeDasharray="4 3"
+        fill="none"
+        opacity="0.7"
+      />
+      {/* Glow rings around accessible tables 7 and 8 */}
+      <circle cx="262" cy="432" r="52" fill="none" stroke="rgba(79,107,74,0.20)" strokeWidth="1.5" />
+      <circle cx="262" cy="432" r="46" fill="rgba(79,107,74,0.05)" />
+      <circle cx="155" cy="432" r="44" fill="none" stroke="rgba(79,107,74,0.20)" strokeWidth="1.5" />
+      <circle cx="155" cy="432" r="38" fill="rgba(79,107,74,0.05)" />
+      {/* Accessible entrance glow */}
+      <rect x="34" y="488" width="68" height="34" rx="4" fill="none" stroke="#4F6B4A" strokeWidth="1.5" opacity="0.8" />
+      {/* Route label */}
+      <text x="148" y="445" fontSize="6.5" fill="#4F6B4A" textAnchor="middle" letterSpacing="0.12em">STEP-FREE ROUTE</text>
+    </g>
+  )
+}
+
 export default function EventBrainFloorPlan({
   tables,
   selectedId,
@@ -141,7 +248,8 @@ export default function EventBrainFloorPlan({
   onSelect,
   onHover,
   onAutoArrange,
-  onReset
+  onReset,
+  activeMode,
 }) {
   return (
     <div className="overflow-hidden rounded-[1.5rem] border border-[#6b705c]/10 bg-gradient-to-br from-[#1a1a1a] to-[#0a0a08] shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
@@ -324,6 +432,11 @@ export default function EventBrainFloorPlan({
               onHover={onHover}
             />
           ))}
+
+          {/* ── MODE OVERLAYS ── */}
+          {activeMode === 'guest-flow' && <GuestFlowOverlay />}
+          {activeMode === 'service-flow' && <ServiceFlowOverlay />}
+          {activeMode === 'accessibility' && <AccessibilityOverlay />}
 
           {/* ── SCALE INDICATOR ── */}
           <line x1="858" y1="598" x2="912" y2="598" stroke="rgba(201,169,110,0.38)" strokeWidth="1" />
