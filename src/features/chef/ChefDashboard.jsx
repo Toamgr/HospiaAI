@@ -17,6 +17,13 @@ function Badge({ status }) {
   )
 }
 
+function displayMenuType(type) {
+  if (type === 'daily_operations' || type === 'regular') return 'Daily Operations'
+  if (type === 'event_menu' || type === 'event') return 'Event Menu'
+  if (type === 'special') return 'Special'
+  return type || '—'
+}
+
 function DishRow({ dish, editable, onPriceChange }) {
   const pct = dish.food_cost_percent != null ? Math.round(dish.food_cost_percent) : null
   const pctColor = pct == null ? 'text-[#6b705c]' : pct <= 32 ? 'text-emerald-400' : pct <= 40 ? 'text-amber-400' : 'text-red-400'
@@ -73,7 +80,7 @@ export default function ChefDashboard({ currentUser }) {
   const [showNotifModal, setShowNotifModal] = useState(false)
 
   // Generate form state
-  const [form, setForm] = useState({ menuName: '', menuType: 'regular', season: '', occasion: '', notes: '' })
+  const [form, setForm] = useState({ menuName: '', menuType: 'daily_operations', season: '', occasion: '', notes: '' })
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(null)
   const [editedDishes, setEditedDishes] = useState([])
@@ -125,7 +132,7 @@ export default function ChefDashboard({ currentUser }) {
       await apiPost(`/api/chef/save-menu/${generated.menu.id}`, {})
       setGenerated(null)
       setEditedDishes([])
-      setForm({ menuName: '', menuType: 'regular', season: '', occasion: '', notes: '' })
+      setForm({ menuName: '', menuType: 'daily_operations', season: '', occasion: '', notes: '' })
       await loadMenus()
       setTab('menus')
     } catch (err) {
@@ -234,9 +241,8 @@ export default function ChefDashboard({ currentUser }) {
                   <label className="block text-xs font-semibold text-[#e8dcc0]/60 mb-1.5">Menu Type</label>
                   <select value={form.menuType} onChange={e => setForm(f => ({ ...f, menuType: e.target.value }))}
                     className="w-full rounded-xl border border-[#6b705c]/25 bg-[#0d0c09]/60 px-4 py-2.5 text-sm text-[#f5f5f0] focus:border-[#c9a96e]/50 focus:outline-none">
-                    <option value="regular">Regular</option>
-                    <option value="event">Event</option>
-                    <option value="special">Special</option>
+                    <option value="daily_operations">Daily Operations</option>
+                    <option value="event_menu">Event Menu</option>
                   </select>
                 </div>
                 <div>
@@ -313,7 +319,7 @@ export default function ChefDashboard({ currentUser }) {
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <div>
                     <p className="text-sm font-bold text-[#f5f5f0]">{m.name}</p>
-                    <p className="text-xs text-[#6b705c] mt-0.5">{m.menu_type} · {new Date(m.created_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-[#6b705c] mt-0.5">{displayMenuType(m.menu_type)} · {new Date(m.created_at).toLocaleDateString()}</p>
                   </div>
                   <Badge status={m.status} />
                 </div>
@@ -343,7 +349,7 @@ export default function ChefDashboard({ currentUser }) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-base font-bold text-[#f5f5f0]">{m.name}</p>
-                      <p className="text-xs text-[#6b705c] mt-0.5">{m.menu_type} · Created {new Date(m.created_at).toLocaleDateString()}</p>
+                      <p className="text-xs text-[#6b705c] mt-0.5">{displayMenuType(m.menu_type)} · Created {new Date(m.created_at).toLocaleDateString()}</p>
                     </div>
                     <Badge status={m.status} />
                   </div>
@@ -409,7 +415,7 @@ export default function ChefDashboard({ currentUser }) {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-base font-bold text-[#f5f5f0]">{m.name}</p>
-                    <p className="text-xs text-[#6b705c] mt-0.5">{m.menu_type} · {new Date(m.created_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-[#6b705c] mt-0.5">{displayMenuType(m.menu_type)} · {new Date(m.created_at).toLocaleDateString()}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge status={m.status} />

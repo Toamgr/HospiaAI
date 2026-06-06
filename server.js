@@ -5980,7 +5980,7 @@ description (2 sentences), story (1 evocative sentence), price_ils,
 estimated food_cost_ils (typically 28-35% of price), ingredients array, allergens,
 and tags (array — choose only from: "vegetarian", "vegan", "gluten_free"; omit array or leave empty if none apply).
 
-Menu type: ${menuType || 'regular'}
+Menu type: ${menuType || 'daily_operations'}
 Occasion: ${occasion || 'daily service'}
 Season: ${season || 'current'}
 Notes: ${notes || 'none'}
@@ -5994,7 +5994,7 @@ No markdown, no backticks, no preamble.`;
       INSERT INTO food_menus (venue_id, name, menu_type, story, status, created_by, created_at, updated_at)
       VALUES (?,?,?,?,'draft',?,?,?)
     `).run(defaultVenueId(), generated.menuName || menuName || 'Generated Menu',
-      menuType || 'regular', generated.menuStory || null,
+      menuType || 'daily_operations', generated.menuStory || null,
       req.user.id, now, now);
     const menuId = menuResult.lastInsertRowid;
 

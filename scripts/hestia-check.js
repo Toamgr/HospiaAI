@@ -380,6 +380,24 @@ section('4. KNOWN AUDIT ISSUES')
   }
 }
 
+// ── Issue M: Chef menu type naming alignment ──────────────────────────────────
+{
+  const chefContent = read('src/features/chef/ChefDashboard.jsx') || ''
+  const hasNewTypes        = chefContent.includes('daily_operations') && chefContent.includes('event_menu')
+  const hasOldSelectOptions = /value="regular"|value="special"/.test(chefContent)
+  const hasDisplayHelper   = chefContent.includes('displayMenuType')
+
+  if (hasNewTypes && !hasOldSelectOptions && hasDisplayHelper) {
+    row(PASS, 'Chef menu types — Daily Operations and Event Menu as creation options; legacy values handled by displayMenuType')
+  } else if (!hasNewTypes) {
+    row(WARN, 'Chef menu types — daily_operations / event_menu options not found in ChefDashboard; Phase 7 incomplete')
+  } else if (hasOldSelectOptions) {
+    row(WARN, 'Chef menu types — old option values (regular / special) still present as select options; Phase 7 incomplete')
+  } else {
+    row(WARN, 'Chef menu types — partial implementation; check option values and displayMenuType helper')
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  5. SECRET SAFETY CHECK
 // ─────────────────────────────────────────────────────────────────────────────
