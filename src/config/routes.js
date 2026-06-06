@@ -44,6 +44,7 @@ export const PAGE_ROUTES = {
 
   // ── Employee ───────────────────────────────────────────────────────────────
   employeeHome:               '/employee',
+  dailyWork:                  '/employee/daily-work',
   employeeRequests:           '/employee/requests',
   employeeAchievements:       '/employee/achievements',
   serviceRecovery:            '/employee/recovery',

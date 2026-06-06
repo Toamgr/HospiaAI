@@ -10,11 +10,10 @@ export default function TopNav({ t, currentUser, role, area, page, goToArea, goT
     .map(([key]) => key)
   const employeePages = [
     ['employeeHome', 'Home'],
-    ['myShifts', 'My Shifts'],
+    ['dailyWork', 'Daily Work'],
     ['courses', 'Courses'],
     ['cocktailsMagazine', 'Bar World'],
-    ['wineKnowledge', 'Wine'],
-    ['employeeRequests', 'Requests']
+    ['wineKnowledge', 'Wine']
   ].filter(([key]) => canAccessPage(currentUser, key))
 
   if (role === 'employee') {

@@ -261,6 +261,30 @@ section('4. KNOWN AUDIT ISSUES')
   )
 }
 
+// ── My Shifts removed from Employee top-level nav (accessible via Daily Work) ──
+{
+  const topNav = read('src/features/shell/TopNav.jsx') || ''
+  const present = topNav.includes("'myShifts'") && topNav.includes("'My Shifts'")
+  row(
+    present ? WARN : PASS,
+    present
+      ? "Employee TopNav: 'My Shifts' still a top-level item — should be accessed via Daily Work"
+      : "Employee TopNav: 'My Shifts' removed from top-level (accessible via Daily Work)"
+  )
+}
+
+// ── Requests removed from Employee top-level nav (accessible via Daily Work) ───
+{
+  const topNav = read('src/features/shell/TopNav.jsx') || ''
+  const present = topNav.includes("'employeeRequests'") && topNav.includes("'Requests'")
+  row(
+    present ? WARN : PASS,
+    present
+      ? "Employee TopNav: 'Requests' (employeeRequests) still a top-level item — should be accessed via Daily Work"
+      : "Employee TopNav: 'Requests' (employeeRequests) removed from top-level (accessible via Daily Work)"
+  )
+}
+
 // ── Issue H: Bar World — label prep or full feature ───────────────────────────
 {
   const topNav = read('src/features/shell/TopNav.jsx') || ''
@@ -277,16 +301,19 @@ section('4. KNOWN AUDIT ISSUES')
   }
 }
 
-// ── Issue I: Daily Work not yet built ────────────────────────────────────────
+// ── Issue I: Daily Work page ───────────────────────────────────────────────
 {
-  const label = 'Daily Work area'
-  const featureExists = exists('src/features/daily-work') || exists('src/features/dailyWork') ||
-    fileContains('src/config/navigationConfig.js', 'dailyWork') ||
-    fileContains('src/config/navigationConfig.js', 'daily_work')
-  if (featureExists) {
-    row(PASS, `${label} — feature detected`)
+  const componentExists = exists('src/features/employee/DailyWork.jsx')
+  const hasRoute   = fileContains('src/config/routes.js', 'dailyWork')
+  const hasPageMeta = fileContains('src/config/navigationConfig.js', /dailyWork\s*:/)
+  const inNav      = fileContains('src/features/shell/TopNav.jsx', "'dailyWork'")
+
+  if (componentExists && hasRoute && hasPageMeta && inNav) {
+    row(PASS, 'Daily Work — component, route, PAGE_META, and nav entry all present')
+  } else if (componentExists || hasRoute || hasPageMeta) {
+    row(WARN, 'Daily Work — partially implemented (check component, route, PAGE_META, and nav)')
   } else {
-    row(NOPE, `${label} [NOT IMPLEMENTED YET]`)
+    row(NOPE, 'Daily Work area [NOT IMPLEMENTED YET]')
   }
 }
 

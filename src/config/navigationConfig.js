@@ -23,7 +23,7 @@ export const NAV_GROUPS = {
   },
   employeeWorkflow: {
     roles: ['employee', 'admin'],
-    pages: ['employeeHome', 'employeeRequests', 'employeeAchievements', 'serviceRecovery']
+    pages: ['employeeHome', 'dailyWork', 'employeeRequests', 'employeeAchievements', 'serviceRecovery']
   },
   // Employee shift pages
   employeeShifts: {
@@ -212,6 +212,13 @@ export const PAGE_META = {
     code: 'EH',
     section: 'Employee OS',
     description: 'Premium employee home screen'
+  },
+  dailyWork: {
+    area: 'employeeWorkflow',
+    roles: ['employee', 'admin'],
+    code: 'DW',
+    section: 'Daily Work',
+    description: 'Shifts, menus, requests, and milestones'
   },
   employeeRequests: {
     area: 'employeeWorkflow',
