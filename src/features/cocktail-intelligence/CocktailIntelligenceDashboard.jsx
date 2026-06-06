@@ -1,5 +1,6 @@
 // CI MODULE ADDITION — Cocktail Intelligence main dashboard
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+import { patchMenuVisible } from '../../services/api/cocktailIntelligenceApi'
 import { BarDNACard } from './BarDNACard'
 import { MenuGenerator } from './MenuGenerator'
 import { MenuAudit } from './MenuAudit' // CI MODULE ADDITION — Flow 2
@@ -267,7 +268,7 @@ const OCCASION_LABELS = {
   regular_menu:  'Regular Menu'
 }
 
-function MenuCard({ menu, onView }) {
+function MenuCard({ menu, onView, onToggleVisible }) {
   const occasion = OCCASION_LABELS[menu.occasion] || menu.occasion || 'Menu'
   const count    = menu.cocktail_count ?? 0
   const previews = Array.isArray(menu.preview_names) ? menu.preview_names : []
@@ -323,11 +324,22 @@ function MenuCard({ menu, onView }) {
       >
         View Menu →
       </button>
+      {onToggleVisible && (
+        <label className="flex items-center justify-between gap-2 mt-1 cursor-pointer" onClick={e => e.stopPropagation()}>
+          <span className="text-[10px] text-[#6b705c]">Visible to staff</span>
+          <div
+            onClick={() => onToggleVisible(menu.id, !menu.visible_to_staff)}
+            className={`relative inline-flex h-4 w-7 items-center rounded-full transition cursor-pointer ${menu.visible_to_staff ? 'bg-emerald-500/70' : 'bg-[#6b705c]/30'}`}
+          >
+            <span className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white transition ${menu.visible_to_staff ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+          </div>
+        </label>
+      )}
     </div>
   )
 }
 
-function MenuLibrary({ menus, onView }) {
+function MenuLibrary({ menus, onView, onToggleVisible }) {
   return (
     <div className="mb-10">
       <div className="flex items-center gap-3 mb-4">
@@ -344,7 +356,7 @@ function MenuLibrary({ menus, onView }) {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {menus.map((m, i) => (
-            <MenuCard key={m.id || i} menu={m} onView={onView} />
+            <MenuCard key={m.id || i} menu={m} onView={onView} onToggleVisible={onToggleVisible} />
           ))}
         </div>
       )}
@@ -597,6 +609,13 @@ export function CocktailIntelligenceDashboard({ cocktailIntelligence }) {
     setActiveModule('menu_generator')
     setMenuFlow('flow2')
   }
+
+  const handleToggleMenuVisible = useCallback(async (menuId, visible) => {
+    try {
+      await patchMenuVisible(menuId, visible)
+      await refreshMenus()
+    } catch { /* non-critical */ }
+  }, [refreshMenus])
 
   return (
     <div className="min-h-screen bg-[#0d0c09] px-6 py-8 lg:px-10">
@@ -921,6 +940,7 @@ export function CocktailIntelligenceDashboard({ cocktailIntelligence }) {
         <MenuLibrary
           menus={ciMenus || []}
           onView={setSelectedMenu}
+          onToggleVisible={handleToggleMenuVisible}
         />
       )}
 

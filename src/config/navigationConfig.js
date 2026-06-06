@@ -28,7 +28,7 @@ export const NAV_GROUPS = {
   // Employee shift pages
   employeeShifts: {
     roles: ['employee', 'admin'],
-    pages: ['myShifts', 'constraintsForm', 'foodMenuView']
+    pages: ['myShifts', 'constraintsForm', 'foodMenuView', 'employeeCocktailMenu']
   },
   planning: {
     roles: ['manager', 'owner', 'admin'],
@@ -515,5 +515,12 @@ export const PAGE_META = {
     code: 'FM',
     section: 'Menus',
     description: 'View published food menus'
+  },
+  employeeCocktailMenu: {
+    area: 'employeeShifts',
+    roles: ['employee', 'admin'],
+    code: 'CM',
+    section: 'Menus',
+    description: 'Published cocktail menus visible to staff'
   }
 }

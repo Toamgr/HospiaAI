@@ -27,11 +27,13 @@ export const archiveCICocktail = (id)   => apiDelete(`/api/ci/cocktails/${id}`)
 
 // ── CI Menus (named menu collections) ─────────────────────────────────────────
 // CI MODULE ADDITION — menu grouping for approved cocktails
-export const fetchMenus  = ()         => apiGet('/api/ci/menus')
-export const createMenu  = (data)     => apiPost('/api/ci/menus', data)
-export const fetchMenu   = (id)       => apiGet(`/api/ci/menus/${id}`)
-export const updateMenu  = (id, data) => apiPatch(`/api/ci/menus/${id}`, data)
-export const archiveMenu = (id)       => apiDelete(`/api/ci/menus/${id}`)
+export const fetchMenus       = ()             => apiGet('/api/ci/menus')
+export const fetchPublishedMenus = ()          => apiGet('/api/ci/menus/published')
+export const createMenu       = (data)         => apiPost('/api/ci/menus', data)
+export const fetchMenu        = (id)           => apiGet(`/api/ci/menus/${id}`)
+export const updateMenu       = (id, data)     => apiPatch(`/api/ci/menus/${id}`, data)
+export const patchMenuVisible = (id, visible)  => apiPatch(`/api/ci/menus/${id}/visible`, { visible_to_staff: visible ? 1 : 0 })
+export const archiveMenu      = (id)           => apiDelete(`/api/ci/menus/${id}`)
 
 // ── Sales Tracker ─────────────────────────────────────────────────────────────
 export const fetchSales      = (params = {}) => {

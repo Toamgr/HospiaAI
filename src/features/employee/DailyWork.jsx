@@ -75,10 +75,8 @@ export default function DailyWork({ currentUser, goToPage, employeeRequests = []
       title: 'Menus',
       description: 'Food and cocktail menus for shift preparation.',
       actions: [
-        { label: 'Food Menu',     page: 'foodMenuView',      sub: 'Published kitchen menus' },
-        // TODO (Phase 3+): Replace with a dedicated approved published cocktail menu endpoint.
-        // Routing to approved cocktails training as the closest available employee-facing view.
-        { label: 'Cocktail Menu', page: 'approvedCocktails', sub: 'Approved bar programme' },
+        { label: 'Food Menu',     page: 'foodMenuView',        sub: 'Published kitchen menus' },
+        { label: 'Cocktail Menu', page: 'employeeCocktailMenu', sub: 'Published bar menus' },
       ]
     },
     {

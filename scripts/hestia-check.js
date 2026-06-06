@@ -359,6 +359,27 @@ section('4. KNOWN AUDIT ISSUES')
   }
 }
 
+// ── Issue L: Employee published cocktail menu ─────────────────────────────────
+{
+  const componentExists = exists('src/features/employee/EmployeeCocktailMenu.jsx')
+  const hasRoute        = fileContains('src/config/routes.js', 'employeeCocktailMenu')
+  const dailyWorkFixed  = fileContains('src/features/employee/DailyWork.jsx', 'employeeCocktailMenu') &&
+                          !fileContains('src/features/employee/DailyWork.jsx', "'approvedCocktails', sub: 'Approved bar programme'")
+  const serverEndpoint  = fileContains('server.js', '/api/ci/menus/published')
+
+  if (componentExists && hasRoute && dailyWorkFixed && serverEndpoint) {
+    row(PASS, 'Employee cocktail menu — component, route, server endpoint, and Daily Work routing all present')
+  } else if (!componentExists) {
+    row(WARN, 'Employee cocktail menu — EmployeeCocktailMenu component not found; Phase 6 incomplete')
+  } else if (!serverEndpoint) {
+    row(WARN, 'Employee cocktail menu — /api/ci/menus/published endpoint not found; Phase 6 incomplete')
+  } else if (!dailyWorkFixed) {
+    row(WARN, 'Employee cocktail menu — Daily Work still routes Cocktail Menu to approvedCocktails placeholder; Phase 6 incomplete')
+  } else {
+    row(WARN, 'Employee cocktail menu — partially implemented; check component, route, server endpoint, and Daily Work')
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  5. SECRET SAFETY CHECK
 // ─────────────────────────────────────────────────────────────────────────────

@@ -4302,6 +4302,36 @@ app.post('/api/ci/menus', requireAuth(...CI_ROLES), (req, res) => {
   res.status(201).json({ ok: true, menu: created });
 });
 
+// GET /api/ci/menus/published — employee-facing: only visible_to_staff=1 menus, no cost data
+app.get('/api/ci/menus/published', requireAuth('employee', ...CI_ROLES), (req, res) => {
+  const venueId = defaultVenueId();
+  const menus = db.prepare(
+    "SELECT id, name, occasion, description, season FROM cocktail_menus WHERE venue_id=? AND status='active' AND visible_to_staff=1 ORDER BY created_at DESC"
+  ).all(venueId);
+
+  const enriched = menus.map(menu => {
+    const cocktails = db.prepare(
+      "SELECT name, description, category, base_spirit, glass_type, garnish, method, tags_json, ingredients_text_json FROM cocktails WHERE menu_id=? AND is_active=1 ORDER BY created_at ASC"
+    ).all(menu.id);
+    return {
+      ...menu,
+      cocktails: cocktails.map(c => ({
+        name:        c.name,
+        description: c.description,
+        category:    c.category,
+        base_spirit: c.base_spirit,
+        glass_type:  c.glass_type,
+        garnish:     c.garnish,
+        method:      c.method,
+        tags:        tryJson(c.tags_json, []),
+        ingredients: tryJson(c.ingredients_text_json, [])
+      }))
+    };
+  });
+
+  res.json({ menus: enriched });
+});
+
 app.get('/api/ci/menus/:id', requireAuth(...CI_ROLES), (req, res) => {
   const menu = db.prepare('SELECT * FROM cocktail_menus WHERE id=?').get(req.params.id);
   if (!menu) return res.status(404).json({ error: 'Menu not found.' });
@@ -4332,6 +4362,17 @@ app.patch('/api/ci/menus/:id', requireAuth(...CI_ROLES), (req, res) => {
   if (description !== undefined) db.prepare('UPDATE cocktail_menus SET description=? WHERE id=?').run(description, menu.id);
   if (status)      db.prepare('UPDATE cocktail_menus SET status=? WHERE id=?').run(status, menu.id);
 
+  const updated = db.prepare('SELECT * FROM cocktail_menus WHERE id=?').get(menu.id);
+  res.json({ ok: true, menu: updated });
+});
+
+// PATCH /api/ci/menus/:id/visible — toggle staff visibility (CI roles only)
+app.patch('/api/ci/menus/:id/visible', requireAuth(...CI_ROLES), (req, res) => {
+  const { visible_to_staff } = req.body;
+  const menu = db.prepare('SELECT id, visible_to_staff FROM cocktail_menus WHERE id=?').get(req.params.id);
+  if (!menu) return res.status(404).json({ error: 'Menu not found.' });
+  db.prepare('UPDATE cocktail_menus SET visible_to_staff=? WHERE id=?')
+    .run(visible_to_staff ? 1 : 0, menu.id);
   const updated = db.prepare('SELECT * FROM cocktail_menus WHERE id=?').get(menu.id);
   res.json({ ok: true, menu: updated });
 });

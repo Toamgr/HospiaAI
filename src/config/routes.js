@@ -55,6 +55,7 @@ export const PAGE_ROUTES = {
   shiftOrganizerPage:         '/shifts/organizer',
   constraintsForm:            '/shifts/constraints',
   foodMenuView:               '/shifts/menu',
+  employeeCocktailMenu:       '/employee/cocktail-menu',
 
   // ── Academy ────────────────────────────────────────────────────────────────
   courses:                    '/academy/courses',
