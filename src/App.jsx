@@ -31,7 +31,7 @@ import ProfitLeaks from './features/owner/ProfitLeaks'
 import OwnerReport from './features/owner/OwnerReport'
 import BusinessMemoryPage from './features/owner/BusinessMemoryPage'
 import StrategicRecommendations from './features/owner/StrategicRecommendations'
-import EmployeeDailyWelcome from './features/employee/EmployeeDailyWelcome'
+import EmployeeNavRail from './features/employee/EmployeeNavRail'
 import EmployeeHome from './features/employee/EmployeeHome'
 import DailyWork from './features/employee/DailyWork'
 import BarWorld from './features/employee/BarWorld'
@@ -246,7 +246,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0d0c09] text-[#f5f5f0]">
       <IdleWarningBanner show={showIdleWarning} onDismiss={dismissIdleWarning} />
-      <EmployeeDailyWelcome currentUser={currentUser} />
       <TopNav
         t={t}
         currentUser={currentUser}
@@ -263,33 +262,36 @@ export default function App() {
         logout={logout}
       />
 
-      <div className={cx('min-h-[calc(100vh-5rem)]', role === 'employee' ? 'block' : 'flex')}>
-        {role !== 'employee' && (
-          <SidePanel
-            t={t}
-            currentUser={currentUser}
-            role={role}
-            area={area}
-            page={page}
-            collapsed={collapsed}
-            setCollapsed={setCollapsed}
-            goToPage={goToPage}
-            lang={lang}
-            setLang={setLang}
-            logout={logout}
-          />
+      <div className="min-h-[calc(100vh-5rem)] flex">
+        {role === 'employee' ? (
+          <EmployeeNavRail page={page} goToPage={goToPage} currentUser={currentUser} />
+        ) : (
+          <>
+            <SidePanel
+              t={t}
+              currentUser={currentUser}
+              role={role}
+              area={area}
+              page={page}
+              collapsed={collapsed}
+              setCollapsed={setCollapsed}
+              goToPage={goToPage}
+              lang={lang}
+              setLang={setLang}
+              logout={logout}
+            />
+            {!collapsed && (
+              <button
+                type="button"
+                className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+                onClick={() => setCollapsed(true)}
+                aria-label={t.ui.collapsePanel}
+              />
+            )}
+          </>
         )}
 
-        {role !== 'employee' && !collapsed && (
-          <button
-            type="button"
-            className="fixed inset-0 z-20 bg-black/50 lg:hidden"
-            onClick={() => setCollapsed(true)}
-            aria-label={t.ui.collapsePanel}
-          />
-        )}
-
-        <main className={cx('min-w-0 flex-1', role === 'employee' ? 'px-3 py-4 sm:px-5 lg:px-7 xl:px-8' : 'p-5 sm:p-7 lg:p-10 xl:p-14 2xl:p-20')}>
+        <main className={cx('min-w-0 flex-1', role === 'employee' ? 'px-3 py-4 sm:px-5 lg:px-6' : 'p-5 sm:p-7 lg:p-10 xl:p-14 2xl:p-20')}>
           {showNotifications && (
             <NotificationPanel
               notifications={visibleNotifications}

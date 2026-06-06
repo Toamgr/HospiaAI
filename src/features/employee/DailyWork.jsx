@@ -1,4 +1,5 @@
 import React from 'react'
+import EmployeeDailyWelcome from './EmployeeDailyWelcome'
 
 function ActionRow({ label, sub, onClick }) {
   return (
@@ -101,6 +102,7 @@ export default function DailyWork({ currentUser, goToPage, employeeRequests = []
 
   return (
     <section className="relative min-h-[calc(100vh-4.75rem)]">
+      <EmployeeDailyWelcome currentUser={currentUser} />
       <div className="mx-auto max-w-3xl">
 
         <header className="mb-7 pt-1">

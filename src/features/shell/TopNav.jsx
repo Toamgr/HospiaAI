@@ -29,7 +29,7 @@ export default function TopNav({ t, currentUser, role, area, page, goToArea, goT
             </div>
           </button>
 
-          <nav className="order-3 flex w-full gap-1.5 overflow-x-auto pt-1 sm:order-none sm:w-auto sm:flex-1 sm:justify-center sm:pt-0" aria-label="Employee navigation">
+          <nav className="order-3 flex w-full gap-1.5 overflow-x-auto pt-1 sm:order-none sm:w-auto sm:flex-1 sm:justify-center sm:pt-0 lg:hidden" aria-label="Employee navigation">
             {employeePages.map(([key, label]) => (
               <button
                 key={key}

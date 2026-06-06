@@ -400,21 +400,23 @@ section('4. KNOWN AUDIT ISSUES')
 
 // ── Issue N: Employee daily login popup ───────────────────────────────────────
 {
-  const componentContent = read('src/features/employee/EmployeeDailyWelcome.jsx') || ''
-  const appContent       = read('src/App.jsx') || ''
+  const componentContent  = read('src/features/employee/EmployeeDailyWelcome.jsx') || ''
+  const appContent        = read('src/App.jsx') || ''
+  const dailyWorkContent  = read('src/features/employee/DailyWork.jsx') || ''
 
   const componentExists    = exists('src/features/employee/EmployeeDailyWelcome.jsx')
   const checksEmployeeRole = componentContent.includes("role !== 'employee'") || componentContent.includes("role === 'employee'")
   const hasHestiaDay       = componentContent.includes('getHestiaDay') && componentContent.includes('getHours') && componentContent.includes('< 5')
   const usesStorage        = componentContent.includes('localStorage')
-  const wiredInApp         = appContent.includes('EmployeeDailyWelcome')
+  // Phase 10 moved the popup from App.jsx into DailyWork.jsx — accept either location
+  const wired              = appContent.includes('EmployeeDailyWelcome') || dailyWorkContent.includes('EmployeeDailyWelcome')
 
-  if (componentExists && checksEmployeeRole && hasHestiaDay && usesStorage && wiredInApp) {
+  if (componentExists && checksEmployeeRole && hasHestiaDay && usesStorage && wired) {
     row(PASS, 'Employee daily welcome popup — component present, role-gated, HESTIA day boundary, localStorage persistence')
   } else if (!componentExists) {
     row(NOPE, 'Employee daily welcome popup [NOT IMPLEMENTED YET — Phase 8]')
-  } else if (!wiredInApp) {
-    row(WARN, 'Employee daily welcome popup — component exists but not wired into App.jsx; Phase 8 incomplete')
+  } else if (!wired) {
+    row(WARN, 'Employee daily welcome popup — component exists but not wired into App.jsx or DailyWork.jsx; Phase 8 incomplete')
   } else if (!checksEmployeeRole) {
     row(WARN, 'Employee daily welcome popup — missing employee role check; Phase 8 incomplete')
   } else if (!hasHestiaDay) {
@@ -451,6 +453,42 @@ section('4. KNOWN AUDIT ISSUES')
     row(WARN, 'Employee Milestones — fake readiness formula or invented level names still present; Phase 9 incomplete')
   } else {
     row(WARN, 'Employee Milestones — partial implementation; check reward types, label, and Daily Work routing')
+  }
+}
+
+// ── Issue P: Employee Home two-world + left nav rail + popup trigger ──────────
+{
+  const homeContent      = read('src/features/employee/EmployeeHome.jsx') || ''
+  const appContent       = read('src/App.jsx') || ''
+  const dailyWorkContent = read('src/features/employee/DailyWork.jsx') || ''
+  const railExists       = exists('src/features/employee/EmployeeNavRail.jsx')
+
+  const hasAcademy             = homeContent.includes('Academy')
+  const hasDailyWorkWorld      = homeContent.includes('Daily Work')
+  const noReportAnIssue        = !homeContent.includes('Report An Issue')
+  const noApprovedCocktailBubble = !homeContent.includes('Approved Cocktail Library')
+  const noAchievementsBubble   = !homeContent.includes("label: 'Achievements'") && !homeContent.includes('label: "Achievements"')
+  const popupNotInApp          = !appContent.includes('EmployeeDailyWelcome')
+  const popupInDailyWork       = dailyWorkContent.includes('EmployeeDailyWelcome')
+
+  const allPass = hasAcademy && hasDailyWorkWorld && noReportAnIssue &&
+                  noApprovedCocktailBubble && noAchievementsBubble &&
+                  popupNotInApp && popupInDailyWork && railExists
+
+  if (allPass) {
+    row(PASS, 'Employee Home — two-world structure, old bubbles removed, popup moved to Daily Work, nav rail present')
+  } else if (!hasAcademy || !hasDailyWorkWorld) {
+    row(WARN, 'Employee Home — two-world structure (Academy / Daily Work) not found; Phase 10 incomplete')
+  } else if (!noReportAnIssue) {
+    row(WARN, 'Employee Home — Report An Issue still present; Phase 10 incomplete')
+  } else if (!noApprovedCocktailBubble) {
+    row(WARN, 'Employee Home — Approved Cocktail Library bubble still present; Phase 10 incomplete')
+  } else if (!popupNotInApp || !popupInDailyWork) {
+    row(WARN, 'Employee Home — daily welcome popup not moved to Daily Work; Phase 10 incomplete')
+  } else if (!railExists) {
+    row(WARN, 'Employee Home — EmployeeNavRail not found; Phase 10 incomplete')
+  } else {
+    row(WARN, 'Employee Home — partial Phase 10 implementation; check structure, popup, and nav rail')
   }
 }
 
