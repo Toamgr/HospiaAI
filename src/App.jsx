@@ -33,6 +33,7 @@ import BusinessMemoryPage from './features/owner/BusinessMemoryPage'
 import StrategicRecommendations from './features/owner/StrategicRecommendations'
 import EmployeeHome from './features/employee/EmployeeHome'
 import DailyWork from './features/employee/DailyWork'
+import BarWorld from './features/employee/BarWorld'
 import EmployeeRequests from './features/employee/EmployeeRequests'
 import ManagerEmployeeRequests from './features/employee/ManagerEmployeeRequests'
 import EmployeeAchievements from './features/employee/EmployeeAchievements'
@@ -429,6 +430,7 @@ function PageRenderer({ t, page, goToPage, pageContext, session, reports, operat
     staffReadiness: <StaffReadiness t={t} goToPage={goToPage} />,
     employeeHome: <EmployeeHome t={t} currentUser={currentUser} goToPage={goToPage} academyProgress={academyProgress} employeeTasks={employeeTasks} employeeRequests={employeeRequests} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} assignedTasks={assignedTasks} onUpdateAssignedTask={onUpdateAssignedTask} />,
     dailyWork: <DailyWork currentUser={currentUser} goToPage={goToPage} employeeRequests={employeeRequests} assignedTasks={assignedTasks} />,
+    barWorld: <BarWorld goToPage={goToPage} />,
     employeeRequests: <EmployeeRequests t={t} currentUser={currentUser} employeeRequests={employeeRequests} onSubmit={onSubmitEmployeeRequest} />,
     employeeAchievements: <EmployeeAchievements currentUser={currentUser} academyProgress={academyProgress} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} employeeTasks={employeeTasks} />,
     serviceRecovery: <ServiceRecovery t={t} currentUser={currentUser} goToPage={goToPage} onServiceIncident={onServiceIncident} employeeTasks={employeeTasks} onUpdateEmployeeTask={onUpdateEmployeeTask} />,

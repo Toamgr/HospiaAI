@@ -12,7 +12,7 @@ export default function TopNav({ t, currentUser, role, area, page, goToArea, goT
     ['employeeHome', 'Home'],
     ['dailyWork', 'Daily Work'],
     ['courses', 'Courses'],
-    ['cocktailsMagazine', 'Bar World'],
+    ['barWorld', 'Bar World'],
     ['wineKnowledge', 'Wine']
   ].filter(([key]) => canAccessPage(currentUser, key))
 

@@ -287,14 +287,16 @@ section('4. KNOWN AUDIT ISSUES')
 
 // ── Issue H: Bar World — label prep or full feature ───────────────────────────
 {
-  const topNav = read('src/features/shell/TopNav.jsx') || ''
-  const hasBarWorldLabel = topNav.includes("'cocktailsMagazine'") && topNav.includes("'Bar World'")
-  const featureBuilt = exists('src/features/bar-world') || exists('src/features/barWorld') ||
-    fileContains('src/config/navigationConfig.js', 'barWorld') ||
-    fileContains('src/config/navigationConfig.js', 'bar_world')
-  if (featureBuilt) {
-    row(PASS, 'Bar World — full feature detected')
-  } else if (hasBarWorldLabel) {
+  const componentExists = exists('src/features/employee/BarWorld.jsx')
+  const hasRoute    = fileContains('src/config/routes.js', 'barWorld')
+  const hasPageMeta = fileContains('src/config/navigationConfig.js', /barWorld\s*:/)
+  const inNav       = fileContains('src/features/shell/TopNav.jsx', "'barWorld'")
+  const labelOnly   = fileContains('src/features/shell/TopNav.jsx', "'cocktailsMagazine'") &&
+                      fileContains('src/features/shell/TopNav.jsx', "'Bar World'")
+
+  if (componentExists && hasRoute && hasPageMeta && inNav) {
+    row(PASS, 'Bar World — component, route, PAGE_META, and nav entry all present')
+  } else if (labelOnly) {
     row(WARN, 'Bar World — nav label prepared on cocktailsMagazine slot; full Bar World page not yet built')
   } else {
     row(NOPE, 'Bar World area [NOT IMPLEMENTED YET]')

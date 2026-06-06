@@ -23,7 +23,7 @@ export const NAV_GROUPS = {
   },
   employeeWorkflow: {
     roles: ['employee', 'admin'],
-    pages: ['employeeHome', 'dailyWork', 'employeeRequests', 'employeeAchievements', 'serviceRecovery']
+    pages: ['employeeHome', 'dailyWork', 'barWorld', 'employeeRequests', 'employeeAchievements', 'serviceRecovery']
   },
   // Employee shift pages
   employeeShifts: {
@@ -219,6 +219,13 @@ export const PAGE_META = {
     code: 'DW',
     section: 'Daily Work',
     description: 'Shifts, menus, requests, and milestones'
+  },
+  barWorld: {
+    area: 'employeeWorkflow',
+    roles: ['employee', 'admin'],
+    code: 'BW',
+    section: 'Bar World',
+    description: 'Bar course, classic cocktails magazine, technique, and service reference'
   },
   employeeRequests: {
     area: 'employeeWorkflow',
