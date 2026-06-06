@@ -26,6 +26,15 @@ function DishRow({ dish, editable, onPriceChange }) {
         <p className="text-sm font-semibold text-[#f5f5f0]">{dish.name}</p>
         <p className="text-xs text-[#6b705c] mt-0.5">{dish.category} {dish.allergens ? `· ${dish.allergens}` : ''}</p>
         {dish.description && <p className="text-[11px] text-[#e8dcc0]/50 mt-0.5 line-clamp-1">{dish.description}</p>}
+        {(dish.tags || []).length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {dish.tags.map(tag => (
+              <span key={tag} className="inline-flex rounded-full border border-[#6b705c]/22 bg-[#6b705c]/8 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#e8dcc0]/50">
+                {tag === 'gluten_free' ? 'GF' : tag === 'vegetarian' ? 'V' : 'VG'}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       {editable ? (
         <input
@@ -358,6 +367,15 @@ export default function ChefDashboard({ currentUser }) {
                         <div>
                           <p className="text-sm text-[#f5f5f0]">{d.name}</p>
                           {d.description && <p className="text-[11px] text-[#6b705c] line-clamp-1">{d.description}</p>}
+                          {(d.tags || []).length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {d.tags.map(tag => (
+                                <span key={tag} className="inline-flex rounded-full border border-[#6b705c]/22 bg-[#6b705c]/8 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#e8dcc0]/50">
+                                  {tag === 'gluten_free' ? 'GF' : tag === 'vegetarian' ? 'V' : 'VG'}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <p className="text-sm text-[#e8dcc0] text-right tabular-nums">{d.price_ils ? `₪${d.price_ils}` : '—'}</p>
                         <p className="text-sm text-[#e8dcc0] text-right tabular-nums">{d.food_cost_ils ? `₪${d.food_cost_ils}` : '—'}</p>
@@ -412,6 +430,15 @@ export default function ChefDashboard({ currentUser }) {
                       <div>
                         <p className="text-sm text-[#f5f5f0]">{d.name}</p>
                         <p className="text-[11px] text-[#6b705c]">{d.category}{d.allergens ? ` · ${d.allergens}` : ''}</p>
+                    {(d.tags || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-0.5">
+                        {d.tags.map(tag => (
+                          <span key={tag} className="inline-flex rounded-full border border-[#6b705c]/22 bg-[#6b705c]/8 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#e8dcc0]/50">
+                            {tag === 'gluten_free' ? 'GF' : tag === 'vegetarian' ? 'V' : 'VG'}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                       </div>
                       <p className="text-sm text-[#e8dcc0] tabular-nums shrink-0">{d.price_ils ? `₪${d.price_ils}` : '—'}</p>
                     </div>

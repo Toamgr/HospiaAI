@@ -39,6 +39,19 @@ export default function FoodMenuView() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#f5f5f0]">{dish.name}</p>
                   {dish.description && <p className="text-xs text-[#e8dcc0]/60 mt-0.5 line-clamp-2">{dish.description}</p>}
+                  {(dish.tags || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {dish.tags.map(tag => (
+                        <span key={tag} className={`inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                          tag === 'vegan'        ? 'border-emerald-600/25 bg-emerald-950/30 text-emerald-400/80' :
+                          tag === 'vegetarian'   ? 'border-green-600/25 bg-green-950/30 text-green-400/80' :
+                                                   'border-amber-600/25 bg-amber-950/30 text-amber-400/80'
+                        }`}>
+                          {tag === 'gluten_free' ? 'Gluten Free' : tag === 'vegetarian' ? 'Vegetarian' : 'Vegan'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {dish.allergens && (
                     <p className="text-[10px] text-amber-400/70 mt-0.5">Allergens: {dish.allergens}</p>
                   )}

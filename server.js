@@ -1122,6 +1122,7 @@ seedCocktailIntelligence(); // CI MODULE ADDITION — idempotent, skips if alrea
 // multi-role notifications can be stored and retrieved per-role from the backend.
 // Idempotent — safe to run on every startup.
 try { db.exec("ALTER TABLE notifications ADD COLUMN roles_json TEXT"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE food_dishes ADD COLUMN tags_json TEXT"); } catch { /* already exists */ }
 
 function nowIso() {
   return new Date().toISOString();
@@ -5885,6 +5886,7 @@ async function sendEmail({ to, subject, html }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 const CHEF_ROLES = ['chef', 'fb_director', 'owner', 'admin'];
+const ALLOWED_FOOD_TAGS = ['vegetarian', 'vegan', 'gluten_free'];
 
 // Gemini model for chef (use configured model or flash-lite)
 async function askGeminiChef(prompt) {
@@ -5918,14 +5920,15 @@ Generate a complete, sophisticated food menu with dishes that tell a story.
 Price range: ₪32 (focaccia/bread) to ₪186 (steak/premium mains).
 Each dish must have: name, category (starter/main/dessert/bread/side),
 description (2 sentences), story (1 evocative sentence), price_ils,
-estimated food_cost_ils (typically 28-35% of price), ingredients array, allergens.
+estimated food_cost_ils (typically 28-35% of price), ingredients array, allergens,
+and tags (array — choose only from: "vegetarian", "vegan", "gluten_free"; omit array or leave empty if none apply).
 
 Menu type: ${menuType || 'regular'}
 Occasion: ${occasion || 'daily service'}
 Season: ${season || 'current'}
 Notes: ${notes || 'none'}
 
-Return ONLY valid JSON: { "menuName": "string", "menuStory": "string", "dishes": [{ "name": "string", "category": "string", "description": "string", "story": "string", "price_ils": number, "food_cost_ils": number, "ingredients": ["string"], "allergens": "string" }] }
+Return ONLY valid JSON: { "menuName": "string", "menuStory": "string", "dishes": [{ "name": "string", "category": "string", "description": "string", "story": "string", "price_ils": number, "food_cost_ils": number, "ingredients": ["string"], "allergens": "string", "tags": ["vegetarian"|"vegan"|"gluten_free"] }] }
 No markdown, no backticks, no preamble.`;
 
     const generated = await askGeminiChef(prompt);
@@ -5939,21 +5942,23 @@ No markdown, no backticks, no preamble.`;
     const menuId = menuResult.lastInsertRowid;
 
     const insertDish = db.prepare(`
-      INSERT INTO food_dishes (menu_id, name, description, story, category, price_ils, food_cost_ils, food_cost_percent, ingredients, allergens, created_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?)
+      INSERT INTO food_dishes (menu_id, name, description, story, category, price_ils, food_cost_ils, food_cost_percent, ingredients, allergens, tags_json, created_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
     `);
     for (const d of (generated.dishes || [])) {
       const cost = Number(d.food_cost_ils) || 0;
       const price = Number(d.price_ils) || 0;
       const pct = price > 0 ? Math.round((cost / price) * 100) : null;
+      const tags = (Array.isArray(d.tags) ? d.tags : []).filter(t => ALLOWED_FOOD_TAGS.includes(t));
       insertDish.run(menuId, d.name, d.description || null, d.story || null,
         d.category || null, price, cost, pct,
-        JSON.stringify(d.ingredients || []), d.allergens || null, now);
+        JSON.stringify(d.ingredients || []), d.allergens || null,
+        JSON.stringify(tags), now);
     }
 
     const menu = db.prepare('SELECT * FROM food_menus WHERE id=?').get(menuId);
     const dishes = db.prepare('SELECT * FROM food_dishes WHERE menu_id=? ORDER BY id ASC').all(menuId);
-    res.status(201).json({ menu, dishes });
+    res.status(201).json({ menu, dishes: dishes.map(d => ({ ...d, tags: tryJson(d.tags_json, []) })) });
   } catch (e) {
     console.error('[CHEF GENERATE]', e);
     res.status(500).json({ error: e.message || 'Menu generation failed.' });
@@ -6024,7 +6029,7 @@ app.get('/api/chef/menus', requireAuth('chef', 'fb_director', 'owner', 'admin', 
     if (!dishesByMenu[d.menu_id]) dishesByMenu[d.menu_id] = [];
     dishesByMenu[d.menu_id].push(d);
   }
-  res.json({ menus: menus.map(m => ({ ...m, dishes: dishesByMenu[m.id] || [] })) });
+  res.json({ menus: menus.map(m => ({ ...m, dishes: (dishesByMenu[m.id] || []).map(d => ({ ...d, tags: tryJson(d.tags_json, []) })) })) });
 });
 
 // GET /api/chef/notifications — unread for the logged-in user's role

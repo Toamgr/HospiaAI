@@ -334,6 +334,31 @@ section('4. KNOWN AUDIT ISSUES')
   }
 }
 
+// ── Issue K: Food Menu MVP dietary tags ───────────────────────────────────────
+{
+  const serverContent  = read('server.js') || ''
+  const menuViewContent = read('src/features/chef/FoodMenuView.jsx') || ''
+
+  const hasMigration   = serverContent.includes('ALTER TABLE food_dishes ADD COLUMN tags_json TEXT')
+  const hasAllowedTags = serverContent.includes("ALLOWED_FOOD_TAGS = ['vegetarian', 'vegan', 'gluten_free']")
+  const hasBroaderAllergens = /ALLOWED_FOOD_TAGS.*nuts|ALLOWED_FOOD_TAGS.*dairy|ALLOWED_FOOD_TAGS.*sesame/i.test(serverContent)
+  const viewShowsTags  = menuViewContent.includes('dish.tags') && menuViewContent.includes('Gluten Free')
+
+  if (hasMigration && hasAllowedTags && viewShowsTags && !hasBroaderAllergens) {
+    row(PASS, 'Food Menu MVP tags — migration, allowed-tag guard, and FoodMenuView display present; no broader allergen list')
+  } else if (!hasMigration) {
+    row(WARN, 'Food Menu tags — food_dishes tags_json migration not found; Phase 5 incomplete')
+  } else if (!hasAllowedTags) {
+    row(WARN, 'Food Menu tags — ALLOWED_FOOD_TAGS guard missing; Phase 5 incomplete')
+  } else if (!viewShowsTags) {
+    row(WARN, 'Food Menu tags — FoodMenuView does not yet display tags; Phase 5 incomplete')
+  } else if (hasBroaderAllergens) {
+    row(WARN, 'Food Menu tags — broader allergen tags detected in ALLOWED_FOOD_TAGS; Phase 5 scope exceeded')
+  } else {
+    row(WARN, 'Food Menu tags — partial implementation; check migration, guard, and display')
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  5. SECRET SAFETY CHECK
 // ─────────────────────────────────────────────────────────────────────────────
