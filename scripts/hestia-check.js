@@ -319,6 +319,21 @@ section('4. KNOWN AUDIT ISSUES')
   }
 }
 
+// ── Issue J: Employee Requests — new request type model ──────────────────────
+{
+  const reqFile = read('src/features/employee/EmployeeRequests.jsx') || ''
+  const hasNewTypes = reqFile.includes('EMPLOYEE_REQUEST_TYPES') || reqFile.includes('Shift Swap')
+  const hasOldCategories = reqFile.includes('REQUEST_CATEGORIES') || reqFile.includes('Bar Supply')
+
+  if (hasNewTypes && !hasOldCategories) {
+    row(PASS, 'EmployeeRequests — new request type model (Shift Swap, Day Off, etc.); old categories removed')
+  } else if (hasOldCategories) {
+    row(WARN, 'EmployeeRequests — old request categories (Bar Supply etc.) still present; Phase 4 incomplete')
+  } else {
+    row(NOPE, 'EmployeeRequests — request type model not yet updated [Phase 4]')
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  5. SECRET SAFETY CHECK
 // ─────────────────────────────────────────────────────────────────────────────

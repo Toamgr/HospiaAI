@@ -86,7 +86,7 @@ export default function DailyWork({ currentUser, goToPage, employeeRequests = []
       title: 'Requests',
       description: myRequests.length
         ? `${myRequests.length} request${myRequests.length !== 1 ? 's' : ''} on record.`
-        : 'Submit supply, maintenance, or service requests.',
+        : 'Shift swaps, days off, missing equipment, and more.',
       actions: [
         { label: 'Requests', page: 'employeeRequests', sub: 'Submit or review your requests' },
       ]

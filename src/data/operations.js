@@ -25,6 +25,17 @@ export const REQUEST_CATEGORIES = [
 
 export const REQUEST_URGENCY = ['Low', 'Medium', 'High', 'Critical']
 
+export const EMPLOYEE_REQUEST_TYPES = [
+  'Shift Swap',
+  'Day Off',
+  'Manager Note',
+  'Personal Issue',
+  'Missing Equipment',
+  'Other'
+]
+
+export const EMPLOYEE_REQUEST_URGENCY = ['Low', 'Normal', 'High', 'Urgent']
+
 export const WINE_ACADEMY_SECTIONS = [
   {
     title: 'Tasting Method',
