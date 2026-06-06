@@ -1923,7 +1923,7 @@ app.patch("/api/tasks/:id", requireAuth("manager", "bar_manager", "admin"), (req
   res.json({ task: row });
 });
 
-app.post("/api/event-plans", requireAuth("manager", "owner", "admin"), (req, res) => {
+app.post("/api/event-plans", requireAuth("manager", "owner", "admin", "events_manager"), (req, res) => {
   const clientId = String(req.body.id || "").trim();
   const plan = {
     id: clientId || id("event"),
@@ -2014,7 +2014,7 @@ app.patch("/api/event-plans/:id", requireAuth("owner", "admin"), (req, res) => {
   });
 });
 
-app.get("/api/event-plans", requireAuth("manager", "owner", "admin"), (req, res) => {
+app.get("/api/event-plans", requireAuth("manager", "owner", "admin", "events_manager"), (req, res) => {
   const rows = db.prepare(`
     SELECT * FROM event_plans
     WHERE venue_id = ?
@@ -2951,14 +2951,14 @@ function addTimeline(eventId, actor, actorRole, actionType, description, metadat
 
 // ── Events CRUD ──────────────────────────────────────────────────────────────
 
-app.get('/api/events', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.get('/api/events', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const rows = db.prepare(`
     SELECT * FROM events WHERE venue_id = ? ORDER BY event_date ASC
   `).all(defaultVenueId());
   res.json({ events: rows.map(eventRow) });
 });
 
-app.post('/api/events', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.post('/api/events', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const b = req.body;
   const token = randomUUID();
   const now = nowIso();
@@ -3030,14 +3030,14 @@ app.post('/api/events', requireAuth('manager', 'bar_manager', 'owner', 'admin'),
   res.status(201).json({ event: eventRow(evt) });
 });
 
-app.get('/api/events/:id', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.get('/api/events/:id', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const row = db.prepare('SELECT * FROM events WHERE id = ? AND venue_id = ?')
     .get(req.params.id, defaultVenueId());
   if (!row) return res.status(404).json({ error: 'Event not found.' });
   res.json({ event: eventRow(row) });
 });
 
-app.patch('/api/events/:id', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.patch('/api/events/:id', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const existing = db.prepare('SELECT * FROM events WHERE id = ? AND venue_id = ?')
     .get(req.params.id, defaultVenueId());
   if (!existing) return res.status(404).json({ error: 'Event not found.' });
@@ -3075,13 +3075,13 @@ app.delete('/api/events/:id', requireAuth('owner', 'admin'), (req, res) => {
 
 // ── Guests ───────────────────────────────────────────────────────────────────
 
-app.get('/api/events/:id/guests', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.get('/api/events/:id/guests', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const rows = db.prepare('SELECT * FROM event_guests WHERE event_id=? ORDER BY name ASC')
     .all(req.params.id);
   res.json({ guests: rows.map(guestRow) });
 });
 
-app.post('/api/events/:id/guests', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.post('/api/events/:id/guests', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const b = req.body;
   const now = nowIso();
   const g = {
@@ -3113,7 +3113,7 @@ app.post('/api/events/:id/guests', requireAuth('manager', 'bar_manager', 'owner'
   res.status(201).json({ guest: { ...g, dietary_presets: b.dietary_presets || [] } });
 });
 
-app.post('/api/events/:id/guests/import', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.post('/api/events/:id/guests/import', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const guests = Array.isArray(req.body.guests) ? req.body.guests : [];
   if (!guests.length) return res.status(400).json({ error: 'guests array required.' });
   const now = nowIso();
@@ -3144,7 +3144,7 @@ app.post('/api/events/:id/guests/import', requireAuth('manager', 'bar_manager', 
   res.json({ inserted: inserted.length, skipped: skipped.length });
 });
 
-app.patch('/api/events/:id/guests/:guestId', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.patch('/api/events/:id/guests/:guestId', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const existing = db.prepare('SELECT * FROM event_guests WHERE id=? AND event_id=?')
     .get(req.params.guestId, req.params.id);
   if (!existing) return res.status(404).json({ error: 'Guest not found.' });
@@ -3165,7 +3165,7 @@ app.patch('/api/events/:id/guests/:guestId', requireAuth('manager', 'bar_manager
   res.json({ guest: guestRow(updated) });
 });
 
-app.delete('/api/events/:id/guests/:guestId', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.delete('/api/events/:id/guests/:guestId', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const g = db.prepare('SELECT id,name FROM event_guests WHERE id=? AND event_id=?')
     .get(req.params.guestId, req.params.id);
   if (!g) return res.status(404).json({ error: 'Guest not found.' });
@@ -3174,7 +3174,7 @@ app.delete('/api/events/:id/guests/:guestId', requireAuth('manager', 'bar_manage
   res.json({ ok: true });
 });
 
-app.post('/api/events/:id/guests/:guestId/checkin', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.post('/api/events/:id/guests/:guestId/checkin', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const g = db.prepare('SELECT * FROM event_guests WHERE id=? AND event_id=?')
     .get(req.params.guestId, req.params.id);
   if (!g) return res.status(404).json({ error: 'Guest not found.' });
@@ -3188,7 +3188,7 @@ app.post('/api/events/:id/guests/:guestId/checkin', requireAuth('manager', 'bar_
 
 // ── Tables / Seating ─────────────────────────────────────────────────────────
 
-app.get('/api/events/:id/tables', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.get('/api/events/:id/tables', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const tables = db.prepare('SELECT * FROM event_tables WHERE event_id=? ORDER BY table_number ASC')
     .all(req.params.id);
   const guests = db.prepare('SELECT id,name,rsvp_status,table_id FROM event_guests WHERE event_id=?')
@@ -3200,7 +3200,7 @@ app.get('/api/events/:id/tables', requireAuth('manager', 'bar_manager', 'owner',
   res.json({ tables: result });
 });
 
-app.post('/api/events/:id/tables', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.post('/api/events/:id/tables', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const b = req.body; const now = nowIso();
   const t = {
     id: id('etbl'), event_id: req.params.id, venue_id: defaultVenueId(),
@@ -3217,7 +3217,7 @@ app.post('/api/events/:id/tables', requireAuth('manager', 'bar_manager', 'owner'
   res.status(201).json({ table: tableRow(t) });
 });
 
-app.patch('/api/events/:id/tables/:tableId', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.patch('/api/events/:id/tables/:tableId', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const existing = db.prepare('SELECT * FROM event_tables WHERE id=? AND event_id=?')
     .get(req.params.tableId, req.params.id);
   if (!existing) return res.status(404).json({ error: 'Table not found.' });
@@ -3231,7 +3231,7 @@ app.patch('/api/events/:id/tables/:tableId', requireAuth('manager', 'bar_manager
   res.json({ table: tableRow(updated) });
 });
 
-app.delete('/api/events/:id/tables/:tableId', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.delete('/api/events/:id/tables/:tableId', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   if (!db.prepare('SELECT id FROM event_tables WHERE id=? AND event_id=?').get(req.params.tableId, req.params.id)) {
     return res.status(404).json({ error: 'Table not found.' });
   }
@@ -3240,7 +3240,7 @@ app.delete('/api/events/:id/tables/:tableId', requireAuth('manager', 'bar_manage
   res.json({ ok: true });
 });
 
-app.post('/api/events/:id/tables/assign', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.post('/api/events/:id/tables/assign', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const { guest_id, table_id } = req.body;
   if (!guest_id) return res.status(400).json({ error: 'guest_id required.' });
   const g = db.prepare('SELECT * FROM event_guests WHERE id=? AND event_id=?')
@@ -3263,13 +3263,13 @@ app.post('/api/events/:id/tables/assign', requireAuth('manager', 'bar_manager', 
 
 // ── Tasks ────────────────────────────────────────────────────────────────────
 
-app.get('/api/events/:id/tasks', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.get('/api/events/:id/tasks', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const rows = db.prepare('SELECT * FROM event_tasks WHERE event_id=? ORDER BY due_date ASC, created_at ASC')
     .all(req.params.id);
   res.json({ tasks: rows.map(taskRow) });
 });
 
-app.post('/api/events/:id/tasks', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.post('/api/events/:id/tasks', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const b = req.body; const now = nowIso();
   const t = {
     id: id('etask'), event_id: req.params.id, venue_id: defaultVenueId(),
@@ -3287,7 +3287,7 @@ app.post('/api/events/:id/tasks', requireAuth('manager', 'bar_manager', 'owner',
   res.status(201).json({ task: t });
 });
 
-app.patch('/api/events/:id/tasks/:taskId', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.patch('/api/events/:id/tasks/:taskId', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const existing = db.prepare('SELECT * FROM event_tasks WHERE id=? AND event_id=?')
     .get(req.params.taskId, req.params.id);
   if (!existing) return res.status(404).json({ error: 'Task not found.' });
@@ -3307,7 +3307,7 @@ app.patch('/api/events/:id/tasks/:taskId', requireAuth('manager', 'bar_manager',
 
 // ── Timeline ─────────────────────────────────────────────────────────────────
 
-app.get('/api/events/:id/timeline', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.get('/api/events/:id/timeline', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const rows = db.prepare('SELECT * FROM event_timeline WHERE event_id=? ORDER BY created_at ASC')
     .all(req.params.id);
   res.json({ timeline: rows.map(timelineRow) });
@@ -3315,13 +3315,13 @@ app.get('/api/events/:id/timeline', requireAuth('manager', 'bar_manager', 'owner
 
 // ── Messages ─────────────────────────────────────────────────────────────────
 
-app.get('/api/events/:id/messages', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.get('/api/events/:id/messages', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const rows = db.prepare('SELECT * FROM event_messages WHERE event_id=? ORDER BY created_at DESC')
     .all(req.params.id);
   res.json({ messages: rows });
 });
 
-app.post('/api/events/:id/messages', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.post('/api/events/:id/messages', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const b = req.body;
   const recipients = Array.isArray(b.recipients) ? b.recipients : [];
   if (!recipients.length) return res.status(400).json({ error: 'recipients array required.' });
@@ -3350,13 +3350,13 @@ app.post('/api/events/:id/messages', requireAuth('manager', 'bar_manager', 'owne
 
 // ── Cocktail Menus ────────────────────────────────────────────────────────────
 
-app.get('/api/events/:id/cocktail-menu', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.get('/api/events/:id/cocktail-menu', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const row = db.prepare('SELECT * FROM event_cocktail_menus WHERE event_id=?').get(req.params.id);
   if (!row) return res.json({ menu: null });
   res.json({ menu: { id: row.id, menu_name: row.menu_name, cocktails: JSON.parse(row.menu_json), status: row.status } });
 });
 
-app.post('/api/events/:id/cocktail-menu', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.post('/api/events/:id/cocktail-menu', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const { menu_name, cocktails } = req.body;
   if (!Array.isArray(cocktails) || !cocktails.length) return res.status(400).json({ error: 'cocktails array required.' });
   const now = nowIso();
