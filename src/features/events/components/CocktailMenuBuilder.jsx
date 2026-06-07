@@ -793,6 +793,10 @@ export default function CocktailMenuBuilder({ event, tasks, onUpdateTask, brief,
               <p className="text-center text-sm text-emerald-400 font-medium py-2">
                 Menu approved and saved to this event ✓
               </p>
+            ) : menu?.cocktails?.some(c => c._fallback) ? (
+              <p className="text-center text-xs text-amber-500/80 py-2">
+                Regenerate the menu before approving — the current draft is an AI placeholder.
+              </p>
             ) : (
               <button
                 type="button"

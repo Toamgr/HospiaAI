@@ -1422,7 +1422,7 @@ async function askGemini(prompt, { jsonMode = false } = {}) {
   return text || "No answer generated.";
 }
 
-app.post("/api/gemini", requireAuth("manager", "bar_manager", "owner", "admin"), async (req, res) => {
+app.post("/api/gemini", requireAuth("manager", "bar_manager", "owner", "admin", "events_manager"), async (req, res) => {
   try {
     const prompt = String(req.body?.prompt || "").trim();
     const jsonMode = Boolean(req.body?.json_mode);

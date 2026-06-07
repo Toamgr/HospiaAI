@@ -22,6 +22,14 @@ export function useCocktailIntelligenceState({ currentUser } = {}) {
       setDnaLoading(false)
       return
     }
+    // Guard: CI data is only relevant to bar/operations roles.
+    // events_manager and other non-CI roles do not need bar DNA, CI cocktails, or CI menus.
+    // Skipping the fetch prevents 403 console errors for those users.
+    const CI_ROLES = ['owner', 'manager', 'bar_manager', 'admin', 'fb_director']
+    if (!CI_ROLES.includes(currentUser.role)) {
+      setDnaLoading(false)
+      return
+    }
     let cancelled = false
     setDnaLoading(true)
     setDnaError(null)

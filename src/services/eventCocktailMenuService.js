@@ -1,6 +1,7 @@
 import { BEVERAGE_DIRECTOR_SYSTEM_PROMPT } from '../prompts/geminiCocktailPrompts.js'
 import { buildKnowledgeContext } from '../domain/hospitality/bar/cocktailKnowledgeBase/index.js'
 import { getPricingContextSummary, buildCostSheet } from '../domain/hospitality/bar/cocktailLabPricingAdapter.js'
+import { apiPost } from './api/client'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -439,13 +440,7 @@ function validateMenuResponse(parsed, expectedCount) {
 // ─── Exported service functions ───────────────────────────────────────────────
 
 async function attemptMenuGeneration(prompt, expectedCount) {
-  const res = await fetch('/api/gemini', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, json_mode: true }),
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(formatServiceError(data, 'AI request failed. Please try again.'))
+  const data = await apiPost('/api/gemini', { prompt, json_mode: true })
   const rawText = getResponseText(data)
   const parsed = parseStrictJson(rawText)
   validateMenuResponse(parsed, expectedCount)
@@ -510,14 +505,7 @@ export async function replaceEventCocktail({ event, menu, index, replaceInstruct
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const res = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: currentPrompt, json_mode: true }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(formatServiceError(data, 'AI replacement request failed. Please try again.'))
-
+      const data = await apiPost('/api/gemini', { prompt: currentPrompt, json_mode: true })
       const rawText = getResponseText(data)
       const parsed = parseStrictJson(rawText)
       if (!parsed.name) throw new Error('AI returned an invalid replacement. Please try again.')
