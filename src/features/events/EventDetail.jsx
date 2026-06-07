@@ -104,7 +104,13 @@ export default function EventDetail({
           {['events_manager', 'manager', 'owner', 'admin'].includes(currentUser?.role) && (
             <button
               type="button"
-              onClick={() => goToPage('eventBrain', { eventId: event.id })}
+              onClick={() => {
+                // Write eventId synchronously before any React render so EventBrain
+                // can read it even if pageContext arrives one render cycle late
+                // (React Router v7 wraps navigation in startTransition).
+                try { sessionStorage.setItem('hestia.architect.linkId', String(event.id)) } catch {}
+                goToPage('eventBrain', { eventId: event.id })
+              }}
               className="px-3 py-1.5 rounded-lg border text-xs transition-colors"
               style={{
                 background: 'rgba(201,169,110,0.06)',

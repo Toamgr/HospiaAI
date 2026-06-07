@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import EventBrainFloorPlan from './components/EventBrainFloorPlan'
 import PlanningSummary from './components/PlanningSummary'
 import BarProgramme from './components/BarProgramme'
@@ -52,13 +52,22 @@ function resolveInitialTables(stored) {
   return stored.tables
 }
 
+const SESSION_LINK_KEY = 'hestia.architect.linkId'
+
 function resolveEventId(pageContext) {
-  // Primary: pageContext (in-app navigation from EventDetail)
+  // Signal 1: pageContext (in-app navigation via goToPage — reliable when not deferred)
   if (pageContext?.eventId) return String(pageContext.eventId)
-  // Fallback: URL search param (direct URL access)
+  // Signal 2: URL search param (direct URL access / bookmarked link)
   try {
     const param = new URLSearchParams(window.location.search).get('eventId')
     if (param) return param
+  } catch {}
+  // Signal 3: sessionStorage set synchronously before goToPage in EventDetail button.
+  // Handles the React Router v7 startTransition edge case where pageContext can arrive
+  // one render cycle after the new page has mounted.
+  try {
+    const linked = sessionStorage.getItem(SESSION_LINK_KEY)
+    if (linked) return linked
   } catch {}
   return null
 }
@@ -218,8 +227,10 @@ function CommandBar({ eventBrief, isEventLinked }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function EventBrain({ pageContext, events }) {
-  // Resolve eventId from context (in-app nav) or URL (direct access)
-  const eventId = useMemo(() => resolveEventId(pageContext), [pageContext])
+  // Capture eventId once on mount using a lazy initializer — reads all three signals
+  // (pageContext, URL param, sessionStorage) before any effects clear sessionStorage.
+  // Stable for the lifetime of this EventBrain mount; does not recompute on re-renders.
+  const [eventId] = useState(() => resolveEventId(pageContext))
 
   // Find linked event from the events array
   const linkedEvent = useMemo(() => {
@@ -239,6 +250,12 @@ export default function EventBrain({ pageContext, events }) {
 
   // Effective brief: real data if available, demo fallback otherwise
   const eventBrief = architectBrief ?? EVENT_BRIEF
+
+  // Clear the sessionStorage link signal after first mount so it is not re-used
+  // on a subsequent unrelated navigation to /ops/event-brain.
+  useEffect(() => {
+    try { sessionStorage.removeItem(SESSION_LINK_KEY) } catch {}
+  }, [])
 
   const stored = useMemo(() => loadState(eventId), [eventId])
 
