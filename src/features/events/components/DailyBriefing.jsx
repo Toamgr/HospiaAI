@@ -8,6 +8,7 @@
  */
 
 import React from 'react'
+import { canExportCalendar, downloadEventCalendar } from '../utils/calendarExportUtils'
 
 // ── Design tokens (shared with EventCalendar) ─────────────────────────────────
 
@@ -257,6 +258,37 @@ function EventBriefCard({ event, intel, accentColor, showAction, onClick }) {
           </span>
         </div>
       )}
+
+      {/* Add To Calendar */}
+      <div style={{ marginTop: 7 }}>
+        {canExportCalendar(event) ? (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); downloadEventCalendar(event) }}
+            style={{
+              background:    'transparent',
+              border:        '1px solid rgba(201,169,110,0.20)',
+              borderRadius:  4,
+              color:         '#C9A96E',
+              cursor:        'pointer',
+              fontSize:      8,
+              fontWeight:    700,
+              letterSpacing: '0.10em',
+              padding:       '3px 9px',
+              textTransform: 'uppercase',
+              transition:    'all 120ms ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.08)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+          >
+            📅 Add To Calendar
+          </button>
+        ) : (
+          <span style={{ fontSize: 8, color: '#3A3A3A', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Start time required for calendar
+          </span>
+        )}
+      </div>
     </div>
   )
 }

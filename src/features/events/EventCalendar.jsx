@@ -15,6 +15,7 @@ import { buildZoharBrief } from './utils/zoharBriefOrchestrator'
 import { buildCalendarIntelligence } from './utils/calendarIntelligence'
 import { buildDailyBriefing } from './utils/dailyBriefingEngine'
 import { loadPlan } from './utils/eventArchitectPlanPersistence'
+import { canExportCalendar, downloadEventCalendar } from './utils/calendarExportUtils'
 import DailyBriefing from './components/DailyBriefing'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -450,12 +451,19 @@ function EventPanel({ event, menuStatus, intel, isFullAccess, canNavigateToDetai
         )}
 
         {/* Action links */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           {canNavigateToDetail && (
             <GhostLink onClick={onOpenDetail}>Open Event Detail →</GhostLink>
           )}
           {isFullAccess && (
             <GhostLink onClick={onOpenArchitect}>Open Event Architect →</GhostLink>
+          )}
+          {canExportCalendar(event) ? (
+            <GhostLink onClick={() => downloadEventCalendar(event)}>📅 Add To Calendar</GhostLink>
+          ) : (
+            <span style={{ fontSize: 8, color: '#3A3A3A', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Start time required for calendar
+            </span>
           )}
         </div>
       </div>

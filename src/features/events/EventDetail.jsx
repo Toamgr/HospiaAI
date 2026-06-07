@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { canExportCalendar, downloadEventCalendar } from './utils/calendarExportUtils'
 import EventOverview from './tabs/EventOverview'
 import EventGuests from './tabs/EventGuests'
 import EventSeating from './tabs/EventSeating'
@@ -124,6 +125,26 @@ export default function EventDetail({
             >
               Architect Plan
             </button>
+          )}
+          {canExportCalendar(event) ? (
+            <button
+              type="button"
+              onClick={() => downloadEventCalendar(event)}
+              className="px-3 py-1.5 rounded-lg border text-xs transition-colors"
+              style={{
+                background:  'rgba(201,169,110,0.06)',
+                borderColor: 'rgba(201,169,110,0.25)',
+                color:       '#C9A96E',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.12)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.06)' }}
+            >
+              📅 Add To Calendar
+            </button>
+          ) : (
+            <span className="text-xs" style={{ color: '#3A3A3A' }}>
+              Start time required
+            </span>
           )}
           {!['cancelled', 'completed'].includes(event.status) && onStartCheckin && (
             <button
