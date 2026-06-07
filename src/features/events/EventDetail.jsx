@@ -6,14 +6,16 @@ import EventTasks from './tabs/EventTasks'
 import EventTimeline from './tabs/EventTimeline'
 import EventMessaging from './tabs/EventMessaging'
 import EventTeam from './tabs/EventTeam'
+import EventZohar from './tabs/EventZohar'
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
-  { id: 'guests', label: 'Guests' },
-  { id: 'seating', label: 'Seating' },
-  { id: 'tasks', label: 'Tasks' },
+  { id: 'zohar',    label: 'Zohar' },
+  { id: 'guests',   label: 'Guests' },
+  { id: 'seating',  label: 'Seating' },
+  { id: 'tasks',    label: 'Tasks' },
   { id: 'messaging', label: 'Messaging' },
-  { id: 'team', label: 'Team' },
+  { id: 'team',     label: 'Team' },
   { id: 'timeline', label: 'Timeline' }
 ]
 
@@ -195,6 +197,18 @@ export default function EventDetail({
               tasks={tasks}
               onUpdateEvent={onUpdateEvent}
               onUpdateTask={onUpdateTask}
+            />
+          )}
+          {activeTab === 'zohar' && (
+            <EventZohar
+              event={event}
+              guests={guests}
+              tables={tables}
+              tasks={tasks}
+              timeline={timeline}
+              currentUser={currentUser}
+              goToPage={goToPage}
+              onAddTask={onAddTask}
             />
           )}
           {activeTab === 'guests' && (
