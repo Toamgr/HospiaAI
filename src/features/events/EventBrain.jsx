@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import EventBrainFloorPlan from './components/EventBrainFloorPlan'
 import PlanningSummary from './components/PlanningSummary'
 import BarProgramme from './components/BarProgramme'
@@ -10,6 +10,7 @@ import EventArchitectToolbar from './components/EventArchitectToolbar'
 import EventObjectLibrary from './components/EventObjectLibrary'
 import EventArchitectVisionModal from './components/EventArchitectVisionModal'
 import EventArchitectPrintableBrief from './components/EventArchitectPrintableBrief'
+import EventArchitectTablePanel from './components/EventArchitectTablePanel'
 import { DEFAULT_TABLES, EVENT_BRIEF } from './data/eventBrainDemoData'
 import { buildArchitectBriefFromEvent } from './utils/eventArchitectAdapter'
 import { loadPlan, savePlan, clearPlan } from './utils/eventArchitectPlanPersistence'
@@ -202,6 +203,70 @@ function CommandBar({ eventBrief, isEventLinked }) {
   )
 }
 
+// ── Reset confirmation modal ───────────────────────────────────────────────────
+function ResetConfirmModal({ onConfirm, onCancel }) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 50,
+        background: 'rgba(0,0,0,0.72)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      onClick={onCancel}
+    >
+      <div
+        style={{
+          background: '#0C0C0C',
+          border: '1px solid #242424',
+          borderRadius: 10,
+          padding: '24px 28px',
+          maxWidth: 340,
+          width: '90%',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#F5F0E8', marginBottom: 8 }}>
+          Reset floor plan?
+        </div>
+        <div style={{ fontSize: 11, color: '#5A5550', lineHeight: 1.6, marginBottom: 22 }}>
+          This restores the default table arrangement for this event and clears the saved plan.
+          This action cannot be undone.
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              padding: '7px 16px', borderRadius: 5, fontSize: 10,
+              fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+              cursor: 'pointer', border: '1px solid #2A2A2A',
+              background: 'transparent', color: '#5A5550',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            style={{
+              padding: '7px 16px', borderRadius: 5, fontSize: 10,
+              fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+              cursor: 'pointer', border: '1px solid rgba(180,70,70,0.5)',
+              background: 'rgba(180,70,70,0.10)', color: '#c05050',
+            }}
+          >
+            Reset to Default
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function EventBrain({ pageContext, events }) {
   // Capture eventId once on mount using a lazy initializer — reads all three signals
@@ -247,10 +312,26 @@ export default function EventBrain({ pageContext, events }) {
   const [showVisionModal, setShowVisionModal] = useState(false)
   const [showPrintBrief, setShowPrintBrief] = useState(false)
 
+  // Z3: undo (one step) + reset confirmation
+  const undoRef = useRef(null) // { tables, selectedId }
+  const [canUndo, setCanUndo] = useState(false)
+  const [resetConfirmPending, setResetConfirmPending] = useState(false)
+
   const selectedTable = useMemo(
     () => tables.find(t => t.id === selectedId) ?? tables[0],
     [tables, selectedId]
   )
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  // Call before any mutation to snapshot current state into the undo ref.
+  // Uses current tables/selectedId from closure (via useCallback deps).
+  function pushUndo(currentTables, currentSelectedId) {
+    undoRef.current = { tables: currentTables, selectedId: currentSelectedId }
+    setCanUndo(true)
+  }
+
+  // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const handleSelect = useCallback(
     id => {
@@ -262,19 +343,114 @@ export default function EventBrain({ pageContext, events }) {
   )
 
   const handleAutoArrange = useCallback(() => {
+    pushUndo(tables, selectedId)
     setTables(DEFAULT_TABLES)
     setSelectedId(7)
     savePlan(eventId, { tables: DEFAULT_TABLES, selectedId: 7, isDefault: true })
     setIsPlanSaved(true)
-  }, [eventId])
+  }, [tables, selectedId, eventId])
 
-  const handleReset = useCallback(() => {
+  // Reset is guarded by the confirmation modal — this only triggers the modal.
+  const handleResetRequest = useCallback(() => {
+    setResetConfirmPending(true)
+  }, [])
+
+  const handleResetConfirm = useCallback(() => {
     setTables(DEFAULT_TABLES)
     setSelectedId(7)
     setActiveMode('architect')
     setHighlightType(null)
     clearPlan(eventId)
     setIsPlanSaved(false)
+    undoRef.current = null
+    setCanUndo(false)
+    setResetConfirmPending(false)
+  }, [eventId])
+
+  const handleResetCancel = useCallback(() => {
+    setResetConfirmPending(false)
+  }, [])
+
+  // Table drag — called by EventBrainFloorPlan after drag ends
+  const handleTableMoveEnd = useCallback((id, x, y) => {
+    pushUndo(tables, selectedId)
+    const updated = tables.map(t => t.id === id ? { ...t, x, y } : t)
+    setTables(updated)
+    savePlan(eventId, { tables: updated, selectedId, isDefault: false })
+    setIsPlanSaved(true)
+  }, [tables, selectedId, eventId])
+
+  // Table panel — rename (label)
+  const handleRename = useCallback((id, label) => {
+    pushUndo(tables, selectedId)
+    const updated = tables.map(t => t.id === id ? { ...t, label } : t)
+    setTables(updated)
+    savePlan(eventId, { tables: updated, selectedId, isDefault: false })
+    setIsPlanSaved(true)
+  }, [tables, selectedId, eventId])
+
+  // Table panel — capacity
+  const handleCapacityChange = useCallback((id, capacity) => {
+    pushUndo(tables, selectedId)
+    const updated = tables.map(t => t.id === id ? { ...t, capacity } : t)
+    setTables(updated)
+    savePlan(eventId, { tables: updated, selectedId, isDefault: false })
+    setIsPlanSaved(true)
+  }, [tables, selectedId, eventId])
+
+  // Table panel — shape/type
+  const handleTypeChange = useCallback((id, shape) => {
+    pushUndo(tables, selectedId)
+    const updated = tables.map(t => t.id === id ? { ...t, shape } : t)
+    setTables(updated)
+    savePlan(eventId, { tables: updated, selectedId, isDefault: false })
+    setIsPlanSaved(true)
+  }, [tables, selectedId, eventId])
+
+  // Table panel — duplicate
+  const handleDuplicate = useCallback((id) => {
+    const source = tables.find(t => t.id === id)
+    if (!source) return
+    pushUndo(tables, selectedId)
+    const newId = Math.max(0, ...tables.map(t => t.id)) + 1
+    const newTable = {
+      ...source,
+      id: newId,
+      x: Math.min(950, source.x + 50),
+      y: Math.min(570, source.y + 50),
+      label: source.label ? `${source.label} (copy)` : undefined,
+    }
+    const updated = [...tables, newTable]
+    setTables(updated)
+    setSelectedId(newId)
+    savePlan(eventId, { tables: updated, selectedId: newId, isDefault: false })
+    setIsPlanSaved(true)
+  }, [tables, selectedId, eventId])
+
+  // Table panel — delete
+  const handleDelete = useCallback((id) => {
+    pushUndo(tables, selectedId)
+    const updated = tables.filter(t => t.id !== id)
+    // Prefer keeping the current selection if it's not the deleted table
+    const newSelected = selectedId !== id
+      ? selectedId
+      : (updated[0]?.id ?? null)
+    setTables(updated)
+    setSelectedId(newSelected)
+    savePlan(eventId, { tables: updated, selectedId: newSelected, isDefault: false })
+    setIsPlanSaved(true)
+  }, [tables, selectedId, eventId])
+
+  // Undo — restore the previous snapshot
+  const handleUndo = useCallback(() => {
+    if (!undoRef.current) return
+    const { tables: prev, selectedId: prevSel } = undoRef.current
+    setTables(prev)
+    setSelectedId(prevSel)
+    savePlan(eventId, { tables: prev, selectedId: prevSel, isDefault: false })
+    setIsPlanSaved(true)
+    undoRef.current = null
+    setCanUndo(false)
   }, [eventId])
 
   return (
@@ -296,13 +472,15 @@ export default function EventBrain({ pageContext, events }) {
         <EventArchitectToolbar
           activeMode={activeMode}
           onModeChange={setActiveMode}
-          onReset={handleReset}
+          onReset={handleResetRequest}
           onOpenVision={() => setShowVisionModal(true)}
           onOpenBrief={() => setShowPrintBrief(true)}
+          onUndo={handleUndo}
+          canUndo={canUndo}
         />
       </div>
 
-      {/* ── Main: Object Library + Floor Plan + Zohar Panel ── */}
+      {/* ── Main: Object Library + Floor Plan + Right Column ── */}
       <div className="grid gap-5 xl:grid-cols-[auto_1fr_316px]">
         {/* Object Library — visible on xl+ only */}
         <EventObjectLibrary
@@ -318,17 +496,29 @@ export default function EventBrain({ pageContext, events }) {
           onSelect={handleSelect}
           onHover={setHoverId}
           onAutoArrange={handleAutoArrange}
-          onReset={handleReset}
+          onReset={handleResetRequest}
+          onTableMoveEnd={handleTableMoveEnd}
           activeMode={activeMode}
           highlightType={highlightType}
         />
 
-        {/* Zohar intelligence panel */}
-        <ZoharPanel
-          selectedTable={selectedTable}
-          tables={tables}
-          eventBrief={eventBrief}
-        />
+        {/* Right column: table properties panel + Zohar intelligence */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <EventArchitectTablePanel
+            key={selectedTable?.id ?? 'none'}
+            table={selectedTable}
+            onRename={handleRename}
+            onCapacityChange={handleCapacityChange}
+            onTypeChange={handleTypeChange}
+            onDuplicate={handleDuplicate}
+            onDelete={handleDelete}
+          />
+          <ZoharPanel
+            selectedTable={selectedTable}
+            tables={tables}
+            eventBrief={eventBrief}
+          />
+        </div>
       </div>
 
       {/* ── Intelligence Metrics Strip ── */}
@@ -356,6 +546,14 @@ export default function EventBrain({ pageContext, events }) {
           tables={tables}
           eventBrief={eventBrief}
           onClose={() => setShowPrintBrief(false)}
+        />
+      )}
+
+      {/* ── Z3: Reset confirmation modal ── */}
+      {resetConfirmPending && (
+        <ResetConfirmModal
+          onConfirm={handleResetConfirm}
+          onCancel={handleResetCancel}
         />
       )}
     </div>

@@ -63,7 +63,7 @@ function ActionButton({ label, onClick, disabled, title }) {
   )
 }
 
-export default function EventArchitectToolbar({ activeMode, onModeChange, onReset, onOpenVision, onOpenBrief }) {
+export default function EventArchitectToolbar({ activeMode, onModeChange, onReset, onOpenVision, onOpenBrief, onUndo, canUndo }) {
   return (
     <div
       style={{
@@ -104,6 +104,12 @@ export default function EventArchitectToolbar({ activeMode, onModeChange, onRese
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         <ActionButton
+          label="↩ Undo"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title={canUndo ? 'Undo last change' : 'Nothing to undo'}
+        />
+        <ActionButton
           label="Optimize"
           disabled
           title="Optimize layout — coming in a future phase"
@@ -114,7 +120,7 @@ export default function EventArchitectToolbar({ activeMode, onModeChange, onRese
           title="Export Event Architect Brief — print-friendly summary"
         />
         <ActionButton
-          label="Reset"
+          label="Reset Plan"
           onClick={onReset}
           title="Reset floor plan to default arrangement"
         />

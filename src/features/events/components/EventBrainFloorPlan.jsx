@@ -1,12 +1,26 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef, useState, useCallback } from 'react'
 import { OBJECT_HIGHLIGHT_MAP } from './EventObjectLibrary'
 
-// Resolve floor plan behaviour from an Object Library selection
 function resolveLibraryHighlight(highlightType) {
   if (!highlightType) return { tableFilter: null, forceOverlay: null }
   const entry = OBJECT_HIGHLIGHT_MAP[highlightType]
   if (!entry) return { tableFilter: null, forceOverlay: null }
   return { tableFilter: entry.highlightFilter, forceOverlay: entry.overlayMode }
+}
+
+// Convert browser client coords → SVG user-space coords
+function clientToSVG(svgEl, clientX, clientY) {
+  if (!svgEl) return null
+  try {
+    const ctm = svgEl.getScreenCTM()
+    if (!ctm) return null
+    const pt = svgEl.createSVGPoint()
+    pt.x = clientX
+    pt.y = clientY
+    return pt.matrixTransform(ctm.inverse())
+  } catch {
+    return null
+  }
 }
 
 function TropicalTree({ x, y, size = 1 }) {
@@ -19,25 +33,82 @@ function TropicalTree({ x, y, size = 1 }) {
   )
 }
 
-function TableNode({ table, selected, hovered, onSelect, onHover, dimmed, libHighlighted }) {
-  const isActive = selected || hovered
+// ── Table shapes ───────────────────────────────────────────────────────────────
+
+function CocktailTable({ table, selected, liftY, libHighlighted, wrapperProps }) {
+  const R = 14
+  const fill = selected ? '#c9a96e' : '#1a1510'
+  const stroke = selected ? '#8a6a3e' : 'rgba(201,169,110,0.50)'
+  return (
+    <g transform={`translate(${table.x} ${table.y + liftY})`} {...wrapperProps}>
+      {selected && <circle r={28} fill="rgba(201,169,110,0.09)" />}
+      {libHighlighted && !selected && (
+        <circle r={30} fill="none" stroke="rgba(201,169,110,0.30)" strokeWidth="1.5" strokeDasharray="4 3" />
+      )}
+      <circle r={R} fill={fill} stroke={stroke} strokeWidth={selected ? 1.5 : 1} />
+      {/* Pedestal */}
+      <line x1="0" y1={R} x2="0" y2={R + 7} stroke="rgba(201,169,110,0.28)" strokeWidth="2" strokeLinecap="round" />
+      <ellipse cx="0" cy={R + 8} rx="5" ry="1.5" fill="rgba(201,169,110,0.14)" />
+      <text fontSize="7" fill={selected ? '#080806' : '#c9a96e'} textAnchor="middle" dy="0.35em" fontWeight="700">CT</text>
+      {table.label && (
+        <text y={R + 18} fontSize="6" fill="rgba(201,169,110,0.48)" textAnchor="middle" fontStyle="italic">
+          {table.label}
+        </text>
+      )}
+    </g>
+  )
+}
+
+function VIPTable({ table, selected, hovered, liftY, libHighlighted, wrapperProps }) {
+  const R = 30
+  const cap = table.capacity ?? 8
+  const chairs = []
+  for (let i = 0; i < cap; i++) {
+    const angle = (i / cap) * Math.PI * 2 - Math.PI / 2
+    chairs.push({ x: Math.cos(angle) * (R + 11), y: Math.sin(angle) * (R + 11) })
+  }
+  const fill = selected ? '#c9a96e' : hovered ? '#221900' : '#1c1608'
+  return (
+    <g transform={`translate(${table.x} ${table.y + liftY})`} {...wrapperProps}>
+      {selected && <circle r={R + 18} fill="rgba(201,169,110,0.09)" />}
+      {libHighlighted && !selected && (
+        <circle r={R + 20} fill="none" stroke="rgba(201,169,110,0.28)" strokeWidth="1.5" strokeDasharray="4 3" />
+      )}
+      {/* Gold outer ring */}
+      <circle r={R + 5} fill="none" stroke="rgba(201,169,110,0.32)" strokeWidth="1.5" />
+      {chairs.map((c, i) => (
+        <circle key={i} cx={c.x} cy={c.y} r="5" fill="rgba(42,40,32,0.9)" stroke="rgba(201,169,110,0.18)" strokeWidth="0.5" />
+      ))}
+      <circle r={R} fill={fill} stroke="rgba(201,169,110,0.60)" strokeWidth={selected ? 2 : 1.5} />
+      <text y="-4" fontSize="8" fill={selected ? '#080806' : '#c9a96e'} textAnchor="middle" fontWeight="800" letterSpacing="0.12em">VIP</text>
+      <text y="7" fontSize="7" fill={selected ? 'rgba(8,8,6,0.65)' : 'rgba(201,169,110,0.65)'} textAnchor="middle">{table.id}</text>
+      {table.label && (
+        <text y="18" fontSize="6" fill={selected ? 'rgba(8,8,6,0.48)' : 'rgba(201,169,110,0.48)'} textAnchor="middle" fontStyle="italic">
+          {table.label}
+        </text>
+      )}
+    </g>
+  )
+}
+
+function StandardTable({ table, selected, hovered, liftY, libHighlighted, wrapperProps }) {
+  const shape = table.shape ?? 'round'
   const TR = 28
   const tableFill = selected ? '#c9a96e' : hovered ? '#2a2818' : '#1e1c15'
   const tableStroke = selected ? '#8a6a3e' : 'rgba(201,169,110,0.38)'
   const strokeWidth = selected ? 1.5 : 1
   const textColor = selected ? '#080806' : '#f5f5f0'
   const subColor = selected ? 'rgba(8,8,6,0.6)' : 'rgba(201,169,110,0.62)'
-  const liftY = isActive ? -2 : 0
 
   const chairs = []
-  if (table.shape === 'round') {
+  if (shape === 'round') {
     for (let i = 0; i < table.capacity; i++) {
       const angle = (i / table.capacity) * Math.PI * 2 - Math.PI / 2
       chairs.push({
         x: Math.cos(angle) * (TR + 11),
         y: Math.sin(angle) * (TR + 11),
         wheelchair: i === 0 && table.wheelchair > 0,
-        baby: i === 2 && table.babyChairs > 0
+        baby: i === 2 && table.babyChairs > 0,
       })
     }
   } else {
@@ -54,13 +125,7 @@ function TableNode({ table, selected, hovered, onSelect, onHover, dimmed, libHig
   }
 
   return (
-    <g
-      transform={`translate(${table.x} ${table.y + liftY})`}
-      onClick={() => onSelect(table.id)}
-      onMouseEnter={() => onHover(table.id)}
-      onMouseLeave={() => onHover(null)}
-      style={{ cursor: 'pointer', opacity: dimmed ? 0.18 : 1, transition: 'opacity 200ms ease' }}
-    >
+    <g transform={`translate(${table.x} ${table.y + liftY})`} {...wrapperProps}>
       {selected && <circle r={44} fill="rgba(201,169,110,0.09)" />}
       {libHighlighted && !selected && (
         <circle r={46} fill="none" stroke="rgba(201,169,110,0.32)" strokeWidth="1.5" strokeDasharray="4 3" />
@@ -68,60 +133,25 @@ function TableNode({ table, selected, hovered, onSelect, onHover, dimmed, libHig
 
       {chairs.map((c, i) =>
         c.wheelchair ? (
-          <rect
-            key={i}
-            x={c.x - 5}
-            y={c.y - 6}
-            width="10"
-            height="12"
-            rx="2"
-            fill="rgba(79,107,74,0.45)"
-            stroke="#4F6B4A"
-            strokeWidth="1"
-          />
+          <rect key={i} x={c.x - 5} y={c.y - 6} width="10" height="12" rx="2" fill="rgba(79,107,74,0.45)" stroke="#4F6B4A" strokeWidth="1" />
         ) : c.baby ? (
-          <circle
-            key={i}
-            cx={c.x}
-            cy={c.y}
-            r="5"
-            fill="rgba(201,169,110,0.28)"
-            stroke="rgba(201,169,110,0.55)"
-            strokeWidth="1"
-          />
+          <circle key={i} cx={c.x} cy={c.y} r="5" fill="rgba(201,169,110,0.28)" stroke="rgba(201,169,110,0.55)" strokeWidth="1" />
         ) : (
-          <circle
-            key={i}
-            cx={c.x}
-            cy={c.y}
-            r="5"
-            fill="rgba(42,40,32,0.9)"
-            stroke="rgba(201,169,110,0.1)"
-            strokeWidth="0.5"
-          />
+          <circle key={i} cx={c.x} cy={c.y} r="5" fill="rgba(42,40,32,0.9)" stroke="rgba(201,169,110,0.1)" strokeWidth="0.5" />
         )
       )}
 
-      {table.shape === 'round' ? (
+      {shape === 'round' ? (
         <circle r={TR} fill={tableFill} stroke={tableStroke} strokeWidth={strokeWidth} />
       ) : (
-        <rect
-          x="-44"
-          y="-13"
-          width="88"
-          height="26"
-          rx="3"
-          fill={tableFill}
-          stroke={tableStroke}
-          strokeWidth={strokeWidth}
-        />
+        <rect x="-44" y="-13" width="88" height="26" rx="3" fill={tableFill} stroke={tableStroke} strokeWidth={strokeWidth} />
       )}
 
       <text y="-2" fontSize="11" fill={textColor} textAnchor="middle" fontWeight="600">
         {table.id}
       </text>
       <text y="9" fontSize="7" fill={subColor} textAnchor="middle">
-        {table.guests}/{table.capacity} · {table.waiter[0]}
+        {table.guests ?? '?'}/{table.capacity} · {(table.waiter ?? '?')[0]}
       </text>
       {table.label && (
         <text y="19" fontSize="6" fill={subColor} textAnchor="middle" fontStyle="italic">
@@ -136,6 +166,7 @@ function TableNode({ table, selected, hovered, onSelect, onHover, dimmed, libHig
         </g>
       )}
 
+      {/* Zone-based VIP badge only for round/long tables not already shape=vip */}
       {table.zone === 'vip' && !table.accessiblePriority && (
         <g transform="translate(24, -22)">
           <circle r="7" fill="rgba(201,169,110,0.8)" />
@@ -146,37 +177,43 @@ function TableNode({ table, selected, hovered, onSelect, onHover, dimmed, libHig
   )
 }
 
+function TableNode({ table, selected, hovered, onSelect, onHover, dimmed, libHighlighted, onDragStart, isDragging }) {
+  const shape = table.shape ?? 'round'
+  const isActive = selected || hovered
+  const liftY = isActive && !isDragging ? -2 : 0
+
+  const wrapperProps = {
+    onPointerDown: (e) => onDragStart(e, table.id),
+    onMouseEnter: () => onHover(table.id),
+    onMouseLeave: () => onHover(null),
+    style: {
+      cursor: isDragging ? 'grabbing' : 'grab',
+      opacity: dimmed ? 0.18 : 1,
+      transition: isDragging ? 'none' : 'opacity 200ms ease',
+    },
+  }
+
+  if (shape === 'cocktail') {
+    return <CocktailTable table={table} selected={selected} liftY={liftY} libHighlighted={libHighlighted} wrapperProps={wrapperProps} />
+  }
+  if (shape === 'vip') {
+    return <VIPTable table={table} selected={selected} hovered={hovered} liftY={liftY} libHighlighted={libHighlighted} wrapperProps={wrapperProps} />
+  }
+  return <StandardTable table={table} selected={selected} hovered={hovered} liftY={liftY} libHighlighted={libHighlighted} wrapperProps={wrapperProps} />
+}
+
 // ── Mode Overlays ──────────────────────────────────────────────────────────────
-// Conditional SVG groups rendered above all architecture but below the scale.
-// Do not change: viewBox, table positions, existing venue elements.
 
 function GuestFlowOverlay() {
   return (
     <g pointerEvents="none">
-      {/* Arrival path: bottom of hall → through seating zones → toward bar */}
-      <path
-        d="M 290 575 L 290 490 L 290 400 L 290 290 L 290 200 L 323 80"
-        stroke="rgba(201,169,110,0.55)"
-        strokeWidth="2.5"
-        strokeDasharray="6 4"
-        fill="none"
-      />
-      {/* Branch toward garden entrance */}
-      <path
-        d="M 290 300 L 400 300 L 500 250 L 540 200"
-        stroke="rgba(201,169,110,0.30)"
-        strokeWidth="1.5"
-        strokeDasharray="5 4"
-        fill="none"
-      />
-      {/* Arrival marker at bottom of hall */}
+      <path d="M 290 575 L 290 490 L 290 400 L 290 290 L 290 200 L 323 80" stroke="rgba(201,169,110,0.55)" strokeWidth="2.5" strokeDasharray="6 4" fill="none" />
+      <path d="M 290 300 L 400 300 L 500 250 L 540 200" stroke="rgba(201,169,110,0.30)" strokeWidth="1.5" strokeDasharray="5 4" fill="none" />
       <circle cx="290" cy="578" r="6" fill="rgba(201,169,110,0.15)" stroke="rgba(201,169,110,0.50)" strokeWidth="1.5" />
       <circle cx="290" cy="578" r="3" fill="rgba(201,169,110,0.60)" />
       <text x="304" y="582" fontSize="7" fill="rgba(201,169,110,0.65)" letterSpacing="0.1em">ARRIVAL</text>
-      {/* Bar destination marker */}
       <circle cx="323" cy="65" r="5" fill="rgba(201,169,110,0.15)" stroke="rgba(201,169,110,0.50)" strokeWidth="1.5" />
       <text x="337" y="69" fontSize="7" fill="rgba(201,169,110,0.65)" letterSpacing="0.1em">MAIN BAR</text>
-      {/* Garden flow arrow */}
       <path d="M 530 205 L 538 197 L 534 210" fill="rgba(201,169,110,0.40)" />
     </g>
   )
@@ -185,28 +222,11 @@ function GuestFlowOverlay() {
 function ServiceFlowOverlay() {
   return (
     <g pointerEvents="none">
-      {/* Primary service path: kitchen door → corridor → garden zone */}
-      <path
-        d="M 187 124 L 187 114 L 534 114 L 534 158"
-        stroke="rgba(201,169,110,0.70)"
-        strokeWidth="2.5"
-        strokeDasharray="6 3"
-        fill="none"
-      />
-      {/* Secondary: corridor → VIP zone */}
-      <path
-        d="M 290 139 L 290 200 L 290 350 L 260 430"
-        stroke="rgba(201,169,110,0.35)"
-        strokeWidth="1.5"
-        strokeDasharray="5 4"
-        fill="none"
-      />
-      {/* Kitchen marker */}
+      <path d="M 187 124 L 187 114 L 534 114 L 534 158" stroke="rgba(201,169,110,0.70)" strokeWidth="2.5" strokeDasharray="6 3" fill="none" />
+      <path d="M 290 139 L 290 200 L 290 350 L 260 430" stroke="rgba(201,169,110,0.35)" strokeWidth="1.5" strokeDasharray="5 4" fill="none" />
       <rect x="140" y="108" width="40" height="12" rx="2" fill="rgba(201,169,110,0.08)" stroke="rgba(201,169,110,0.40)" strokeWidth="0.8" />
       <text x="160" y="118" fontSize="6.5" fill="rgba(201,169,110,0.70)" textAnchor="middle" letterSpacing="0.1em">KITCHEN</text>
-      {/* Corridor label */}
       <text x="400" y="110" fontSize="6.5" fill="rgba(201,169,110,0.55)" textAnchor="middle" letterSpacing="0.16em">SERVICE ROUTE</text>
-      {/* Direction arrows */}
       <path d="M 350 114 L 358 110 L 358 118 Z" fill="rgba(201,169,110,0.55)" />
       <path d="M 500 114 L 508 110 L 508 118 Z" fill="rgba(201,169,110,0.45)" />
     </g>
@@ -216,42 +236,20 @@ function ServiceFlowOverlay() {
 function AccessibilityOverlay() {
   return (
     <g pointerEvents="none">
-      {/* Accessible path — full brightness */}
-      <path
-        d="M 96 505 L 96 472 L 148 458"
-        stroke="#4F6B4A"
-        strokeWidth="2.5"
-        strokeDasharray="5 3"
-        fill="none"
-      />
-      {/* Extension toward table 8 and 7 */}
-      <path
-        d="M 148 458 L 155 432"
-        stroke="#4F6B4A"
-        strokeWidth="2"
-        strokeDasharray="4 3"
-        fill="none"
-      />
-      <path
-        d="M 155 432 L 262 432"
-        stroke="#4F6B4A"
-        strokeWidth="1.5"
-        strokeDasharray="4 3"
-        fill="none"
-        opacity="0.7"
-      />
-      {/* Glow rings around accessible tables 7 and 8 */}
+      <path d="M 96 505 L 96 472 L 148 458" stroke="#4F6B4A" strokeWidth="2.5" strokeDasharray="5 3" fill="none" />
+      <path d="M 148 458 L 155 432" stroke="#4F6B4A" strokeWidth="2" strokeDasharray="4 3" fill="none" />
+      <path d="M 155 432 L 262 432" stroke="#4F6B4A" strokeWidth="1.5" strokeDasharray="4 3" fill="none" opacity="0.7" />
       <circle cx="262" cy="432" r="52" fill="none" stroke="rgba(79,107,74,0.20)" strokeWidth="1.5" />
       <circle cx="262" cy="432" r="46" fill="rgba(79,107,74,0.05)" />
       <circle cx="155" cy="432" r="44" fill="none" stroke="rgba(79,107,74,0.20)" strokeWidth="1.5" />
       <circle cx="155" cy="432" r="38" fill="rgba(79,107,74,0.05)" />
-      {/* Accessible entrance glow */}
       <rect x="34" y="488" width="68" height="34" rx="4" fill="none" stroke="#4F6B4A" strokeWidth="1.5" opacity="0.8" />
-      {/* Route label */}
       <text x="148" y="445" fontSize="6.5" fill="#4F6B4A" textAnchor="middle" letterSpacing="0.12em">STEP-FREE ROUTE</text>
     </g>
   )
 }
+
+// ── Main export ────────────────────────────────────────────────────────────────
 
 export default function EventBrainFloorPlan({
   tables,
@@ -263,16 +261,81 @@ export default function EventBrainFloorPlan({
   onReset,
   activeMode,
   highlightType,
+  onTableMoveEnd,
 }) {
   const { tableFilter, forceOverlay } = useMemo(
     () => resolveLibraryHighlight(highlightType),
     [highlightType]
   )
-  // Toolbar wins when a non-default mode is active; library forceOverlay only
-  // activates when the toolbar is in the base 'architect' view.
   const effectiveOverlay = activeMode !== 'architect'
     ? activeMode
     : (forceOverlay ?? 'architect')
+
+  // ── Drag state ───────────────────────────────────────────────────────────────
+  const svgRef = useRef(null)
+  const draggingRef = useRef(null) // no re-render; tracks live drag session
+  const [dragPos, setDragPos] = useState(null) // { id, x, y } — drives visual update
+
+  const handleDragStart = useCallback((e, tableId) => {
+    if (e.button !== undefined && e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const svg = svgRef.current
+    if (!svg) return
+    const pt = clientToSVG(svg, e.clientX, e.clientY)
+    if (!pt) return
+
+    const table = tables.find(t => t.id === tableId)
+    if (!table) return
+
+    try { svg.setPointerCapture(e.pointerId) } catch {}
+
+    draggingRef.current = {
+      id: tableId,
+      startSVGX: pt.x,
+      startSVGY: pt.y,
+      origX: table.x,
+      origY: table.y,
+    }
+    setDragPos({ id: tableId, x: table.x, y: table.y })
+    onSelect(tableId)
+  }, [tables, onSelect])
+
+  const handlePointerMove = useCallback((e) => {
+    if (!draggingRef.current) return
+    const svg = svgRef.current
+    if (!svg) return
+    const pt = clientToSVG(svg, e.clientX, e.clientY)
+    if (!pt) return
+    const { id, startSVGX, startSVGY, origX, origY } = draggingRef.current
+    setDragPos({ id, x: origX + (pt.x - startSVGX), y: origY + (pt.y - startSVGY) })
+  }, [])
+
+  const handlePointerUp = useCallback((e) => {
+    if (!draggingRef.current) return
+    const svg = svgRef.current
+    const { id, startSVGX, startSVGY, origX, origY } = draggingRef.current
+
+    const pt = clientToSVG(svg, e.clientX, e.clientY)
+    if (pt) {
+      const newX = Math.round(origX + (pt.x - startSVGX))
+      const newY = Math.round(origY + (pt.y - startSVGY))
+      const hasMoved = Math.abs(newX - origX) > 3 || Math.abs(newY - origY) > 3
+      if (hasMoved && onTableMoveEnd) {
+        onTableMoveEnd(id, newX, newY)
+      }
+    }
+
+    draggingRef.current = null
+    setDragPos(null)
+  }, [onTableMoveEnd])
+
+  const handlePointerCancel = useCallback(() => {
+    draggingRef.current = null
+    setDragPos(null)
+  }, [])
+
   return (
     <div className="overflow-hidden rounded-[1.5rem] border border-[#6b705c]/10 bg-gradient-to-br from-[#1a1a1a] to-[#0a0a08] shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
       {/* Toolbar */}
@@ -282,7 +345,7 @@ export default function EventBrainFloorPlan({
             Resort Floor Plan
           </div>
           <div className="text-[11px] font-medium text-[#e8dcc0] opacity-50">
-            Kahi Event Venue · Cohen-Levi Wedding · 17 tables · Click to select
+            Kahi Event Venue · {tables.length} tables · Drag to move · Click to edit
           </div>
         </div>
         <div className="flex gap-2">
@@ -306,9 +369,14 @@ export default function EventBrainFloorPlan({
       {/* SVG */}
       <div className="px-3 pt-3">
         <svg
+          ref={svgRef}
           viewBox="0 0 1000 620"
           className="block h-auto w-full"
-          aria-label="Kahi Event Resort floor plan — 17 tables"
+          aria-label="Kahi Event Resort floor plan — interactive floor plan editor"
+          style={{ touchAction: 'none', cursor: dragPos ? 'grabbing' : undefined }}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
         >
           <defs>
             <pattern id="eb-hall" patternUnits="userSpaceOnUse" width="20" height="20">
@@ -338,77 +406,60 @@ export default function EventBrainFloorPlan({
           <rect x="538" y="40" width="422" height="542" fill="url(#eb-garden)" rx="3" />
 
           {/* ── HALL ARCHITECTURE ── */}
-          {/* Chef Kitchen */}
           <rect x="50" y="50" width="164" height="74" fill="#1c1810" rx="3" stroke="rgba(201,169,110,0.08)" strokeWidth="0.5" />
           <text x="132" y="76" fontSize="7.5" fill="rgba(201,169,110,0.42)" textAnchor="middle" letterSpacing="0.12em">CHEF KITCHEN</text>
           <text x="132" y="89" fontSize="6" fill="rgba(201,169,110,0.28)" textAnchor="middle" fontStyle="italic">Plating Kitchen</text>
-          {/* Kitchen service door */}
           <rect x="178" y="116" width="16" height="4" fill="rgba(201,169,110,0.28)" rx="1" />
 
-          {/* Main Bar */}
           <rect x="224" y="50" width="198" height="30" fill="#1a1508" rx="3" stroke="rgba(201,169,110,0.09)" strokeWidth="0.5" />
           <text x="323" y="69" fontSize="7.5" fill="rgba(201,169,110,0.52)" textAnchor="middle" letterSpacing="0.12em">MAIN BAR</text>
 
-          {/* Prep / Plating */}
           <rect x="430" y="50" width="98" height="74" fill="#1a1810" rx="3" stroke="rgba(201,169,110,0.05)" strokeWidth="0.5" />
           <text x="479" y="91" fontSize="6.5" fill="rgba(201,169,110,0.28)" textAnchor="middle">Prep</text>
 
-          {/* Service Corridor */}
           <rect x="50" y="128" width="480" height="11" fill="#0d0b08" rx="1" />
           <text x="290" y="136.5" fontSize="5.5" fill="rgba(201,169,110,0.2)" textAnchor="middle" letterSpacing="0.22em">SERVICE CORRIDOR</text>
 
-          {/* VIP / Family Zone outline */}
           <rect x="96" y="362" width="398" height="118" fill="rgba(201,169,110,0.018)" rx="5" stroke="rgba(201,169,110,0.1)" strokeWidth="0.8" strokeDasharray="5 3" />
           <text x="295" y="376" fontSize="6.5" fill="rgba(201,169,110,0.3)" textAnchor="middle" letterSpacing="0.2em">VIP · FAMILY · ACCESSIBILITY PRIORITY</text>
 
-          {/* Accessible Entrance */}
           <rect x="40" y="494" width="56" height="22" fill="#1a2810" rx="2" stroke="#4F6B4A" strokeWidth="0.8" />
           <text x="68" y="509" fontSize="6" fill="#4F6B4A" textAnchor="middle">♿ Entrance</text>
 
-          {/* Accessible Restroom */}
           <rect x="40" y="522" width="56" height="22" fill="#1a2810" rx="2" stroke="#4F6B4A" strokeWidth="0.7" opacity="0.75" />
           <text x="68" y="537" fontSize="5.5" fill="#4F6B4A" textAnchor="middle">♿ Restroom</text>
 
-          {/* Late-Night Food Station */}
           <rect x="420" y="534" width="100" height="44" fill="#1c1810" rx="3" stroke="rgba(201,169,110,0.07)" strokeWidth="0.5" />
           <text x="470" y="553" fontSize="6.5" fill="rgba(201,169,110,0.42)" textAnchor="middle">Late-Night</text>
           <text x="470" y="565" fontSize="5.5" fill="rgba(201,169,110,0.28)" textAnchor="middle">Food Station</text>
 
           {/* ── GARDEN ARCHITECTURE ── */}
-          {/* Pool Deck (wooden) */}
           <rect x="552" y="248" width="398" height="250" fill="url(#eb-deck)" rx="3" opacity="0.65" />
 
-          {/* Pool */}
           <rect x="648" y="314" width="256" height="138" rx="76" fill="url(#eb-pool)" />
           <ellipse cx="776" cy="383" rx="82" ry="36" fill="none" stroke="rgba(167,211,214,0.07)" strokeWidth="1" />
           <ellipse cx="776" cy="383" rx="52" ry="22" fill="none" stroke="rgba(167,211,214,0.12)" strokeWidth="1" />
           <text x="776" y="387" fontSize="7.5" fill="rgba(167,211,214,0.42)" textAnchor="middle" letterSpacing="0.1em">Pool</text>
 
-          {/* Garden / Pool Bar */}
           <rect x="600" y="248" width="152" height="26" fill="#1a1508" rx="3" stroke="rgba(201,169,110,0.09)" strokeWidth="0.5" />
           <text x="676" y="265" fontSize="7" fill="rgba(201,169,110,0.48)" textAnchor="middle" letterSpacing="0.1em">GARDEN / POOL BAR</text>
 
-          {/* Bride & Groom Suite */}
           <rect x="816" y="248" width="130" height="40" fill="#1c1a14" rx="3" stroke="rgba(201,169,110,0.11)" strokeWidth="0.5" />
-          <text x="881" y="265" fontSize="7" fill="rgba(201,169,110,0.45)" textAnchor="middle">Bride & Groom</text>
+          <text x="881" y="265" fontSize="7" fill="rgba(201,169,110,0.45)" textAnchor="middle">Bride &amp; Groom</text>
           <text x="881" y="277" fontSize="6" fill="rgba(201,169,110,0.3)" textAnchor="middle">Suite</text>
 
-          {/* Chuppah Ceremony Zone */}
           <circle cx="788" cy="110" r="62" fill="url(#eb-chuppah-glow)" stroke="rgba(201,169,110,0.17)" strokeWidth="1" strokeDasharray="5 3" />
           <circle cx="788" cy="110" r="46" fill="rgba(201,169,110,0.025)" />
-          {/* Chuppah posts */}
           <rect x="758" y="62" width="4" height="52" fill="rgba(201,169,110,0.26)" rx="1" />
           <rect x="816" y="62" width="4" height="52" fill="rgba(201,169,110,0.26)" rx="1" />
           <line x1="758" y1="62" x2="820" y2="62" stroke="rgba(201,169,110,0.26)" strokeWidth="2.5" />
           <path d="M 758 62 Q 788 74 820 62" fill="none" stroke="rgba(201,169,110,0.16)" strokeWidth="1.5" />
           <text x="788" y="118" fontSize="7.5" fill="rgba(201,169,110,0.42)" textAnchor="middle" fontStyle="italic">Garden Chuppah</text>
 
-          {/* Staff Staging */}
           <rect x="552" y="500" width="112" height="54" fill="#191712" rx="3" stroke="rgba(201,169,110,0.07)" strokeWidth="0.5" strokeDasharray="3 2" />
           <text x="608" y="524" fontSize="6.5" fill="rgba(201,169,110,0.36)" textAnchor="middle">Staff</text>
           <text x="608" y="537" fontSize="6.5" fill="rgba(201,169,110,0.36)" textAnchor="middle">Staging</text>
 
-          {/* Guest Suites / Cabins */}
           <rect x="936" y="298" width="50" height="34" fill="#1c1a14" rx="2" stroke="rgba(201,169,110,0.07)" strokeWidth="0.5" />
           <rect x="936" y="342" width="50" height="34" fill="#1c1a14" rx="2" stroke="rgba(201,169,110,0.07)" strokeWidth="0.5" />
           <rect x="936" y="386" width="50" height="34" fill="#1c1a14" rx="2" stroke="rgba(201,169,110,0.07)" strokeWidth="0.5" />
@@ -417,13 +468,10 @@ export default function EventBrainFloorPlan({
           <text x="961" y="406" fontSize="5.5" fill="rgba(201,169,110,0.28)" textAnchor="middle">Suite</text>
 
           {/* ── PATHS ── */}
-          {/* Service path: kitchen → corridor → garden */}
           <path d="M 187 124 L 187 114 L 534 114 L 534 158" stroke="rgba(201,169,110,0.16)" strokeWidth="1.5" strokeDasharray="4 3" fill="none" />
-          {/* Accessible path */}
           <path d="M 96 494 L 96 472 L 148 458" stroke="#4F6B4A" strokeWidth="1.5" strokeDasharray="4 3" fill="none" opacity="0.62" />
 
           {/* ── DECORATIVE ── */}
-          {/* Fairy lights along garden top */}
           <path d="M 542 58 Q 665 76 788 56 Q 912 37 960 58" stroke="rgba(201,169,110,0.14)" strokeWidth="1" fill="none" />
           <circle cx="590" cy="66" r="1.5" fill="rgba(201,169,110,0.48)" />
           <circle cx="650" cy="72" r="1.5" fill="rgba(201,169,110,0.48)" />
@@ -432,7 +480,6 @@ export default function EventBrainFloorPlan({
           <circle cx="856" cy="51" r="1.5" fill="rgba(201,169,110,0.48)" />
           <circle cx="918" cy="56" r="1.5" fill="rgba(201,169,110,0.48)" />
 
-          {/* Tropical trees (garden) */}
           <TropicalTree x={562} y={153} size={0.85} />
           <TropicalTree x={640} y={268} size={0.75} />
           <TropicalTree x={872} y={172} size={0.9} />
@@ -445,23 +492,31 @@ export default function EventBrainFloorPlan({
 
           {/* ── TABLES ── */}
           {tables.map(table => {
-            const isHighlighted = tableFilter ? tableFilter(table) : null
+            const isBeingDragged = dragPos?.id === table.id
+            const displayTable = isBeingDragged
+              ? { ...table, x: dragPos.x, y: dragPos.y }
+              : table
+
+            const isHighlighted = tableFilter ? tableFilter(displayTable) : null
             const isDimmed = tableFilter !== null && isHighlighted === false
+
             return (
               <TableNode
                 key={table.id}
-                table={table}
+                table={displayTable}
                 selected={table.id === selectedId}
                 hovered={table.id === hoverId}
                 onSelect={onSelect}
                 onHover={onHover}
+                onDragStart={handleDragStart}
+                isDragging={isBeingDragged}
                 dimmed={isDimmed}
                 libHighlighted={!!isHighlighted && table.id !== selectedId}
               />
             )
           })}
 
-          {/* ── MODE OVERLAYS — driven by toolbar or Object Library ── */}
+          {/* ── MODE OVERLAYS ── */}
           {effectiveOverlay === 'guest-flow' && <GuestFlowOverlay />}
           {effectiveOverlay === 'service-flow' && <ServiceFlowOverlay />}
           {effectiveOverlay === 'accessibility' && <AccessibilityOverlay />}
