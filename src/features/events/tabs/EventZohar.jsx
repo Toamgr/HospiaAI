@@ -2,6 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { fetchCocktailMenu } from '../../../services/api/eventsApi'
 import { buildZoharBrief } from '../utils/zoharBriefOrchestrator'
 import { computeSeatingIntelligence } from '../utils/seatingIntelligence'
+import { computeRiskAssessment } from '../utils/zoharRiskEngine'
+import { computeCoordination } from '../utils/zoharCoordinationEngine'
+import { computeTimelineIntelligence } from '../utils/zoharTimelineEngine'
 
 const ARCHITECT_ROLES = ['events_manager', 'manager', 'owner', 'admin']
 
@@ -262,6 +265,365 @@ function BriefSection({ title, briefText, rows, copyLabel, actions }) {
   )
 }
 
+// ── Timeline & Service Flow Card ──────────────────────────────────────────────
+
+const TL_READINESS_COLOR = { Ready: '#6BAF80', 'In Progress': '#C9A96E', 'Not Ready': '#D4943A' }
+const TL_SEVERITY_COLOR  = { high: '#D4943A', medium: '#C9A96E', low: '#6BAF80' }
+
+function TimelineCard({ ti }) {
+  if (!ti) return null
+
+  const { timelineReadiness: tr, serviceFlow, pressurePoints,
+          guestFlowWarnings, staffingRecommendations, timelineRisks,
+          serviceDirectorSummary } = ti
+
+  const readinessColor = TL_READINESS_COLOR[tr.status] ?? '#5A5550'
+
+  return (
+    <Card>
+      <CardHead
+        right={
+          <span style={{ fontSize: 11, fontWeight: 700, color: readinessColor }}>
+            {tr.status} · {tr.score}/100
+          </span>
+        }
+      >
+        Timeline &amp; Service Flow
+      </CardHead>
+
+      {/* Readiness bar */}
+      <div style={{ padding: '8px 14px 4px' }}>
+        <div style={{ height: 3, borderRadius: 2, background: '#1E1E1E', overflow: 'hidden', marginBottom: 10 }}>
+          <div style={{ height: '100%', width: `${tr.score}%`, background: readinessColor, borderRadius: 2, transition: 'width 600ms ease' }} />
+        </div>
+
+        {/* Service flow phases */}
+        {serviceFlow.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#5A5550', marginBottom: 6 }}>
+              Inferred service flow
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {serviceFlow.map((p, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', borderBottom: i < serviceFlow.length - 1 ? '1px solid #141414' : 'none' }}>
+                  <div style={{ minWidth: 76, flexShrink: 0 }}>
+                    {p.start && p.end ? (
+                      <span style={{ fontSize: 9, fontFamily: '"JetBrains Mono", monospace', color: '#C9A96E', fontWeight: 600 }}>
+                        {p.start} – {p.end}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 9, color: '#3A3A3A', fontStyle: 'italic' }}>Time TBD</span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 10.5, color: '#9A9590' }}>{p.phase}</span>
+                  {p.inferred && <span style={{ fontSize: 7.5, color: '#2A2A2A', marginLeft: 'auto', flexShrink: 0 }}>inferred</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Pressure points */}
+      {pressurePoints.length > 0 && (
+        <div style={{ borderTop: '1px solid #1A1A1A' }}>
+          <div style={{ padding: '8px 14px 2px', fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5A5550' }}>
+            Pressure points
+          </div>
+          {pressurePoints.map(p => (
+            <div key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 14px', borderBottom: '1px solid #141414' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0, marginTop: 5, background: TL_SEVERITY_COLOR[p.severity] ?? '#5A5550', display: 'inline-block' }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: '#E8DCC0' }}>{p.title}</span>
+                  <span style={{ fontSize: 8, color: '#3A3A3A', textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>{p.category}</span>
+                </div>
+                <div style={{ fontSize: 10, color: '#9A9590', lineHeight: 1.55, marginBottom: 2 }}>{p.description}</div>
+                <div style={{ fontSize: 9, color: '#5A5550', fontStyle: 'italic' }}>→ {p.recommendation}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Guest flow warnings */}
+      {guestFlowWarnings.length > 0 && (
+        <div style={{ borderTop: '1px solid #1A1A1A' }}>
+          <div style={{ padding: '8px 14px 2px', fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5A5550' }}>
+            Guest flow warnings
+          </div>
+          {guestFlowWarnings.map((w, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 14px' }}>
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#C9A96E', flexShrink: 0, marginTop: 5, display: 'inline-block' }} />
+              <span style={{ fontSize: 10.5, color: '#9A9590', lineHeight: 1.55 }}>{w}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Staffing recommendations */}
+      {staffingRecommendations.length > 0 && (
+        <div style={{ borderTop: '1px solid #1A1A1A' }}>
+          <div style={{ padding: '8px 14px 2px', fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5A5550' }}>
+            Staffing guidance
+          </div>
+          {staffingRecommendations.map((r, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 14px' }}>
+              <span style={{ fontSize: 9, color: '#C9A96E', fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
+              <span style={{ fontSize: 10.5, color: '#E8DCC0', lineHeight: 1.55 }}>{r}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Timeline risks */}
+      {timelineRisks.length > 0 && (
+        <div style={{ borderTop: '1px solid #1A1A1A' }}>
+          <div style={{ padding: '8px 14px 2px', fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5A5550' }}>
+            Timeline risks
+          </div>
+          {timelineRisks.map(r => (
+            <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 14px' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: TL_SEVERITY_COLOR[r.severity] ?? '#5A5550', flexShrink: 0, marginTop: 5, display: 'inline-block' }} />
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: '#E8DCC0', marginBottom: 1 }}>{r.title}</div>
+                <div style={{ fontSize: 9.5, color: '#9A9590', lineHeight: 1.5 }}>{r.description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Service Director Summary */}
+      {serviceDirectorSummary && (
+        <div style={{ padding: '10px 14px', borderTop: '1px solid #1A1A1A', fontSize: 11, color: '#9A9590', lineHeight: 1.65, fontStyle: 'italic' }}>
+          {serviceDirectorSummary}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// ── Department Coordination Card ──────────────────────────────────────────────
+
+const DEPT_STATUS_STYLE = {
+  Ready:       { color: '#6BAF80', border: 'rgba(74,124,89,0.28)',  bg: 'rgba(74,124,89,0.07)'  },
+  'In Progress':{ color: '#C9A96E', border: 'rgba(201,169,110,0.28)', bg: 'rgba(201,169,110,0.06)' },
+  Blocked:     { color: '#C44A4A', border: 'rgba(196,74,74,0.28)',  bg: 'rgba(196,74,74,0.06)'  },
+}
+
+function DepartmentCoordinationCard({ ca }) {
+  if (!ca) return null
+
+  const { readinessBreakdown: rb, departmentStatus: ds, primaryBottleneck,
+          crossDepartmentWarnings, coordinationActions, eventDirectorSummary } = ca
+
+  const overallColor = rb.overall >= 75 ? '#6BAF80' : rb.overall >= 45 ? '#C9A96E' : '#D4943A'
+
+  const depts = [
+    { key: 'eventsManager', label: 'Events Mgmt' },
+    { key: 'bar',           label: 'Bar' },
+    { key: 'kitchen',       label: 'Kitchen' },
+  ]
+
+  return (
+    <Card>
+      <CardHead
+        right={
+          <span style={{ fontSize: 11, fontWeight: 700, color: overallColor }}>
+            {rb.overall}% overall
+          </span>
+        }
+      >
+        Department Coordination
+      </CardHead>
+
+      {/* Overall readiness bar */}
+      <div style={{ padding: '10px 14px 8px' }}>
+        <div style={{ height: 3, borderRadius: 2, background: '#1E1E1E', overflow: 'hidden', marginBottom: 12 }}>
+          <div style={{ height: '100%', width: `${rb.overall}%`, background: overallColor, borderRadius: 2, transition: 'width 600ms ease' }} />
+        </div>
+
+        {/* Department status tiles */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          {depts.map(d => {
+            const status = ds[d.key]
+            const pct    = rb[d.key]
+            const st     = DEPT_STATUS_STYLE[status] ?? DEPT_STATUS_STYLE['In Progress']
+            return (
+              <div key={d.key} style={{
+                flex: 1, padding: '8px 10px', borderRadius: 6,
+                background: st.bg, border: `1px solid ${st.border}`,
+              }}>
+                <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#5A5550', marginBottom: 4 }}>
+                  {d.label}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: st.color, fontFamily: '"JetBrains Mono", monospace', lineHeight: 1, marginBottom: 2 }}>
+                  {pct}%
+                </div>
+                <div style={{ fontSize: 8.5, color: st.color, fontWeight: 600 }}>{status}</div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Primary bottleneck */}
+        {primaryBottleneck !== 'None' && (
+          <div style={{
+            padding: '6px 10px', borderRadius: 5, marginBottom: 10,
+            background: 'rgba(212,148,58,0.08)', border: '1px solid rgba(212,148,58,0.22)',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#5A5550', flexShrink: 0 }}>Bottleneck</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#D4943A' }}>{primaryBottleneck}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Cross-department warnings */}
+      {crossDepartmentWarnings.length > 0 && (
+        <div style={{ borderTop: '1px solid #1A1A1A' }}>
+          <div style={{ padding: '8px 14px 2px', fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5A5550' }}>
+            Cross-department warnings
+          </div>
+          {crossDepartmentWarnings.map((w, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 14px' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#D4943A', flexShrink: 0, marginTop: 5, display: 'inline-block' }} />
+              <span style={{ fontSize: 10.5, color: '#9A9590', lineHeight: 1.55 }}>{w}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Coordination actions */}
+      {coordinationActions.length > 0 && (
+        <div style={{ borderTop: '1px solid #1A1A1A' }}>
+          <div style={{ padding: '8px 14px 2px', fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5A5550' }}>
+            Coordination actions
+          </div>
+          {coordinationActions.map((a, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 14px' }}>
+              <span style={{ fontSize: 11, color: '#C9A96E', flexShrink: 0, fontWeight: 700 }}>{i + 1}.</span>
+              <span style={{ fontSize: 10.5, color: '#E8DCC0', lineHeight: 1.55 }}>{a}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Event Director Summary */}
+      {eventDirectorSummary && (
+        <div style={{
+          padding: '10px 14px', borderTop: '1px solid #1A1A1A',
+          fontSize: 11, color: '#9A9590', lineHeight: 1.65, fontStyle: 'italic',
+        }}>
+          {eventDirectorSummary}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// ── Risk Assessment Card ──────────────────────────────────────────────────────
+
+const RISK_LEVEL_COLOR = {
+  Critical: '#c05050',
+  High:     '#D4943A',
+  Medium:   '#C9A96E',
+  Low:      '#6BAF80',
+}
+
+const SEVERITY_DOT = {
+  critical: '#c05050',
+  high:     '#D4943A',
+  medium:   '#C9A96E',
+  low:      '#6BAF80',
+}
+
+function RiskAssessmentCard({ ra }) {
+  if (!ra || ra.risks.length === 0) return null
+
+  const levelColor = RISK_LEVEL_COLOR[ra.overallRiskLevel] ?? '#5A5550'
+
+  return (
+    <Card>
+      <CardHead
+        right={
+          <span style={{
+            fontSize: 8, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase',
+            padding: '2px 10px', borderRadius: 100,
+            background: `${levelColor}18`, color: levelColor,
+            border: `1px solid ${levelColor}40`,
+          }}>
+            {ra.overallRiskLevel} · {ra.riskScore}/100
+          </span>
+        }
+      >
+        Risk Assessment
+      </CardHead>
+
+      {/* Risk list */}
+      <div style={{ paddingBottom: 4 }}>
+        {ra.risks.map(r => (
+          <div
+            key={r.id}
+            style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+              padding: '8px 14px', borderBottom: '1px solid #141414',
+            }}
+          >
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%', flexShrink: 0, marginTop: 4,
+              background: SEVERITY_DOT[r.severity] ?? '#5A5550', display: 'inline-block',
+            }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 2 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: '#E8DCC0', lineHeight: 1.3 }}>{r.title}</span>
+                <span style={{ fontSize: 8, color: '#3A3A3A', textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>{r.category}</span>
+              </div>
+              <div style={{ fontSize: 10, color: '#9A9590', lineHeight: 1.55, marginBottom: 3 }}>{r.description}</div>
+              <div style={{ fontSize: 9, color: '#5A5550', fontStyle: 'italic', lineHeight: 1.4 }}>→ {r.recommendation}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Next best action */}
+      {ra.nextBestAction && (
+        <div style={{ padding: '10px 14px', borderTop: '1px solid #1A1A1A' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#C9A96E', marginBottom: 5 }}>
+            Next Best Action
+          </div>
+          <div style={{ fontSize: 11, color: '#F5F0E8', lineHeight: 1.5 }}>
+            {ra.nextBestAction}
+          </div>
+        </div>
+      )}
+
+      {/* Department alerts */}
+      {(ra.departmentAlerts.bar.length > 0 || ra.departmentAlerts.kitchen.length > 0) && (
+        <div style={{ padding: '8px 14px', borderTop: '1px solid #1A1A1A', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          {ra.departmentAlerts.bar.length > 0 && (
+            <div>
+              <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#C9A96E', marginBottom: 3 }}>Bar</div>
+              {ra.departmentAlerts.bar.map((a, i) => (
+                <div key={i} style={{ fontSize: 9, color: '#9A9590' }}>· {a}</div>
+              ))}
+            </div>
+          )}
+          {ra.departmentAlerts.kitchen.length > 0 && (
+            <div>
+              <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#C9A96E', marginBottom: 3 }}>Kitchen</div>
+              {ra.departmentAlerts.kitchen.map((a, i) => (
+                <div key={i} style={{ fontSize: 9, color: '#9A9590' }}>· {a}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function EventZohar({
@@ -304,6 +666,48 @@ export default function EventZohar({
   const seatingIntelligence = useMemo(
     () => computeSeatingIntelligence(guests ?? [], tables ?? []),
     [guests, tables]
+  )
+
+  const riskAssessment = useMemo(
+    () => computeRiskAssessment({
+      event,
+      guests:             guests   ?? [],
+      tables:             tables   ?? [],
+      tasks:              tasks    ?? [],
+      timeline:           timeline ?? [],
+      seatingIntelligence,
+      cocktailMenuStatus,
+      zoharBrief:         brief,
+    }),
+    [event, guests, tables, tasks, timeline, seatingIntelligence, cocktailMenuStatus, brief]
+  )
+
+  const coordinationAssessment = useMemo(
+    () => computeCoordination({
+      event,
+      guests:             guests   ?? [],
+      tables:             tables   ?? [],
+      tasks:              tasks    ?? [],
+      seatingIntelligence,
+      riskAssessment,
+      zoharBrief:         brief,
+      cocktailMenuStatus,
+    }),
+    [event, guests, tables, tasks, seatingIntelligence, riskAssessment, brief, cocktailMenuStatus]
+  )
+
+  const timelineIntelligence = useMemo(
+    () => computeTimelineIntelligence({
+      event,
+      guests:                guests   ?? [],
+      tables:                tables   ?? [],
+      tasks:                 tasks    ?? [],
+      timeline:              timeline ?? [],
+      seatingIntelligence,
+      coordinationAssessment,
+      riskAssessment,
+    }),
+    [event, guests, tables, tasks, timeline, seatingIntelligence, coordinationAssessment, riskAssessment]
   )
 
   if (!brief) {
@@ -461,6 +865,21 @@ export default function EventZohar({
         <CardHead>{eventName} — {eventTypeLabel}</CardHead>
         <ReadinessBar score={readinessScore} label={readinessLabel} />
       </Card>
+
+      {/* Risk Assessment */}
+      {riskAssessment && riskAssessment.risks.length > 0 && (
+        <RiskAssessmentCard ra={riskAssessment} />
+      )}
+
+      {/* Department Coordination */}
+      {coordinationAssessment && (
+        <DepartmentCoordinationCard ca={coordinationAssessment} />
+      )}
+
+      {/* Timeline & Service Flow */}
+      {timelineIntelligence && (
+        <TimelineCard ti={timelineIntelligence} />
+      )}
 
       {/* Missing inputs */}
       <MissingInputs items={missingInputs} />

@@ -16,6 +16,9 @@ import { DEFAULT_TABLES, EVENT_BRIEF } from './data/eventBrainDemoData'
 import { buildArchitectBriefFromEvent } from './utils/eventArchitectAdapter'
 import { loadPlan, savePlan, clearPlan } from './utils/eventArchitectPlanPersistence'
 import { computeSeatingIntelligence } from './utils/seatingIntelligence'
+import { computeRiskAssessment } from './utils/zoharRiskEngine'
+import { computeCoordination } from './utils/zoharCoordinationEngine'
+import { computeTimelineIntelligence } from './utils/zoharTimelineEngine'
 import { fetchGuests, updateGuest } from '../../services/api/eventsApi'
 
 const SESSION_LINK_KEY = 'hestia.architect.linkId'
@@ -337,6 +340,43 @@ export default function EventBrain({ pageContext, events }) {
     [guests, tables]
   )
 
+  // Risk assessment — computed from available data (tasks/cocktailMenuStatus not
+  // available in EventBrain; risk engine handles their absence null-safely).
+  const riskAssessment = useMemo(
+    () => computeRiskAssessment({
+      event:              linkedEvent,
+      guests,
+      tables,
+      seatingIntelligence,
+    }),
+    [linkedEvent, guests, tables, seatingIntelligence]
+  )
+
+  // Coordination — partial view (no tasks/zoharBrief/cocktailMenuStatus in EventBrain)
+  const coordinationAssessment = useMemo(
+    () => computeCoordination({
+      event:  linkedEvent,
+      guests,
+      tables,
+      seatingIntelligence,
+      riskAssessment,
+    }),
+    [linkedEvent, guests, tables, seatingIntelligence, riskAssessment]
+  )
+
+  // Timeline & service flow — partial view (no tasks/timeline log in EventBrain)
+  const timelineIntelligence = useMemo(
+    () => computeTimelineIntelligence({
+      event:                linkedEvent,
+      guests,
+      tables,
+      seatingIntelligence,
+      coordinationAssessment,
+      riskAssessment,
+    }),
+    [linkedEvent, guests, tables, seatingIntelligence, coordinationAssessment, riskAssessment]
+  )
+
   const selectedTable = useMemo(
     () => tables.find(t => t.id === selectedId) ?? tables[0],
     [tables, selectedId]
@@ -560,6 +600,9 @@ export default function EventBrain({ pageContext, events }) {
             tables={tables}
             eventBrief={eventBrief}
             seatingIntelligence={seatingIntelligence}
+            riskAssessment={riskAssessment}
+            coordinationAssessment={coordinationAssessment}
+            timelineIntelligence={timelineIntelligence}
           />
         </div>
       </div>

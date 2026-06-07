@@ -300,6 +300,90 @@ function TableContext({ selectedTable, tables, eventBrief }) {
   )
 }
 
+// ── Risk Assessment Section ────────────────────────────────────────────────────
+const RISK_LEVEL_COLOR = {
+  Critical: '#c05050',
+  High:     '#D4943A',
+  Medium:   '#C9A96E',
+  Low:      '#4F6B4A',
+}
+
+const SEVERITY_DOT_COLOR = {
+  critical: '#c05050',
+  high:     '#D4943A',
+  medium:   '#C9A96E',
+  low:      '#4F6B4A',
+}
+
+function RiskSection({ ra }) {
+  if (!ra || ra.risks.length === 0) return null
+
+  const levelColor = RISK_LEVEL_COLOR[ra.overallRiskLevel] ?? '#5A5550'
+  const topRisks   = ra.risks.slice(0, 3)
+
+  return (
+    <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A1A1A', flexShrink: 0 }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5A5550' }}>
+          Risk Assessment
+        </span>
+        <span style={{
+          fontSize: 8, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase',
+          padding: '2px 8px', borderRadius: 100,
+          background: `${levelColor}18`, color: levelColor,
+          border: `1px solid ${levelColor}40`,
+        }}>
+          {ra.overallRiskLevel}
+        </span>
+      </div>
+
+      {/* Score bar */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+          <span style={{ fontSize: 8, color: '#3A3A3A' }}>Risk score</span>
+          <span style={{ fontSize: 8, fontWeight: 700, color: levelColor }}>{ra.riskScore} / 100</span>
+        </div>
+        <div style={{ height: 3, background: '#1A1A1A', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${ra.riskScore}%`, background: levelColor, borderRadius: 2, transition: 'width 300ms ease' }} />
+        </div>
+      </div>
+
+      {/* Top risks */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: ra.nextBestAction ? 8 : 0 }}>
+        {topRisks.map(r => (
+          <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+            <span style={{
+              width: 5, height: 5, borderRadius: '50%', flexShrink: 0, marginTop: 4,
+              background: SEVERITY_DOT_COLOR[r.severity] ?? '#5A5550',
+              display: 'inline-block',
+            }} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 9.5, fontWeight: 600, color: '#E8DCC0', lineHeight: 1.3 }}>{r.title}</div>
+              <div style={{ fontSize: 8.5, color: '#5A5550', lineHeight: 1.4, marginTop: 1 }}>{r.description}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Next best action */}
+      {ra.nextBestAction && (
+        <div style={{
+          padding: '6px 10px', borderRadius: 5, marginTop: 4,
+          background: 'rgba(201,169,110,0.05)', border: '1px solid rgba(201,169,110,0.14)',
+        }}>
+          <div style={{ fontSize: 7.5, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#C9A96E', opacity: 0.7, marginBottom: 3 }}>
+            Next action
+          </div>
+          <div style={{ fontSize: 10, color: '#C9A96E', lineHeight: 1.4 }}>
+            {ra.nextBestAction}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main ZoharPanel ────────────────────────────────────────────────────────────
 // ── Seating Intelligence Section ──────────────────────────────────────────────
 function SeatingSection({ si }) {
@@ -379,7 +463,160 @@ function SeatingSection({ si }) {
   )
 }
 
-export default function ZoharPanel({ selectedTable, tables, eventBrief, seatingIntelligence }) {
+// ── Department Coordination Section (compact) ─────────────────────────────────
+
+const DEPT_STATUS_COLOR = { Ready: '#4F6B4A', 'In Progress': '#C9A96E', Blocked: '#c05050' }
+
+function CoordinationSection({ ca }) {
+  if (!ca) return null
+
+  const { readinessBreakdown: rb, departmentStatus: ds, primaryBottleneck, eventDirectorSummary, crossDepartmentWarnings } = ca
+
+  const overallColor = rb.overall >= 75 ? '#4F6B4A' : rb.overall >= 45 ? '#C9A96E' : '#c05050'
+
+  const depts = [
+    { key: 'eventsManager', label: 'Events' },
+    { key: 'bar',           label: 'Bar' },
+    { key: 'kitchen',       label: 'Kitchen' },
+  ]
+
+  return (
+    <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A1A1A', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5A5550' }}>
+          Department Coordination
+        </span>
+        <span style={{ fontSize: 8, fontWeight: 700, color: overallColor }}>
+          {rb.overall}% overall
+        </span>
+      </div>
+
+      {/* Overall bar */}
+      <div style={{ height: 3, background: '#1A1A1A', borderRadius: 2, overflow: 'hidden', marginBottom: 8 }}>
+        <div style={{ height: '100%', width: `${rb.overall}%`, background: overallColor, borderRadius: 2, transition: 'width 300ms ease' }} />
+      </div>
+
+      {/* Department tiles */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: crossDepartmentWarnings.length > 0 || primaryBottleneck !== 'None' ? 8 : 0 }}>
+        {depts.map(d => {
+          const status = ds[d.key]
+          const pct    = rb[d.key]
+          const color  = DEPT_STATUS_COLOR[status] ?? '#5A5550'
+          return (
+            <div
+              key={d.key}
+              style={{
+                flex: 1, padding: '5px 6px', borderRadius: 5,
+                background: '#141414', border: `1px solid ${color}28`,
+              }}
+            >
+              <div style={{ fontSize: 7.5, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#3A3A3A', marginBottom: 2 }}>{d.label}</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color, lineHeight: 1 }}>{pct}%</div>
+              <div style={{ fontSize: 7.5, color, opacity: 0.7, marginTop: 1 }}>{status}</div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Primary bottleneck */}
+      {primaryBottleneck !== 'None' && (
+        <div style={{ fontSize: 9, color: '#D4943A', marginBottom: crossDepartmentWarnings.length > 0 ? 6 : 0 }}>
+          <span style={{ fontWeight: 700 }}>↯ </span>{primaryBottleneck}
+        </div>
+      )}
+
+      {/* Top cross-department warning */}
+      {crossDepartmentWarnings.length > 0 && (
+        <div style={{ fontSize: 9, color: '#5A5550', lineHeight: 1.5 }}>
+          {crossDepartmentWarnings[0]}
+        </div>
+      )}
+
+      {/* Event Director Summary */}
+      {eventDirectorSummary && (
+        <div style={{
+          marginTop: 8, padding: '6px 9px', borderRadius: 5,
+          background: 'rgba(201,169,110,0.04)', border: '1px solid rgba(201,169,110,0.12)',
+          fontSize: 9.5, color: '#9A9590', lineHeight: 1.55,
+        }}>
+          {eventDirectorSummary}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Timeline & Service Flow Section (compact) ──────────────────────────────────
+
+const READINESS_STATUS_COLOR = { Ready: '#4F6B4A', 'In Progress': '#C9A96E', 'Not Ready': '#c05050' }
+
+const PRESSURE_SEVERITY_DOT = { high: '#D4943A', medium: '#C9A96E', low: '#4F6B4A' }
+
+function TimelineSection({ ti }) {
+  if (!ti) return null
+
+  const { timelineReadiness: tr, pressurePoints, serviceDirectorSummary, staffingRecommendations } = ti
+  const statusColor = READINESS_STATUS_COLOR[tr.status] ?? '#5A5550'
+  const topPressure = pressurePoints.slice(0, 2)
+
+  return (
+    <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A1A1A', flexShrink: 0 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5A5550' }}>
+          Timeline &amp; Service Flow
+        </span>
+        <span style={{ fontSize: 8, fontWeight: 700, color: statusColor }}>
+          {tr.status} · {tr.score}/100
+        </span>
+      </div>
+
+      {/* Readiness bar */}
+      <div style={{ height: 3, background: '#1A1A1A', borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
+        <div style={{ height: '100%', width: `${tr.score}%`, background: statusColor, borderRadius: 2, transition: 'width 300ms ease' }} />
+      </div>
+
+      {/* Disclosure — flow is always estimated from event data, not a confirmed schedule */}
+      <div style={{ fontSize: 7.5, color: '#2A2A2A', letterSpacing: '0.08em', marginBottom: 8 }}>
+        Estimated flow · based on event type &amp; timing
+      </div>
+
+      {/* Top pressure points */}
+      {topPressure.map(p => (
+        <div key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, marginBottom: 5 }}>
+          <span style={{
+            width: 5, height: 5, borderRadius: '50%', flexShrink: 0, marginTop: 4,
+            background: PRESSURE_SEVERITY_DOT[p.severity] ?? '#5A5550', display: 'inline-block',
+          }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 9.5, fontWeight: 600, color: '#E8DCC0', lineHeight: 1.3 }}>{p.title}</div>
+            <div style={{ fontSize: 8.5, color: '#5A5550', lineHeight: 1.4, marginTop: 1 }}>{p.recommendation}</div>
+          </div>
+        </div>
+      ))}
+
+      {/* Staffing hint */}
+      {staffingRecommendations.length > 0 && (
+        <div style={{ fontSize: 9, color: '#4A4540', marginTop: 4, lineHeight: 1.4 }}>
+          {staffingRecommendations[0]}
+        </div>
+      )}
+
+      {/* Summary */}
+      {serviceDirectorSummary && (
+        <div style={{
+          marginTop: 8, padding: '6px 9px', borderRadius: 5,
+          background: 'rgba(201,169,110,0.04)', border: '1px solid rgba(201,169,110,0.12)',
+          fontSize: 9.5, color: '#9A9590', lineHeight: 1.55,
+        }}>
+          {serviceDirectorSummary}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function ZoharPanel({ selectedTable, tables, eventBrief, seatingIntelligence, riskAssessment, coordinationAssessment, timelineIntelligence }) {
   const [activeFilter, setActiveFilter] = useState('all')
 
   const allRecs = useMemo(
@@ -505,6 +742,15 @@ export default function ZoharPanel({ selectedTable, tables, eventBrief, seatingI
 
       {/* Seating Intelligence */}
       <SeatingSection si={seatingIntelligence} />
+
+      {/* Risk Assessment */}
+      <RiskSection ra={riskAssessment} />
+
+      {/* Department Coordination */}
+      <CoordinationSection ca={coordinationAssessment} />
+
+      {/* Timeline & Service Flow */}
+      <TimelineSection ti={timelineIntelligence} />
 
       {/* Recommendations */}
       <div
