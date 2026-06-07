@@ -137,7 +137,32 @@ export function enrichCocktailsWithCost(cocktails = []) {
 
 // ─── Prompt builders ──────────────────────────────────────────────────────────
 
-function buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext }) {
+function buildDNABlock(menuDNA) {
+  if (!menuDNA) return null
+  const lines = [
+    '=== EVENT MENU DNA ===',
+    'This menu must feel as though it was created exclusively for this specific event.',
+    'The cocktails — their names, descriptions, and structure — must all reflect the event\'s identity.',
+    'Do not produce a generic cocktail menu that has been themed around an event.',
+    '',
+    `Menu identity: ${menuDNA.menuIdentity}`,
+    `Naming style: ${menuDNA.namingStyle}`,
+    `Naming guidance: ${menuDNA.namingGuidance}`,
+    `Naming examples (style reference — do NOT copy these exact names): ${menuDNA.namingExamples.join(', ')}`,
+    `Avoid these naming styles: ${menuDNA.namingAvoid.join(', ')}`,
+    `Description voice: ${menuDNA.descriptionStyle} — ${menuDNA.descriptionGuidance}`,
+    `Emotional tone: ${menuDNA.emotionalTone}`,
+    `Guest experience goal: ${menuDNA.guestExperienceGoal}`,
+    `Menu sections: ${menuDNA.menuSections.join(' | ')}`,
+    menuDNA.welcomeDrinkPriority
+      ? 'Welcome drink: REQUIRED — the first cocktail must serve as the arrival/welcome drink.'
+      : null,
+    '=== END EVENT MENU DNA ===',
+  ]
+  return lines.filter(l => l !== null).join('\n')
+}
+
+function buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext, designContext, menuDNA }) {
   const eventType = EVENT_TYPE_LABELS[event.event_type] || event.event_type || 'Event'
   const guestCount = event.expected_guests
   const flavorStr = form.flavors.length ? form.flavors.join(', ') : 'No strong preference'
@@ -145,6 +170,10 @@ function buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext })
   const isHighVolume = guestCount >= 50
   const isKosher = form.restrictions.includes('Kosher')
   const hasLowABV = form.restrictions.includes('Low ABV') || form.restrictions.includes('Alcohol-Free Option')
+
+  const dnaBlock = buildDNABlock(menuDNA)
+  const menuSections = menuDNA?.menuSections || null
+  const menuSectionsJson = menuSections ? JSON.stringify(menuSections) : '["Signature Cocktails", "House Selection", "Zero-Proof Selection"]'
 
   const parts = [
     BEVERAGE_DIRECTOR_SYSTEM_PROMPT,
@@ -159,6 +188,12 @@ function buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext })
     pricingContext ? '' : null,
     `Event: "${event.name}"`,
     `Event type: ${eventType}`,
+    designContext ? `MENU IDENTITY — use exactly this title as the "menu_name" field: "${designContext.menuTitle}"` : null,
+    designContext ? `Visual direction: ${designContext.layoutDirection}` : null,
+    designContext ? `Menu tone: ${designContext.tone}` : null,
+    designContext ? '' : null,
+    dnaBlock || null,
+    dnaBlock ? '' : null,
     guestCount ? `Guest count: ${guestCount}` : null,
     `REQUIRED — Cocktails to generate: ${form.cocktailCount}. The "cocktails" array MUST contain exactly ${form.cocktailCount} item${form.cocktailCount !== 1 ? 's' : ''} — no fewer, no more.`,
     `Flavor profile: ${flavorStr}`,
@@ -177,12 +212,14 @@ function buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext })
     'Do not include cost estimates in the response — costing is computed separately by the venue system from verified ingredient data.',
     `Return ONLY valid JSON with exactly ${form.cocktailCount} cocktail${form.cocktailCount !== 1 ? 's' : ''} in the array:`,
     `{
-  "menu_name": "creative name for this cocktail menu",
+  "menu_name": "${(designContext?.menuTitle || 'use an event-specific menu title here').replace(/"/g, "'")}",
+  "menu_sections": ${menuSectionsJson},
   "cocktails": [
     {
       "number": 1,
-      "name": "cocktail name",
-      "tagline": "one evocative sentence",
+      "section": "assign to the most fitting section from menu_sections",
+      "name": "event-specific cocktail name matching the naming style above",
+      "tagline": "one evocative sentence matching the description voice above",
       "base_spirit": "main spirit",
       "ingredients": [{ "name": "ingredient name", "amount_ml": 45, "unit": "ml" }],
       "method": "shaken or stirred or built or blended",
@@ -195,7 +232,7 @@ function buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext })
       "batch_notes": "e.g. Pre-batch base + syrup, add citrus and shake per order — ~20 sec build",
       "service_speed": "fast",
       "operational_difficulty": 2,
-      "why_fits_event": "brief note on why this suits the event format",
+      "why_fits_event": "brief note on why this cocktail suits this specific event",
       "zero_proof_alternative": "suggested NA version or null"
     }
   ]
@@ -311,14 +348,15 @@ const FALLBACK_SPIRIT_BY_FLAVOR = {
   Sweet: 'Aged rum', Bitter: 'Campari',
 }
 
-function buildFallbackEventMenu(form, event) {
+function buildFallbackEventMenu(form, event, designContext) {
   const spirit = form.flavors.length
     ? (FALLBACK_SPIRIT_BY_FLAVOR[form.flavors[0]] || 'London dry gin')
     : 'London dry gin'
   const eventLabel = EVENT_TYPE_LABELS[event.event_type] || 'Event'
+  const menuName = designContext?.menuTitle || `${eventLabel} Menu`
 
   return {
-    menu_name: `${eventLabel} Menu`,
+    menu_name: menuName,
     _fallback: true,
     _fallback_reason: 'HESTIA AI was unavailable. This is a placeholder draft — review, revise, and regenerate when the service recovers.',
     cocktails: [
@@ -414,7 +452,7 @@ async function attemptMenuGeneration(prompt, expectedCount) {
   return parsed
 }
 
-export async function generateEventMenu({ event, form }) {
+export async function generateEventMenu({ event, form, designContext, menuDNA }) {
   const combinedText = [
     event.event_type || '', String(event.expected_guests || ''),
     ...form.flavors, ...form.restrictions,
@@ -430,7 +468,7 @@ export async function generateEventMenu({ event, form }) {
     ? getPricingContextSummary(inferEventPricingHints(form.flavors))
     : ''
 
-  const prompt = buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext })
+  const prompt = buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext, designContext, menuDNA })
 
   // Try up to 2 times before falling back to the placeholder menu.
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -446,7 +484,7 @@ export async function generateEventMenu({ event, form }) {
       const isNetworkError = /request failed|rate.limit|quota/i.test(err.message || '')
       if (isLastAttempt || isNetworkError) {
         return {
-          menu: buildFallbackEventMenu(form, event),
+          menu: buildFallbackEventMenu(form, event, designContext),
           isFallback: true,
           fallbackReason: err.message || 'AI generation failed.',
         }

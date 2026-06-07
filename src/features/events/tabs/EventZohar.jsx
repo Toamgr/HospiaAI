@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { fetchCocktailMenu } from '../../../services/api/eventsApi'
 import { buildZoharBrief } from '../utils/zoharBriefOrchestrator'
+import { buildDesignContext } from '../utils/eventDesignContext'
 import { computeSeatingIntelligence } from '../utils/seatingIntelligence'
 import { computeRiskAssessment } from '../utils/zoharRiskEngine'
 import { computeCoordination } from '../utils/zoharCoordinationEngine'
 import { computeTimelineIntelligence } from '../utils/zoharTimelineEngine'
+import EventBriefMenuGenerator from '../components/EventBriefMenuGenerator'
 
 const ARCHITECT_ROLES = ['events_manager', 'manager', 'owner', 'admin']
 
@@ -628,13 +630,14 @@ function RiskAssessmentCard({ ra }) {
 
 export default function EventZohar({
   event, guests, tables, tasks, timeline,
-  currentUser, goToPage, onAddTask,
+  currentUser, goToPage, onAddTask, onUpdateTask,
 }) {
   const [cocktailMenuStatus, setCocktailMenuStatus] = useState(null)
   const [loadingMenu, setLoadingMenu]               = useState(true)
   const [creatingTask, setCreatingTask]             = useState(false)
   const [taskCreated, setTaskCreated]               = useState(false)
   const [taskError, setTaskError]                   = useState(null)
+  const [showGenerator, setShowGenerator]           = useState(false)
 
   useEffect(() => {
     setLoadingMenu(true)
@@ -645,11 +648,12 @@ export default function EventZohar({
       .finally(() => setLoadingMenu(false))
   }, [event.id])
 
-  // Reset task-creation state when the event changes so a previous success
-  // indicator from event A does not persist when the user switches to event B.
+  // Reset task-creation and generator state when the event changes so a previous
+  // success indicator from event A does not persist when switching to event B.
   useEffect(() => {
     setTaskCreated(false)
     setTaskError(null)
+    setShowGenerator(false)
   }, [event.id])
 
   const brief = useMemo(
@@ -661,6 +665,11 @@ export default function EventZohar({
       timeline: timeline ?? [],
     }),
     [event, guests, tables, tasks, timeline]
+  )
+
+  const designContext = useMemo(
+    () => buildDesignContext({ event, brief }),
+    [event, brief]
   )
 
   const seatingIntelligence = useMemo(
@@ -804,9 +813,14 @@ export default function EventZohar({
     )
   } else {
     cocktailAction = (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 2 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 2 }}>
+        {/* Primary: generate directly from brief */}
+        <GhostButton onClick={() => setShowGenerator(true)}>
+          Generate Event Cocktail Menu →
+        </GhostButton>
+        {/* Secondary: delegate to Bar Manager via task */}
         <GhostButton onClick={handleCreateCocktailTask} disabled={creatingTask}>
-          {creatingTask ? 'Creating…' : '+ Create task for Bar Manager'}
+          {creatingTask ? 'Creating task…' : '+ Assign to Bar Manager'}
         </GhostButton>
         {taskError && (
           <p style={{ fontSize: 10, color: '#C44A4A', margin: 0 }}>{taskError}</p>
@@ -982,6 +996,23 @@ export default function EventZohar({
             />
           ))}
         </Card>
+      )}
+
+      {/* Event Cocktail Menu Generator — shown when Zohar generates directly */}
+      {showGenerator && (
+        <EventBriefMenuGenerator
+          event={event}
+          brief={brief}
+          designContext={designContext}
+          tasks={tasks}
+          currentUser={currentUser}
+          onUpdateTask={onUpdateTask}
+          onApproved={() => {
+            setCocktailMenuStatus('approved')
+            setShowGenerator(false)
+          }}
+          onClose={() => setShowGenerator(false)}
+        />
       )}
 
       {/* Footer */}

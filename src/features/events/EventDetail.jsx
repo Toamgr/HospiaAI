@@ -209,6 +209,7 @@ export default function EventDetail({
               currentUser={currentUser}
               goToPage={goToPage}
               onAddTask={onAddTask}
+              onUpdateTask={onUpdateTask}
             />
           )}
           {activeTab === 'guests' && (

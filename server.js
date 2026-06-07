@@ -3384,7 +3384,7 @@ app.post('/api/events/:id/cocktail-menu', requireAuth('manager', 'bar_manager', 
   res.status(201).json({ menu: { id: row.id, menu_name: row.menu_name, cocktails: JSON.parse(row.menu_json), status: row.status } });
 });
 
-app.patch('/api/events/:id/cocktail-menu/approve', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
+app.patch('/api/events/:id/cocktail-menu/approve', requireAuth('events_manager', 'manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
   const existing = db.prepare('SELECT id FROM event_cocktail_menus WHERE event_id=?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'No cocktail menu found for this event.' });
   const now = nowIso();
