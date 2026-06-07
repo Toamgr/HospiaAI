@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import CocktailMenuBuilder from '../components/CocktailMenuBuilder'
+import { buildZoharBrief } from '../utils/zoharBriefOrchestrator'
+import { buildDesignContext } from '../utils/eventDesignContext'
 
 const STATUS_FLOW = ['draft', 'confirmed', 'in_preparation', 'ready', 'live', 'completed']
 const STATUS_LABELS = {
@@ -37,9 +39,20 @@ function StatCard({ label, value, sub, accent }) {
   )
 }
 
-export default function EventOverview({ event, guests, tasks, onUpdateEvent, onUpdateTask }) {
+export default function EventOverview({ event, guests, tasks, onUpdateEvent, onUpdateTask, currentUser, refreshDetail }) {
   const [editingStatus, setEditingStatus] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Compute event brief from available data (no tables/timeline in Overview context;
+  // cocktailMenuBrief only needs event + guests so this is complete for bar planning).
+  const brief = useMemo(
+    () => buildZoharBrief({ event, guests, tables: [], tasks, timeline: [] }),
+    [event, guests, tasks]
+  )
+  const designContext = useMemo(
+    () => buildDesignContext({ event, brief }),
+    [event, brief]
+  )
 
   const confirmedGuests = guests.filter(g => g.rsvp_status === 'confirmed').length
   const pendingTasks = tasks.filter(t => t.status !== 'done').length
@@ -186,8 +199,15 @@ export default function EventOverview({ event, guests, tasks, onUpdateEvent, onU
         </div>
       )}
 
-      {/* Cocktail menu builder */}
-      <CocktailMenuBuilder event={event} tasks={tasks} onUpdateTask={onUpdateTask} />
+      {/* Cocktail Programme — brief-driven: form auto-fills from event context */}
+      <CocktailMenuBuilder
+        event={event}
+        tasks={tasks}
+        onUpdateTask={onUpdateTask}
+        brief={brief}
+        designContext={designContext}
+        onApproved={() => refreshDetail?.()}
+      />
     </div>
   )
 }

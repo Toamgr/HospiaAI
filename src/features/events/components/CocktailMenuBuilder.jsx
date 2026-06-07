@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { apiPost, apiPatch } from '../../../services/api/client'
 import { fetchCocktailMenu } from '../../../services/api/eventsApi'
 import { generateEventMenu, replaceEventCocktail, enrichCocktailsWithCost } from '../../../services/eventCocktailMenuService.js'
+import { buildEventMenuDNA } from '../utils/eventMenuDNA'
 
 const FLAVOR_PILLS = ['Citrus', 'Floral', 'Tropical', 'Herbal', 'Spicy', 'Smoky', 'Sweet', 'Bitter']
 const RESTRICTION_PILLS = ['No Gluten', 'No Nuts', 'Low ABV', 'Alcohol-Free Option', 'Kosher']
@@ -47,6 +48,60 @@ const COLOR_PRIORITY = [
   'gin', 'vodka', 'tequila', 'white wine', 'prosecco', 'champagne', 'coconut',
 ]
 
+
+// ── Brief-driven form defaults ────────────────────────────────────────────────
+// These mirror the same mappings in EventBriefMenuGenerator and eventMenuDNA.js.
+// When a brief is provided, the form is auto-populated so the user needs no
+// manual input before generating — event context flows directly into the AI call.
+
+const BRIEF_FLAVORS = {
+  wedding:   ['Floral', 'Citrus'],
+  corporate: ['Citrus', 'Herbal'],
+  private:   ['Tropical', 'Citrus'],
+  bar_event: ['Bitter', 'Citrus', 'Spicy'],
+  other:     ['Citrus'],
+}
+
+const BRIEF_VIBE = {
+  wedding:   'festive, romantic, elegant, celebratory',
+  corporate: 'professional, refined, networking-friendly',
+  private:   'intimate, celebratory, personalized',
+  bar_event: 'lively, experimental, craft-focused',
+  other:     'celebratory, social',
+}
+
+function briefCocktailCount(n) {
+  if (!n || n <= 0) return 4
+  if (n < 40)       return 3
+  if (n < 100)      return 4
+  return 5
+}
+
+function initFormFromBrief(brief, event) {
+  const type        = event?.event_type || 'other'
+  const guestCount  = event?.expected_guests || 0
+  const restrictions = []
+
+  if (brief?.cocktailMenuBrief?.kosherRequirement === true) {
+    restrictions.push('Kosher')
+  }
+  if (brief?.cocktailMenuBrief?.alcoholIntensity?.includes('moderate')) {
+    restrictions.push('Low ABV')
+  }
+
+  const notes = [
+    event?.notes || '',
+    brief?.cocktailMenuBrief?.welcomeDrinkNeed || '',
+  ].filter(Boolean).join('\n').trim()
+
+  return {
+    cocktailCount: briefCocktailCount(guestCount),
+    flavors:       BRIEF_FLAVORS[type] || ['Citrus'],
+    restrictions,
+    vibe:          BRIEF_VIBE[type]    || 'celebratory, social',
+    notes,
+  }
+}
 
 function resolveColor(cocktail) {
   if (cocktail.liquid_color_hex) return cocktail.liquid_color_hex
@@ -443,10 +498,12 @@ function CocktailCard({
   )
 }
 
-export default function CocktailMenuBuilder({ event, tasks, onUpdateTask }) {
+export default function CocktailMenuBuilder({ event, tasks, onUpdateTask, brief, designContext, onApproved }) {
   const [menu, setMenu] = useState(null)
   const [loadingMenu, setLoadingMenu] = useState(true)
-  const [form, setForm] = useState({ cocktailCount: 4, flavors: [], restrictions: [], vibe: '', notes: '' })
+  const [form, setForm] = useState(() =>
+    brief ? initFormFromBrief(brief, event) : { cocktailCount: 4, flavors: [], restrictions: [], vibe: '', notes: '' }
+  )
   const [showForm, setShowForm] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [approving, setApproving] = useState(false)
@@ -472,6 +529,21 @@ export default function CocktailMenuBuilder({ event, tasks, onUpdateTask }) {
       .finally(() => setLoadingMenu(false))
   }, [event.id])
 
+  // When the event changes and a brief is available, re-seed the form with
+  // brief-derived defaults so nothing from a previous event persists.
+  useEffect(() => {
+    if (brief) setForm(initFormFromBrief(brief, event))
+  }, [event.id]) // intentionally depends only on event.id
+
+  // Menu DNA — derives event-type-specific naming style, tone, and section structure
+  // for the AI prompt. Mirrors the same computation in EventBriefMenuGenerator.
+  const { menuDNA } = useMemo(
+    () => brief && designContext
+      ? buildEventMenuDNA({ event, brief, designContext })
+      : { menuDNA: null },
+    [event, brief, designContext]
+  )
+
   function setField(field, value) {
     setForm(prev => ({ ...prev, [field]: value }))
   }
@@ -483,7 +555,12 @@ export default function CocktailMenuBuilder({ event, tasks, onUpdateTask }) {
     setShowForm(false)
 
     try {
-      const { menu: generatedMenu, isFallback, fallbackReason } = await generateEventMenu({ event, form })
+      const { menu: generatedMenu, isFallback, fallbackReason } = await generateEventMenu({
+        event,
+        form,
+        designContext: designContext ?? undefined,
+        menuDNA:       menuDNA       ?? undefined,
+      })
 
       if (isFallback) {
         setMenu(generatedMenu)
@@ -516,6 +593,7 @@ export default function CocktailMenuBuilder({ event, tasks, onUpdateTask }) {
         await onUpdateTask(event.id, cocktailTask.id, { status: 'done' })
       }
       setApproved(true)
+      onApproved?.()
     } catch (err) {
       setError(err.message || 'Failed to approve menu.')
     } finally {

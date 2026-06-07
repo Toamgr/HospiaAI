@@ -218,6 +218,8 @@ export default function EventDetail({
               tasks={tasks}
               onUpdateEvent={onUpdateEvent}
               onUpdateTask={onUpdateTask}
+              currentUser={currentUser}
+              refreshDetail={refreshDetail}
             />
           )}
           {activeTab === 'zohar' && (
@@ -231,6 +233,7 @@ export default function EventDetail({
               goToPage={goToPage}
               onAddTask={onAddTask}
               onUpdateTask={onUpdateTask}
+              refreshDetail={refreshDetail}
             />
           )}
           {activeTab === 'guests' && (

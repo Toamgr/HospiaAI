@@ -630,7 +630,7 @@ function RiskAssessmentCard({ ra }) {
 
 export default function EventZohar({
   event, guests, tables, tasks, timeline,
-  currentUser, goToPage, onAddTask, onUpdateTask,
+  currentUser, goToPage, onAddTask, onUpdateTask, refreshDetail,
 }) {
   const [cocktailMenuStatus, setCocktailMenuStatus] = useState(null)
   const [loadingMenu, setLoadingMenu]               = useState(true)
@@ -1010,6 +1010,7 @@ export default function EventZohar({
           onApproved={() => {
             setCocktailMenuStatus('approved')
             setShowGenerator(false)
+            refreshDetail?.()
           }}
           onClose={() => setShowGenerator(false)}
         />
