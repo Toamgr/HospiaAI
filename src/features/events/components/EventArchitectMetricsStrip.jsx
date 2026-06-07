@@ -239,14 +239,14 @@ export default function EventArchitectMetricsStrip({ tables, eventBrief, seating
         <MetricCell
           label="Budget Impact"
           value={
-            budget && eventBrief
+            budget && eventBrief && !eventBrief.budgetPerPersonFallback
               ? formatCurrency(budget.total, eventBrief.currency ?? '')
               : '—'
           }
           sub={
-            eventBrief
+            eventBrief && !eventBrief.budgetPerPersonFallback
               ? `${eventBrief.currency ?? ''}${eventBrief.budgetPerPerson ?? '—'} / pax`
-              : undefined
+              : 'Not set'
           }
         />
       </div>

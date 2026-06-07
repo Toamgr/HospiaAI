@@ -238,16 +238,7 @@ function buildKitchenRisks(event, guests) {
   const guestCount  = event?.expected_guests ?? 0
   const risks       = []
 
-  if (!event?.start_time) {
-    risks.push({
-      id:             'kitchen-no-timing',
-      severity:       'medium',
-      category:       'Kitchen',
-      title:          'No service window defined',
-      description:    'Event start time is not set — kitchen cannot plan service timing or runner routes.',
-      recommendation: 'Set the event start time in event details.',
-    })
-  }
+  // Note: missing start_time is covered by data-no-start-time in buildDataRisks.
 
   const dietaryGuests = g.filter(gt => gt.dietary && gt.dietary.trim()).length
   if (dietaryGuests >= 5 || (dietaryGuests > 0 && guestCount >= 80)) {

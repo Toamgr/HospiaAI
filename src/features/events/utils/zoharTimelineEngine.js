@@ -225,16 +225,12 @@ function buildGuestFlowWarnings(event, guests, seatingIntelligence, coordination
     warnings.push(`Guest count (${guestCount}) exceeds the single welcome station threshold. Additional service points are required.`)
   }
 
-  if (si && si.totalGuests > 0 && si.seatingCompletion < 90) {
-    warnings.push(`Seating is ${si.seatingCompletion}% complete. Guests cannot be directed to their tables confidently without finalised assignments.`)
-  }
+  // Seating completion and capacity overflow are already shown as pressure points
+  // in this same card and as seating risks in the Risk Assessment card.
+  // Only include here what adds unique arrival/flow context.
 
   if (si && si.vipWarnings.length > 0) {
     warnings.push(`${si.vipWarnings.length} VIP table${si.vipWarnings.length !== 1 ? 's are' : ' is'} unassigned. VIP guests will not be directed correctly on arrival.`)
-  }
-
-  if (si && si.capacityWarnings.length > 0) {
-    warnings.push(`${si.capacityWarnings.length} table${si.capacityWarnings.length !== 1 ? 's exceed' : ' exceeds'} capacity. Guest flow to these tables will be disrupted.`)
   }
 
   const barBlocked = coordinationAssessment?.departmentStatus?.bar === 'Blocked'

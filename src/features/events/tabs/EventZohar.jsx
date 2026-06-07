@@ -912,7 +912,7 @@ export default function EventZohar({
           <FieldRow label="Timeline"         value={operationsBrief.timelineGap} />
         </div>
 
-        {operationsBrief.criticalRisks.length > 0 && (
+        {operationsBrief.criticalRisks.length > 0 && !riskAssessment && (
           <div style={{ padding: '10px 14px', borderTop: '1px solid #1A1A1A' }}>
             <div
               style={{
