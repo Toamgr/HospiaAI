@@ -5,9 +5,23 @@ import { canAccessPage } from '../../config/roleConfig'
 import { Button } from '../../components/AppPrimitives'
 import { getAreaLabel, getAreaDescription, getPageLabel, groupPagesBySection } from './shellUtils'
 
+// Per-page area label overrides for hiddenInNav pages that have their own identity.
+// These pages belong to a nav area for routing purposes but should not display that
+// area's generic label in the sidebar header.
+const PAGE_AREA_OVERRIDES = {
+  eventBrain: {
+    label: 'Event Architect',
+    description: 'Venue design, guest flow, accessibility, and event operations',
+  },
+}
+
 export default function SidePanel({ t, currentUser, role, area, page, collapsed, setCollapsed, goToPage, lang, setLang, logout }) {
   const pages = NAV_GROUPS[area]?.pages.filter(item => canAccessPage(currentUser, item) && !PAGE_META[item].hiddenInNav) || []
   const pageGroups = groupPagesBySection(pages)
+
+  const areaOverride = PAGE_AREA_OVERRIDES[page]
+  const displayAreaLabel = areaOverride ? areaOverride.label : getAreaLabel(t, area)
+  const displayAreaDesc = areaOverride ? areaOverride.description : getAreaDescription(t, area)
 
   return (
     <aside className={cx(
@@ -20,8 +34,8 @@ export default function SidePanel({ t, currentUser, role, area, page, collapsed,
             <div className="text-[8px] font-black uppercase tracking-[0.34em] text-[#e8dcc0] opacity-50">
               {t.ui.selectSection}
             </div>
-            <h2 className="mt-3 font-serif text-2xl font-black leading-tight text-[#f5f5f0]">{getAreaLabel(t, area)}</h2>
-            <p className="mt-2 line-clamp-2 text-[11px] leading-5 text-[#e8dcc0] opacity-65">{getAreaDescription(t, area)}</p>
+            <h2 className="mt-3 font-serif text-2xl font-black leading-tight text-[#f5f5f0]">{displayAreaLabel}</h2>
+            <p className="mt-2 line-clamp-2 text-[11px] leading-5 text-[#e8dcc0] opacity-65">{displayAreaDesc}</p>
           </div>
 
           <nav className="flex-1 overflow-y-auto p-4" aria-label="Secondary navigation">

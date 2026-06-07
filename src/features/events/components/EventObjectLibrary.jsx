@@ -35,7 +35,7 @@ const LIBRARY_SECTIONS = [
       { key: 'coffee-cart',      label: 'Coffee Cart',            shape: 'circle',  highlightFilter: null },
       { key: 'dessert-station',  label: 'Dessert Station',        shape: 'station', highlightFilter: null },
       { key: 'water-station',    label: 'Water Station',          shape: 'station', highlightFilter: null },
-      { key: 'hostess-desk',     label: 'Hostess / Reception Desk', shape: 'desk', highlightFilter: null },
+      { key: 'hostess-desk',     label: 'Reception Desk',           shape: 'desk', highlightFilter: null },
     ]
   },
   {
@@ -232,6 +232,7 @@ export default function EventObjectLibrary({ activeType, onTypeChange }) {
                 <button
                   key={item.key}
                   type="button"
+                  title={item.label}
                   onClick={() => onTypeChange(isActive ? null : item.key)}
                   style={{
                     width: '100%',

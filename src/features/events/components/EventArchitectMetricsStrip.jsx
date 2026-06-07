@@ -36,14 +36,14 @@ function MetricCell({ label, value, sub, scoreBar, riskBar, alert }) {
       : '#F5F0E8'
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-0.5 px-4 py-3">
+    <div className="flex flex-col gap-0.5 px-4 py-3.5" style={{ minWidth: 80, flexShrink: 0 }}>
       <div
         style={{
-          fontSize: '9px',
+          fontSize: '10px',
           fontWeight: 700,
-          letterSpacing: '0.14em',
+          letterSpacing: '0.12em',
           textTransform: 'uppercase',
-          color: '#5A5550',
+          color: '#9A9590',
           whiteSpace: 'nowrap',
         }}
       >
@@ -64,7 +64,7 @@ function MetricCell({ label, value, sub, scoreBar, riskBar, alert }) {
       {sub && (
         <div
           style={{
-            fontSize: '9px',
+            fontSize: '9.5px',
             color: '#5A5550',
             whiteSpace: 'nowrap',
           }}
@@ -154,12 +154,12 @@ export default function EventArchitectMetricsStrip({ tables, eventBrief }) {
       {/* Strip label */}
       <div
         style={{
-          padding: '6px 16px 2px',
-          fontSize: '8px',
+          padding: '6px 16px 4px',
+          fontSize: '9px',
           fontWeight: 700,
-          letterSpacing: '0.22em',
+          letterSpacing: '0.20em',
           textTransform: 'uppercase',
-          color: '#3A3A3A',
+          color: '#5A5550',
         }}
       >
         Event Intelligence — Architect View
