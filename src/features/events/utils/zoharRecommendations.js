@@ -167,6 +167,67 @@ export function buildRecommendations(tables, eventBrief) {
     })
   }
 
+  // ── Event-type-aware recommendations ──────────────────────────────────────
+  const eventType = eventBrief.eventType ?? null
+
+  // Small events — compact bar coverage note (only when not already covered by invited >= 80 rec)
+  if (invited > 0 && invited < 80) {
+    recs.push({
+      id: 'small-event-bar-note',
+      tag: TAGS.BAR_OPERATIONS,
+      priority: PRIORITY.LOW,
+      text: `For a compact event of ${invited} guests, one main bar and a welcome station at the entrance should provide comfortable coverage. Keep the arrival approach uncluttered and the service path clear.`,
+    })
+  }
+
+  // Large event (180+) — separate arrival drinks explicitly
+  if (invited >= 180) {
+    recs.push({
+      id: 'large-event-arrival-separation',
+      tag: TAGS.BAR_OPERATIONS,
+      priority: PRIORITY.HIGH,
+      text: `With ${invited} guests, consider separating arrival drinks from the main cocktail bar entirely. First-arrival pressure concentrates in the first 30–45 minutes — a dedicated welcome station removes this load from the primary bar.`,
+    })
+  }
+
+  // Corporate
+  if (eventType === 'corporate') {
+    recs.push({
+      id: 'corporate-registration-flow',
+      tag: TAGS.GUEST_FLOW,
+      priority: PRIORITY.HIGH,
+      text: `Corporate event: prioritize registration flow and ensure clear sightlines to any presentation screen or stage. Brief service staff on corporate pacing — reduce interruptions and hold unsolicited pours during presentations.`,
+    })
+  }
+
+  // Wedding / private — VIP and ceremony brief
+  if (eventType === 'wedding' || eventType === 'private') {
+    recs.push({
+      id: 'wedding-vip-placement',
+      tag: TAGS.VIP_EXPERIENCE,
+      priority: PRIORITY.MEDIUM,
+      text: `Keep family and VIP tables away from high-noise zones — bar service areas, runner corridors, and late-night stations. Give assigned waiters a personal brief on dietary and accessibility requirements before doors open.`,
+    })
+    if (!zoneSet.has('garden')) {
+      recs.push({
+        id: 'ceremony-service-hold',
+        tag: TAGS.SERVICE,
+        priority: PRIORITY.MEDIUM,
+        text: `Brief all service staff to hold positions at their tables during the ceremony. Return runners to the kitchen, keep ceremony space unobstructed, and resume service only once guests have fully reseated.`,
+      })
+    }
+  }
+
+  // Bar event — bar is the operational center
+  if (eventType === 'bar_event') {
+    recs.push({
+      id: 'bar-event-coverage-priority',
+      tag: TAGS.BAR_OPERATIONS,
+      priority: PRIORITY.HIGH,
+      text: `Bar coverage is the operational center of this event. Ensure the bar has maximum visibility from the main entrance, bartenders have unobstructed service reach, and resupply routes do not cross guest-facing areas.`,
+    })
+  }
+
   return recs
 }
 

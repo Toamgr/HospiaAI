@@ -11,12 +11,17 @@ import EventObjectLibrary from './components/EventObjectLibrary'
 import EventArchitectVisionModal from './components/EventArchitectVisionModal'
 import EventArchitectPrintableBrief from './components/EventArchitectPrintableBrief'
 import { DEFAULT_TABLES, EVENT_BRIEF } from './data/eventBrainDemoData'
+import { buildArchitectBriefFromEvent } from './utils/eventArchitectAdapter'
 
-const STORAGE_KEY = 'hospia.eventBrain.v1'
+const STORAGE_KEY_BASE = 'hospia.eventBrain.v1'
 
-function loadState() {
+function getStorageKey(eventId) {
+  return eventId ? `${STORAGE_KEY_BASE}:${eventId}` : STORAGE_KEY_BASE
+}
+
+function loadState(eventId) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(getStorageKey(eventId))
     if (!raw) return null
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object') return null
@@ -26,17 +31,17 @@ function loadState() {
   }
 }
 
-function saveState(state) {
+function saveState(state, eventId) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    localStorage.setItem(getStorageKey(eventId), JSON.stringify(state))
   } catch {
     // Silently ignore — storage may be full or unavailable
   }
 }
 
-function clearState() {
+function clearState(eventId) {
   try {
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(getStorageKey(eventId))
   } catch {}
 }
 
@@ -47,8 +52,65 @@ function resolveInitialTables(stored) {
   return stored.tables
 }
 
+function resolveEventId(pageContext) {
+  // Primary: pageContext (in-app navigation from EventDetail)
+  if (pageContext?.eventId) return String(pageContext.eventId)
+  // Fallback: URL search param (direct URL access)
+  try {
+    const param = new URLSearchParams(window.location.search).get('eventId')
+    if (param) return param
+  } catch {}
+  return null
+}
+
+// ── Status notice bar ──────────────────────────────────────────────────────────
+function PlanNotice({ isEventLinked, isEventNotFound, isEventsLoading, eventName }) {
+  if (!isEventLinked && !isEventNotFound && !isEventsLoading) return null
+
+  let text, color
+  if (isEventLinked) {
+    text = `Event-linked plan · visual template`
+    color = '#C9A96E'
+  } else if (isEventsLoading) {
+    text = 'Loading event data…'
+    color = '#5A5550'
+  } else {
+    text = 'Demo architect plan shown — event data unavailable.'
+    color = '#8B7355'
+  }
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '5px 14px',
+        marginBottom: 12,
+        borderRadius: 6,
+        background: isEventLinked ? 'rgba(201,169,110,0.06)' : 'rgba(90,84,80,0.1)',
+        border: `1px solid ${isEventLinked ? 'rgba(201,169,110,0.18)' : '#1E1E1E'}`,
+      }}
+    >
+      <span
+        style={{
+          display: 'inline-block',
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: color,
+          flexShrink: 0,
+        }}
+      />
+      <span style={{ fontSize: 10, color, fontWeight: 600, letterSpacing: '0.06em' }}>
+        {isEventLinked ? `Planning from event data · ${eventName}` : text}
+      </span>
+    </div>
+  )
+}
+
 // ── Premium Command Bar ────────────────────────────────────────────────────────
-function CommandBar({ eventBrief }) {
+function CommandBar({ eventBrief, isEventLinked }) {
   return (
     <div
       style={{
@@ -130,7 +192,7 @@ function CommandBar({ eventBrief }) {
               lineHeight: 1,
             }}
           >
-            {eventBrief.totalGuests}
+            {eventBrief.totalGuests ?? '—'}
           </div>
           <div style={{ fontSize: 8, color: '#3A3A3A', letterSpacing: '0.10em', textTransform: 'uppercase' }}>guests</div>
         </div>
@@ -142,12 +204,12 @@ function CommandBar({ eventBrief }) {
             fontWeight: 700,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
-            background: 'rgba(90,84,80,0.15)',
-            color: '#9A9590',
-            border: '1px solid #2A2A2A',
+            background: isEventLinked ? 'rgba(201,169,110,0.12)' : 'rgba(90,84,80,0.15)',
+            color: isEventLinked ? '#C9A96E' : '#9A9590',
+            border: isEventLinked ? '1px solid rgba(201,169,110,0.30)' : '1px solid #2A2A2A',
           }}
         >
-          Demo
+          {isEventLinked ? 'Event-linked' : 'Demo'}
         </div>
       </div>
     </div>
@@ -155,8 +217,30 @@ function CommandBar({ eventBrief }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function EventBrain() {
-  const stored = useMemo(() => loadState(), [])
+export default function EventBrain({ pageContext, events }) {
+  // Resolve eventId from context (in-app nav) or URL (direct access)
+  const eventId = useMemo(() => resolveEventId(pageContext), [pageContext])
+
+  // Find linked event from the events array
+  const linkedEvent = useMemo(() => {
+    if (!eventId || !Array.isArray(events)) return null
+    return events.find(e => String(e.id) === eventId) ?? null
+  }, [eventId, events])
+
+  // Build architect brief — real event data or demo fallback
+  const architectBrief = useMemo(
+    () => (linkedEvent ? buildArchitectBriefFromEvent(linkedEvent) : null),
+    [linkedEvent]
+  )
+
+  const isEventLinked = Boolean(architectBrief)
+  const isEventNotFound = Boolean(eventId && Array.isArray(events) && events.length > 0 && !linkedEvent)
+  const isEventsLoading = Boolean(eventId && Array.isArray(events) && events.length === 0 && !linkedEvent)
+
+  // Effective brief: real data if available, demo fallback otherwise
+  const eventBrief = architectBrief ?? EVENT_BRIEF
+
+  const stored = useMemo(() => loadState(eventId), [eventId])
 
   const [selectedId, setSelectedId] = useState(stored?.selectedId ?? 7)
   const [hoverId, setHoverId] = useState(null)
@@ -176,29 +260,37 @@ export default function EventBrain() {
   const handleSelect = useCallback(
     id => {
       setSelectedId(id)
-      saveState({ selectedId: id, tables })
+      saveState({ selectedId: id, tables }, eventId)
     },
-    [tables]
+    [tables, eventId]
   )
 
   const handleAutoArrange = useCallback(() => {
     setTables(DEFAULT_TABLES)
     setSelectedId(7)
-    saveState({ selectedId: 7, tables: DEFAULT_TABLES })
-  }, [])
+    saveState({ selectedId: 7, tables: DEFAULT_TABLES }, eventId)
+  }, [eventId])
 
   const handleReset = useCallback(() => {
     setTables(DEFAULT_TABLES)
     setSelectedId(7)
     setActiveMode('architect')
     setHighlightType(null)
-    clearState()
-  }, [])
+    clearState(eventId)
+  }, [eventId])
 
   return (
     <div>
       {/* ── Premium Command Bar ── */}
-      <CommandBar eventBrief={EVENT_BRIEF} />
+      <CommandBar eventBrief={eventBrief} isEventLinked={isEventLinked} />
+
+      {/* ── Plan notice (event-linked / demo / loading) ── */}
+      <PlanNotice
+        isEventLinked={isEventLinked}
+        isEventNotFound={isEventNotFound}
+        isEventsLoading={isEventsLoading}
+        eventName={eventBrief.title}
+      />
 
       {/* ── Event Architect Toolbar — above grid so mode controls are always visible ── */}
       <div className="mb-4">
@@ -236,13 +328,13 @@ export default function EventBrain() {
         <ZoharPanel
           selectedTable={selectedTable}
           tables={tables}
-          eventBrief={EVENT_BRIEF}
+          eventBrief={eventBrief}
         />
       </div>
 
       {/* ── Intelligence Metrics Strip ── */}
       <div className="mt-4">
-        <EventArchitectMetricsStrip tables={tables} eventBrief={EVENT_BRIEF} />
+        <EventArchitectMetricsStrip tables={tables} eventBrief={eventBrief} />
       </div>
 
       {/* ── Bottom Section — preserved ── */}
@@ -263,7 +355,7 @@ export default function EventBrain() {
       {showPrintBrief && (
         <EventArchitectPrintableBrief
           tables={tables}
-          eventBrief={EVENT_BRIEF}
+          eventBrief={eventBrief}
           onClose={() => setShowPrintBrief(false)}
         />
       )}

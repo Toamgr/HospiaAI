@@ -101,6 +101,22 @@ export default function EventDetail({
           <p className="text-sm text-zinc-500 mt-0.5">{event.client_name}</p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          {['events_manager', 'manager', 'owner', 'admin'].includes(currentUser?.role) && (
+            <button
+              type="button"
+              onClick={() => goToPage('eventBrain', { eventId: event.id })}
+              className="px-3 py-1.5 rounded-lg border text-xs transition-colors"
+              style={{
+                background: 'rgba(201,169,110,0.06)',
+                borderColor: 'rgba(201,169,110,0.25)',
+                color: '#C9A96E',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.12)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.06)' }}
+            >
+              Architect Plan
+            </button>
+          )}
           {!['cancelled', 'completed'].includes(event.status) && onStartCheckin && (
             <button
               type="button"
