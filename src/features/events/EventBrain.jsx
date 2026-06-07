@@ -12,45 +12,7 @@ import EventArchitectVisionModal from './components/EventArchitectVisionModal'
 import EventArchitectPrintableBrief from './components/EventArchitectPrintableBrief'
 import { DEFAULT_TABLES, EVENT_BRIEF } from './data/eventBrainDemoData'
 import { buildArchitectBriefFromEvent } from './utils/eventArchitectAdapter'
-
-const STORAGE_KEY_BASE = 'hospia.eventBrain.v1'
-
-function getStorageKey(eventId) {
-  return eventId ? `${STORAGE_KEY_BASE}:${eventId}` : STORAGE_KEY_BASE
-}
-
-function loadState(eventId) {
-  try {
-    const raw = localStorage.getItem(getStorageKey(eventId))
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object') return null
-    return parsed
-  } catch {
-    return null
-  }
-}
-
-function saveState(state, eventId) {
-  try {
-    localStorage.setItem(getStorageKey(eventId), JSON.stringify(state))
-  } catch {
-    // Silently ignore — storage may be full or unavailable
-  }
-}
-
-function clearState(eventId) {
-  try {
-    localStorage.removeItem(getStorageKey(eventId))
-  } catch {}
-}
-
-function resolveInitialTables(stored) {
-  if (!stored?.tables) return DEFAULT_TABLES
-  if (!Array.isArray(stored.tables) || stored.tables.length === 0) return DEFAULT_TABLES
-  if (typeof stored.tables[0]?.id !== 'number') return DEFAULT_TABLES
-  return stored.tables
-}
+import { loadPlan, savePlan, clearPlan } from './utils/eventArchitectPlanPersistence'
 
 const SESSION_LINK_KEY = 'hestia.architect.linkId'
 
@@ -73,12 +35,12 @@ function resolveEventId(pageContext) {
 }
 
 // ── Status notice bar ──────────────────────────────────────────────────────────
-function PlanNotice({ isEventLinked, isEventNotFound, isEventsLoading, eventName }) {
-  if (!isEventLinked && !isEventNotFound && !isEventsLoading) return null
+function PlanNotice({ isEventLinked, isEventNotFound, isEventsLoading, eventName, isPlanSaved }) {
+  const showNotice = isEventLinked || isEventNotFound || isEventsLoading
 
   let text, color
   if (isEventLinked) {
-    text = `Event-linked plan · visual template`
+    text = `Planning from event data · ${eventName}`
     color = '#C9A96E'
   } else if (isEventsLoading) {
     text = 'Loading event data…'
@@ -88,11 +50,17 @@ function PlanNotice({ isEventLinked, isEventNotFound, isEventsLoading, eventName
     color = '#8B7355'
   }
 
+  const planLabel = isPlanSaved ? 'Plan saved' : 'Default plan · unsaved'
+  const planColor = isPlanSaved ? '#4F6B4A' : '#5A5550'
+
+  if (!showNotice && !isPlanSaved) return null
+
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'space-between',
         gap: 8,
         padding: '5px 14px',
         marginBottom: 12,
@@ -101,18 +69,27 @@ function PlanNotice({ isEventLinked, isEventNotFound, isEventsLoading, eventName
         border: `1px solid ${isEventLinked ? 'rgba(201,169,110,0.18)' : '#1E1E1E'}`,
       }}
     >
-      <span
-        style={{
-          display: 'inline-block',
-          width: 6,
-          height: 6,
-          borderRadius: '50%',
-          background: color,
-          flexShrink: 0,
-        }}
-      />
-      <span style={{ fontSize: 10, color, fontWeight: 600, letterSpacing: '0.06em' }}>
-        {isEventLinked ? `Planning from event data · ${eventName}` : text}
+      {showNotice ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              display: 'inline-block',
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: color,
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontSize: 10, color, fontWeight: 600, letterSpacing: '0.06em' }}>
+            {text}
+          </span>
+        </div>
+      ) : (
+        <span />
+      )}
+      <span style={{ fontSize: 9, color: planColor, fontWeight: 600, letterSpacing: '0.08em' }}>
+        {planLabel}
       </span>
     </div>
   )
@@ -257,11 +234,12 @@ export default function EventBrain({ pageContext, events }) {
     try { sessionStorage.removeItem(SESSION_LINK_KEY) } catch {}
   }, [])
 
-  const stored = useMemo(() => loadState(eventId), [eventId])
+  const savedPlan = useMemo(() => loadPlan(eventId), [eventId])
 
-  const [selectedId, setSelectedId] = useState(stored?.selectedId ?? 7)
+  const [isPlanSaved, setIsPlanSaved] = useState(Boolean(savedPlan))
+  const [selectedId, setSelectedId] = useState(savedPlan?.selectedId ?? 7)
   const [hoverId, setHoverId] = useState(null)
-  const [tables, setTables] = useState(() => resolveInitialTables(stored))
+  const [tables, setTables] = useState(() => savedPlan?.tables ?? DEFAULT_TABLES)
   const [activeMode, setActiveMode] = useState('architect')
 
   // Phase 11C state
@@ -277,7 +255,8 @@ export default function EventBrain({ pageContext, events }) {
   const handleSelect = useCallback(
     id => {
       setSelectedId(id)
-      saveState({ selectedId: id, tables }, eventId)
+      savePlan(eventId, { tables, selectedId: id, isDefault: false })
+      setIsPlanSaved(true)
     },
     [tables, eventId]
   )
@@ -285,7 +264,8 @@ export default function EventBrain({ pageContext, events }) {
   const handleAutoArrange = useCallback(() => {
     setTables(DEFAULT_TABLES)
     setSelectedId(7)
-    saveState({ selectedId: 7, tables: DEFAULT_TABLES }, eventId)
+    savePlan(eventId, { tables: DEFAULT_TABLES, selectedId: 7, isDefault: true })
+    setIsPlanSaved(true)
   }, [eventId])
 
   const handleReset = useCallback(() => {
@@ -293,7 +273,8 @@ export default function EventBrain({ pageContext, events }) {
     setSelectedId(7)
     setActiveMode('architect')
     setHighlightType(null)
-    clearState(eventId)
+    clearPlan(eventId)
+    setIsPlanSaved(false)
   }, [eventId])
 
   return (
@@ -301,12 +282,13 @@ export default function EventBrain({ pageContext, events }) {
       {/* ── Premium Command Bar ── */}
       <CommandBar eventBrief={eventBrief} isEventLinked={isEventLinked} />
 
-      {/* ── Plan notice (event-linked / demo / loading) ── */}
+      {/* ── Plan notice (event-linked / demo / loading / save status) ── */}
       <PlanNotice
         isEventLinked={isEventLinked}
         isEventNotFound={isEventNotFound}
         isEventsLoading={isEventsLoading}
         eventName={eventBrief.title}
+        isPlanSaved={isPlanSaved}
       />
 
       {/* ── Event Architect Toolbar — above grid so mode controls are always visible ── */}

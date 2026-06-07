@@ -239,8 +239,11 @@ export function deriveArchitectPlanningProfile(event) {
 }
 
 /**
- * Return the fallback tables unchanged — floor plan editor is a future phase.
- * The visual template stays the same; only the data around it becomes event-linked.
+ * Derive the initial table layout for an event.
+ * Per-event persistence is handled by eventArchitectPlanPersistence.js
+ * (key: hestia.eventArchitect.plan:<eventId>). This function is reserved for
+ * future server-side plan loading — call it after persistence lookup fails.
+ * Returns fallbackTables unchanged until a server-sourced plan is available.
  */
 export function deriveArchitectTablesFromEvent(event, fallbackTables) {
   return fallbackTables
