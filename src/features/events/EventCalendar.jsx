@@ -13,7 +13,9 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { fetchCocktailMenu } from '../../services/api/eventsApi'
 import { buildZoharBrief } from './utils/zoharBriefOrchestrator'
 import { buildCalendarIntelligence } from './utils/calendarIntelligence'
+import { buildDailyBriefing } from './utils/dailyBriefingEngine'
 import { loadPlan } from './utils/eventArchitectPlanPersistence'
+import DailyBriefing from './components/DailyBriefing'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -538,6 +540,12 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
     return map
   }, [events, menuCache, architectStatusMap])
 
+  // ── Daily briefing (consumes intelligenceMap — no re-computation) ──
+  const briefing = useMemo(
+    () => buildDailyBriefing({ events: events || [], intelligenceMap }),
+    [events, intelligenceMap]
+  )
+
   // ── Calendar grid ──
   const grid = useMemo(() => getCalendarGrid(year, month), [year, month])
 
@@ -658,6 +666,14 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
           <NavBtn onClick={nextMonth}>›</NavBtn>
         </div>
       </div>
+
+      {/* ── Daily Briefing ── */}
+      <DailyBriefing
+        briefing={briefing}
+        intelligenceMap={intelligenceMap}
+        isFullAccess={isFullAccess}
+        onEventSelect={setPanelId}
+      />
 
       {/* ── Today's Priorities (full access only) ── */}
       {isFullAccess && upcomingPriorities.length > 0 && (
