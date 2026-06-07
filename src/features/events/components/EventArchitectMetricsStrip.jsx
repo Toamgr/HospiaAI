@@ -111,7 +111,7 @@ function Divider() {
   )
 }
 
-export default function EventArchitectMetricsStrip({ tables, eventBrief }) {
+export default function EventArchitectMetricsStrip({ tables, eventBrief, seatingIntelligence }) {
   const staffCounts = useMemo(
     () =>
       eventBrief
@@ -185,6 +185,14 @@ export default function EventArchitectMetricsStrip({ tables, eventBrief }) {
           value={capacity.unresolved !== null ? String(capacity.unresolved) : '—'}
           sub="guests unseated"
           alert={unresolved > 0}
+        />
+        <Divider />
+        <MetricCell
+          label="Seating"
+          value={seatingIntelligence ? `${seatingIntelligence.seatingCompletion}%` : '—'}
+          sub={seatingIntelligence ? `${seatingIntelligence.seatedCount} of ${seatingIntelligence.totalGuests} guests` : 'no guest list'}
+          alert={seatingIntelligence ? seatingIntelligence.capacityWarnings.length > 0 : false}
+          scoreBar={seatingIntelligence?.seatingCompletion}
         />
         <Divider />
         <MetricCell

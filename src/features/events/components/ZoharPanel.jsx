@@ -301,7 +301,85 @@ function TableContext({ selectedTable, tables, eventBrief }) {
 }
 
 // ── Main ZoharPanel ────────────────────────────────────────────────────────────
-export default function ZoharPanel({ selectedTable, tables, eventBrief }) {
+// ── Seating Intelligence Section ──────────────────────────────────────────────
+function SeatingSection({ si }) {
+  if (!si || si.totalGuests === 0) return null
+
+  const completionColor = si.seatingCompletion >= 80
+    ? '#4F6B4A'
+    : si.seatingCompletion >= 50
+    ? '#C9A96E'
+    : '#c05050'
+
+  return (
+    <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A1A1A', flexShrink: 0 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5A5550', marginBottom: 8 }}>
+        Seating Readiness
+      </div>
+
+      {/* Completion bar */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ fontSize: 9, color: '#5A5550' }}>Completion</span>
+          <span style={{ fontSize: 9, fontWeight: 700, color: completionColor }}>
+            {si.seatingCompletion}%
+          </span>
+        </div>
+        <div style={{ height: 3, background: '#1A1A1A', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${si.seatingCompletion}%`, background: completionColor, borderRadius: 2, transition: 'width 300ms ease' }} />
+        </div>
+      </div>
+
+      {/* Counts */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: si.capacityWarnings.length + si.vipWarnings.length > 0 ? 8 : 0 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#4F6B4A', fontFamily: '"JetBrains Mono", monospace', lineHeight: 1 }}>
+            {si.seatedCount}
+          </div>
+          <div style={{ fontSize: 7.5, color: '#3A3A3A', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Seated</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: si.unassignedCount > 0 ? '#C9A96E' : '#3A3A3A', fontFamily: '"JetBrains Mono", monospace', lineHeight: 1 }}>
+            {si.unassignedCount}
+          </div>
+          <div style={{ fontSize: 7.5, color: '#3A3A3A', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Unassigned</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#5A5550', fontFamily: '"JetBrains Mono", monospace', lineHeight: 1 }}>
+            {si.totalGuests}
+          </div>
+          <div style={{ fontSize: 7.5, color: '#3A3A3A', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Total</div>
+        </div>
+      </div>
+
+      {/* Capacity warnings */}
+      {si.capacityWarnings.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          {si.capacityWarnings.map(w => (
+            <div key={w.tableId} style={{ fontSize: 9, color: '#c05050', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ fontWeight: 700 }}>⚠</span>
+              <span>{w.tableLabel}: {w.assigned} assigned / {w.capacity} capacity</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* VIP warnings */}
+      {si.vipWarnings.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          {si.vipWarnings.map(w => (
+            <div key={w.tableId} style={{ fontSize: 9, color: '#C9A96E', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ fontWeight: 700 }}>◆</span>
+              <span>{w.tableLabel} — VIP table unassigned</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function ZoharPanel({ selectedTable, tables, eventBrief, seatingIntelligence }) {
   const [activeFilter, setActiveFilter] = useState('all')
 
   const allRecs = useMemo(
@@ -424,6 +502,9 @@ export default function ZoharPanel({ selectedTable, tables, eventBrief }) {
           <BriefSummaryRow label="Dietary" value={b.dietary.join(' · ')} />
         )}
       </div>
+
+      {/* Seating Intelligence */}
+      <SeatingSection si={seatingIntelligence} />
 
       {/* Recommendations */}
       <div

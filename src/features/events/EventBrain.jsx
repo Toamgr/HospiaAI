@@ -11,9 +11,12 @@ import EventObjectLibrary from './components/EventObjectLibrary'
 import EventArchitectVisionModal from './components/EventArchitectVisionModal'
 import EventArchitectPrintableBrief from './components/EventArchitectPrintableBrief'
 import EventArchitectTablePanel from './components/EventArchitectTablePanel'
+import EventArchitectGuestPanel from './components/EventArchitectGuestPanel'
 import { DEFAULT_TABLES, EVENT_BRIEF } from './data/eventBrainDemoData'
 import { buildArchitectBriefFromEvent } from './utils/eventArchitectAdapter'
 import { loadPlan, savePlan, clearPlan } from './utils/eventArchitectPlanPersistence'
+import { computeSeatingIntelligence } from './utils/seatingIntelligence'
+import { fetchGuests, updateGuest } from '../../services/api/eventsApi'
 
 const SESSION_LINK_KEY = 'hestia.architect.linkId'
 
@@ -317,6 +320,23 @@ export default function EventBrain({ pageContext, events }) {
   const [canUndo, setCanUndo] = useState(false)
   const [resetConfirmPending, setResetConfirmPending] = useState(false)
 
+  // Z4: guest seating — fetched independently per eventId
+  const [guests, setGuests] = useState([])
+
+  useEffect(() => {
+    if (!eventId) return
+    let cancelled = false
+    fetchGuests(eventId)
+      .then(res => { if (!cancelled) setGuests(Array.isArray(res?.guests) ? res.guests : []) })
+      .catch(() => { if (!cancelled) setGuests([]) })
+    return () => { cancelled = true }
+  }, [eventId])
+
+  const seatingIntelligence = useMemo(
+    () => computeSeatingIntelligence(guests, tables),
+    [guests, tables]
+  )
+
   const selectedTable = useMemo(
     () => tables.find(t => t.id === selectedId) ?? tables[0],
     [tables, selectedId]
@@ -453,6 +473,20 @@ export default function EventBrain({ pageContext, events }) {
     setCanUndo(false)
   }, [eventId])
 
+  // Z4: assign a guest to the currently selected table (optimistic update)
+  const handleAssignGuest = useCallback(async (guestId) => {
+    if (!eventId || selectedId == null) return
+    setGuests(prev => prev.map(g => g.id === guestId ? { ...g, table_id: selectedId } : g))
+    try { await updateGuest(eventId, guestId, { table_id: selectedId }) } catch {}
+  }, [eventId, selectedId])
+
+  // Z4: remove a guest's table assignment (optimistic update)
+  const handleUnassignGuest = useCallback(async (guestId) => {
+    if (!eventId) return
+    setGuests(prev => prev.map(g => g.id === guestId ? { ...g, table_id: null } : g))
+    try { await updateGuest(eventId, guestId, { table_id: null }) } catch {}
+  }, [eventId])
+
   return (
     <div>
       {/* ── Premium Command Bar ── */}
@@ -502,7 +536,7 @@ export default function EventBrain({ pageContext, events }) {
           highlightType={highlightType}
         />
 
-        {/* Right column: table properties panel + Zohar intelligence */}
+        {/* Right column: table properties → seating → Zohar intelligence */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <EventArchitectTablePanel
             key={selectedTable?.id ?? 'none'}
@@ -513,17 +547,30 @@ export default function EventBrain({ pageContext, events }) {
             onDuplicate={handleDuplicate}
             onDelete={handleDelete}
           />
+          <EventArchitectGuestPanel
+            key={`gp-${selectedTable?.id ?? 'none'}`}
+            selectedTable={selectedTable}
+            guests={guests}
+            onAssignGuest={handleAssignGuest}
+            onUnassignGuest={handleUnassignGuest}
+            seatingIntelligence={seatingIntelligence}
+          />
           <ZoharPanel
             selectedTable={selectedTable}
             tables={tables}
             eventBrief={eventBrief}
+            seatingIntelligence={seatingIntelligence}
           />
         </div>
       </div>
 
       {/* ── Intelligence Metrics Strip ── */}
       <div className="mt-4">
-        <EventArchitectMetricsStrip tables={tables} eventBrief={eventBrief} />
+        <EventArchitectMetricsStrip
+          tables={tables}
+          eventBrief={eventBrief}
+          seatingIntelligence={seatingIntelligence}
+        />
       </div>
 
       {/* ── Bottom Section — preserved ── */}

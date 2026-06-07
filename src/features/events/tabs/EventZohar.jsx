@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { fetchCocktailMenu } from '../../../services/api/eventsApi'
 import { buildZoharBrief } from '../utils/zoharBriefOrchestrator'
+import { computeSeatingIntelligence } from '../utils/seatingIntelligence'
 
 const ARCHITECT_ROLES = ['events_manager', 'manager', 'owner', 'admin']
 
@@ -300,6 +301,11 @@ export default function EventZohar({
     [event, guests, tables, tasks, timeline]
   )
 
+  const seatingIntelligence = useMemo(
+    () => computeSeatingIntelligence(guests ?? [], tables ?? []),
+    [guests, tables]
+  )
+
   if (!brief) {
     return (
       <div style={{ padding: 24, color: '#5A5550', fontSize: 11 }}>
@@ -517,6 +523,47 @@ export default function EventZohar({
           </div>
         )}
       </Card>
+
+      {/* Seating Intelligence — only when guests exist */}
+      {seatingIntelligence && seatingIntelligence.totalGuests > 0 && (
+        <Card>
+          <CardHead
+            right={
+              <span
+                style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: seatingIntelligence.seatingCompletion >= 80
+                    ? '#6BAF80'
+                    : seatingIntelligence.seatingCompletion >= 50
+                    ? '#C9A96E'
+                    : '#D4943A',
+                }}
+              >
+                {seatingIntelligence.seatingCompletion}%
+              </span>
+            }
+          >
+            Seating Readiness
+          </CardHead>
+          <FieldRow label="Seated"     value={`${seatingIntelligence.seatedCount} guests`} />
+          <FieldRow label="Unassigned" value={`${seatingIntelligence.unassignedCount} guests`} />
+          <FieldRow label="Total"      value={`${seatingIntelligence.totalGuests} guests`} />
+          {seatingIntelligence.capacityWarnings.map(w => (
+            <NoteRow
+              key={w.tableId}
+              label="⚠ Over capacity"
+              value={`${w.tableLabel}: ${w.assigned} assigned, ${w.capacity} seats`}
+            />
+          ))}
+          {seatingIntelligence.vipWarnings.map(w => (
+            <NoteRow
+              key={w.tableId}
+              label="◆ VIP unassigned"
+              value={`${w.tableLabel} has no guests assigned`}
+            />
+          ))}
+        </Card>
+      )}
 
       {/* Footer */}
       <p
