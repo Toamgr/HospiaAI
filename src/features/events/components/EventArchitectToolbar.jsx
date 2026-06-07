@@ -63,7 +63,7 @@ function ActionButton({ label, onClick, disabled, title }) {
   )
 }
 
-export default function EventArchitectToolbar({ activeMode, onModeChange, onReset }) {
+export default function EventArchitectToolbar({ activeMode, onModeChange, onReset, onOpenVision, onOpenBrief }) {
   return (
     <div
       style={{
@@ -110,8 +110,8 @@ export default function EventArchitectToolbar({ activeMode, onModeChange, onRese
         />
         <ActionButton
           label="Export Brief"
-          disabled
-          title="Export Brief — PDF export not available in this phase"
+          onClick={onOpenBrief}
+          title="Export Event Architect Brief — print-friendly summary"
         />
         <ActionButton
           label="Reset"
@@ -120,8 +120,8 @@ export default function EventArchitectToolbar({ activeMode, onModeChange, onRese
         />
         <ActionButton
           label="Why This Matters"
-          disabled
-          title="Strategic context — coming in a future phase"
+          onClick={onOpenVision}
+          title="Strategic context — HESTIA Event Architect"
         />
       </div>
 

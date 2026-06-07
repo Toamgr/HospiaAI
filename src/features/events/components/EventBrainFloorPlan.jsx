@@ -1,4 +1,13 @@
-import React from 'react'
+import React, { useMemo } from 'react'
+import { OBJECT_HIGHLIGHT_MAP } from './EventObjectLibrary'
+
+// Resolve floor plan behaviour from an Object Library selection
+function resolveLibraryHighlight(highlightType) {
+  if (!highlightType) return { tableFilter: null, forceOverlay: null }
+  const entry = OBJECT_HIGHLIGHT_MAP[highlightType]
+  if (!entry) return { tableFilter: null, forceOverlay: null }
+  return { tableFilter: entry.highlightFilter, forceOverlay: entry.overlayMode }
+}
 
 function TropicalTree({ x, y, size = 1 }) {
   return (
@@ -10,7 +19,7 @@ function TropicalTree({ x, y, size = 1 }) {
   )
 }
 
-function TableNode({ table, selected, hovered, onSelect, onHover }) {
+function TableNode({ table, selected, hovered, onSelect, onHover, dimmed, libHighlighted }) {
   const isActive = selected || hovered
   const TR = 28
   const tableFill = selected ? '#c9a96e' : hovered ? '#2a2818' : '#1e1c15'
@@ -50,9 +59,12 @@ function TableNode({ table, selected, hovered, onSelect, onHover }) {
       onClick={() => onSelect(table.id)}
       onMouseEnter={() => onHover(table.id)}
       onMouseLeave={() => onHover(null)}
-      style={{ cursor: 'pointer' }}
+      style={{ cursor: 'pointer', opacity: dimmed ? 0.18 : 1, transition: 'opacity 200ms ease' }}
     >
       {selected && <circle r={44} fill="rgba(201,169,110,0.09)" />}
+      {libHighlighted && !selected && (
+        <circle r={46} fill="none" stroke="rgba(201,169,110,0.32)" strokeWidth="1.5" strokeDasharray="4 3" />
+      )}
 
       {chairs.map((c, i) =>
         c.wheelchair ? (
@@ -250,7 +262,17 @@ export default function EventBrainFloorPlan({
   onAutoArrange,
   onReset,
   activeMode,
+  highlightType,
 }) {
+  const { tableFilter, forceOverlay } = useMemo(
+    () => resolveLibraryHighlight(highlightType),
+    [highlightType]
+  )
+  // Toolbar wins when a non-default mode is active; library forceOverlay only
+  // activates when the toolbar is in the base 'architect' view.
+  const effectiveOverlay = activeMode !== 'architect'
+    ? activeMode
+    : (forceOverlay ?? 'architect')
   return (
     <div className="overflow-hidden rounded-[1.5rem] border border-[#6b705c]/10 bg-gradient-to-br from-[#1a1a1a] to-[#0a0a08] shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
       {/* Toolbar */}
@@ -422,21 +444,27 @@ export default function EventBrainFloorPlan({
           <text x="720" y="258" fontSize="6.5" fill="rgba(201,169,110,0.26)" textAnchor="middle" letterSpacing="0.16em">POOL DECK</text>
 
           {/* ── TABLES ── */}
-          {tables.map(table => (
-            <TableNode
-              key={table.id}
-              table={table}
-              selected={table.id === selectedId}
-              hovered={table.id === hoverId}
-              onSelect={onSelect}
-              onHover={onHover}
-            />
-          ))}
+          {tables.map(table => {
+            const isHighlighted = tableFilter ? tableFilter(table) : null
+            const isDimmed = tableFilter !== null && isHighlighted === false
+            return (
+              <TableNode
+                key={table.id}
+                table={table}
+                selected={table.id === selectedId}
+                hovered={table.id === hoverId}
+                onSelect={onSelect}
+                onHover={onHover}
+                dimmed={isDimmed}
+                libHighlighted={!!isHighlighted && table.id !== selectedId}
+              />
+            )
+          })}
 
-          {/* ── MODE OVERLAYS ── */}
-          {activeMode === 'guest-flow' && <GuestFlowOverlay />}
-          {activeMode === 'service-flow' && <ServiceFlowOverlay />}
-          {activeMode === 'accessibility' && <AccessibilityOverlay />}
+          {/* ── MODE OVERLAYS — driven by toolbar or Object Library ── */}
+          {effectiveOverlay === 'guest-flow' && <GuestFlowOverlay />}
+          {effectiveOverlay === 'service-flow' && <ServiceFlowOverlay />}
+          {effectiveOverlay === 'accessibility' && <AccessibilityOverlay />}
 
           {/* ── SCALE INDICATOR ── */}
           <line x1="858" y1="598" x2="912" y2="598" stroke="rgba(201,169,110,0.38)" strokeWidth="1" />

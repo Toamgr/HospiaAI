@@ -7,6 +7,9 @@ import { InvestorValueCard, PilotValueCard } from './components/InvestorValueCar
 import ZoharPanel from './components/ZoharPanel'
 import EventArchitectMetricsStrip from './components/EventArchitectMetricsStrip'
 import EventArchitectToolbar from './components/EventArchitectToolbar'
+import EventObjectLibrary from './components/EventObjectLibrary'
+import EventArchitectVisionModal from './components/EventArchitectVisionModal'
+import EventArchitectPrintableBrief from './components/EventArchitectPrintableBrief'
 import { DEFAULT_TABLES, EVENT_BRIEF } from './data/eventBrainDemoData'
 
 const STORAGE_KEY = 'hospia.eventBrain.v1'
@@ -160,6 +163,11 @@ export default function EventBrain() {
   const [tables, setTables] = useState(() => resolveInitialTables(stored))
   const [activeMode, setActiveMode] = useState('architect')
 
+  // Phase 11C state
+  const [highlightType, setHighlightType] = useState(null)
+  const [showVisionModal, setShowVisionModal] = useState(false)
+  const [showPrintBrief, setShowPrintBrief] = useState(false)
+
   const selectedTable = useMemo(
     () => tables.find(t => t.id === selectedId) ?? tables[0],
     [tables, selectedId]
@@ -183,6 +191,7 @@ export default function EventBrain() {
     setTables(DEFAULT_TABLES)
     setSelectedId(7)
     setActiveMode('architect')
+    setHighlightType(null)
     clearState()
   }, [])
 
@@ -197,12 +206,20 @@ export default function EventBrain() {
           activeMode={activeMode}
           onModeChange={setActiveMode}
           onReset={handleReset}
+          onOpenVision={() => setShowVisionModal(true)}
+          onOpenBrief={() => setShowPrintBrief(true)}
         />
       </div>
 
-      {/* ── Main: Floor Plan + Zohar Panel ── */}
-      <div className="grid gap-5 xl:grid-cols-[1fr_316px]">
-        {/* Left column: floor plan only */}
+      {/* ── Main: Object Library + Floor Plan + Zohar Panel ── */}
+      <div className="grid gap-5 xl:grid-cols-[auto_1fr_316px]">
+        {/* Object Library — visible on xl+ only */}
+        <EventObjectLibrary
+          activeType={highlightType}
+          onTypeChange={setHighlightType}
+        />
+
+        {/* Floor plan */}
         <EventBrainFloorPlan
           tables={tables}
           selectedId={selectedId}
@@ -212,9 +229,10 @@ export default function EventBrain() {
           onAutoArrange={handleAutoArrange}
           onReset={handleReset}
           activeMode={activeMode}
+          highlightType={highlightType}
         />
 
-        {/* Right column: Zohar intelligence panel */}
+        {/* Zohar intelligence panel */}
         <ZoharPanel
           selectedTable={selectedTable}
           tables={tables}
@@ -237,6 +255,18 @@ export default function EventBrain() {
           <PilotValueCard />
         </div>
       </div>
+
+      {/* ── Phase 11C Modals ── */}
+      {showVisionModal && (
+        <EventArchitectVisionModal onClose={() => setShowVisionModal(false)} />
+      )}
+      {showPrintBrief && (
+        <EventArchitectPrintableBrief
+          tables={tables}
+          eventBrief={EVENT_BRIEF}
+          onClose={() => setShowPrintBrief(false)}
+        />
+      )}
     </div>
   )
 }

@@ -122,12 +122,70 @@ export default function EventCRM({
     )
   }
 
+  const canAccessEventArchitect = ['events_manager', 'manager', 'owner', 'admin'].includes(currentUser?.role)
+
   return (
-    <EventList
-      events={events}
-      isLoading={isLoadingEvents}
-      onSelectEvent={handleSelectEvent}
-      onCreateNew={() => setView(VIEW.CREATE)}
-    />
+    <>
+      {canAccessEventArchitect && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            background: '#0A0A0A',
+            border: '1px solid #1A1A1A',
+            borderRadius: 6,
+            padding: '8px 14px',
+            marginBottom: 12,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.10em',
+              textTransform: 'uppercase',
+              color: '#3A3A3A',
+            }}
+          >
+            Event Architect Studio
+          </span>
+          <button
+            type="button"
+            onClick={() => goToPage('eventBrain')}
+            style={{
+              background: 'transparent',
+              border: '1px solid #2A2A2A',
+              borderRadius: 100,
+              color: '#5A5550',
+              cursor: 'pointer',
+              padding: '3px 12px',
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: '0.10em',
+              textTransform: 'uppercase',
+              transition: 'all 150ms ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'rgba(201,169,110,0.35)'
+              e.currentTarget.style.color = '#C9A96E'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = '#2A2A2A'
+              e.currentTarget.style.color = '#5A5550'
+            }}
+          >
+            Open Event Architect
+          </button>
+        </div>
+      )}
+      <EventList
+        events={events}
+        isLoading={isLoadingEvents}
+        onSelectEvent={handleSelectEvent}
+        onCreateNew={() => setView(VIEW.CREATE)}
+      />
+    </>
   )
 }

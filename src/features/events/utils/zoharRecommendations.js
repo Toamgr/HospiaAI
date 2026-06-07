@@ -43,14 +43,14 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'unresolved-guests',
       tag: TAGS.RISK,
       priority: PRIORITY.HIGH,
-      text: `${unresolved} guests remain unseated against the current floor plan. Confirm final guest count and resolve table assignments before issuing the crew brief.`,
+      text: `Action required: ${unresolved} guests remain unseated against the current floor plan. Confirm final guest count, resolve table assignments, and reissue the crew brief before event day.`,
     })
   } else if (unresolved > 0 && unresolved < 5) {
     recs.push({
       id: 'unresolved-guests-minor',
       tag: TAGS.RISK,
       priority: PRIORITY.MEDIUM,
-      text: `${unresolved} guest${unresolved > 1 ? 's are' : ' is'} not yet assigned to a table. Resolve before the floor plan is approved.`,
+      text: `${unresolved} guest${unresolved > 1 ? 's are' : ' is'} not yet assigned to a table. Resolve and confirm before the floor plan is approved.`,
     })
   }
 
@@ -60,7 +60,7 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'welcome-drinks-placement',
       tag: TAGS.GUEST_FLOW,
       priority: PRIORITY.HIGH,
-      text: `Position the welcome drinks station 5–6 meters inside the main entrance rather than at the door. This prevents a first-arrival bottleneck and creates a deliberate entry moment for ${invited} arriving guests.`,
+      text: `Recommended action: move the welcome drinks station 5–6 meters inside the main entrance rather than placing it at the door. This prevents a first-arrival bottleneck and creates a deliberate entry moment for ${invited} arriving guests.`,
     })
   }
 
@@ -71,7 +71,7 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'accessible-path-clearance',
       tag: TAGS.ACCESSIBILITY,
       priority: PRIORITY.HIGH,
-      text: `${tableIds} ${accessibleTables.length > 1 ? 'carry' : 'carries'} accessibility priority. The service path around ${accessibleTables.length > 1 ? 'these tables' : 'this table'} must remain free of mobile furniture, trolleys, and bar equipment throughout the event.`,
+      text: `Action required: ${tableIds} ${accessibleTables.length > 1 ? 'carry' : 'carries'} accessibility priority. Keep this route clear — mobile furniture, trolleys, and bar equipment must not block the service path around ${accessibleTables.length > 1 ? 'these tables' : 'this table'} at any point during the event.`,
     })
   }
 
@@ -81,7 +81,7 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'elderly-route-monitoring',
       tag: TAGS.ACCESSIBILITY,
       priority: PRIORITY.MEDIUM,
-      text: `${acc.elderly} elderly guests are expected. Assign the Access Host to monitor the step-free route during peak arrival and confirm no service equipment blocks sightlines to accessible seating.`,
+      text: `Recommended action: assign the Access Host to monitor the step-free route during peak arrival. ${acc.elderly} elderly guests are expected — confirm no service equipment blocks sightlines to accessible seating before doors open.`,
     })
   }
 
@@ -91,7 +91,7 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'hall-service-corridor',
       tag: TAGS.SERVICE,
       priority: PRIORITY.MEDIUM,
-      text: `${hallTables.length} tables share the main hall service corridor from the chef kitchen. Establish single-direction runner flow during plating moments to prevent cross-traffic and dropped plates.`,
+      text: `Action: establish single-direction runner flow in the main hall service corridor before plating begins. ${hallTables.length} tables share this route from the chef kitchen — cross-traffic during simultaneous plating is a dropped-plate risk. Assign a service captain to monitor this pressure point.`,
     })
   }
 
@@ -103,7 +103,7 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'pool-luxury-standard',
       tag: TAGS.VIP_EXPERIENCE,
       priority: PRIORITY.MEDIUM,
-      text: `The pool deck creates the venue's premium destination moment. Assign ${waiterRef} exclusively to pool seating during main service to maintain a consistent luxury tone and prevent uncovered plates poolside.`,
+      text: `The pool deck is the venue's premium destination moment. Assign ${waiterRef} exclusively to pool seating during main service — no shared routes, no delayed plating, no uncovered plates poolside.`,
     })
   }
 
@@ -113,7 +113,7 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'open-bar-arrival-pressure',
       tag: TAGS.BAR_OPERATIONS,
       priority: PRIORITY.MEDIUM,
-      text: `With an open bar format and ${invited} guests, the main bar will face peak pressure in the first 45 minutes of service. Activate the garden bar as a destination from arrival — not only after the ceremony — to distribute load.`,
+      text: `Recommended action: activate the garden bar as a guest destination from arrival — not only after the ceremony. With an open bar and ${invited} guests, the main bar will face peak pressure within the first 45 minutes. Splitting load early prevents a visible queue at the primary bar.`,
     })
   }
 
@@ -123,7 +123,7 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'ceremony-concentration',
       tag: TAGS.GUEST_FLOW,
       priority: PRIORITY.MEDIUM,
-      text: `The garden ceremony concentrates all guests in one zone temporarily. Brief service staff to hold positions at their stations during the ceremony and not break flow until guests have fully returned to their tables.`,
+      text: `The garden ceremony briefly concentrates all guests in one zone. Brief service staff to hold positions at their stations during the ceremony and keep the return flow unobstructed — do not break table service until guests have fully reseated.`,
     })
   }
 
@@ -133,7 +133,7 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'late-night-changeover',
       tag: TAGS.SERVICE,
       priority: PRIORITY.LOW,
-      text: `The 24-hour resort format requires the late-night station to operate independently of the main service team. Confirm the changeover timing so no service gap occurs between the plated dinner and late-night food activation.`,
+      text: `Confirm the late-night station changeover time with the kitchen team. The 24-hour resort format requires this station to operate independently of the main dinner service — a gap between plated dinner and late-night food activation must be avoided.`,
     })
   }
 
@@ -143,7 +143,7 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'kosher-service-routing',
       tag: TAGS.SERVICE,
       priority: PRIORITY.HIGH,
-      text: `Kosher service requires strict separation of equipment and service paths. Confirm kitchen-to-table routes do not mix dairy and meat runs, and brief all runners individually before service begins.`,
+      text: `Action required: brief all kitchen runners individually on Kosher routing before service begins. Confirm that kitchen-to-table paths strictly separate dairy and meat runs — equipment, trays, and surfaces must not be shared.`,
     })
   }
 
@@ -153,7 +153,7 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'vip-quiet-zone',
       tag: TAGS.VIP_EXPERIENCE,
       priority: PRIORITY.LOW,
-      text: `The VIP and family zone covers ${vipTables.length} tables. Keep ambient music levels reduced in this area and ensure the late-night station exit path does not direct guest traffic through the quiet family section.`,
+      text: `The VIP and family zone covers ${vipTables.length} tables. Reduce ambient music levels in this area and ensure the late-night station exit path does not route guest traffic through the quiet family section.`,
     })
   }
 
@@ -163,7 +163,7 @@ export function buildRecommendations(tables, eventBrief) {
       id: 'premium-bar-signal',
       tag: TAGS.BAR_OPERATIONS,
       priority: PRIORITY.LOW,
-      text: `The event brief calls for a premium late-night bar experience. Ensure the main cocktail bar faces the primary guest sightline and the garden bar program is fully restocked before the late-night transition.`,
+      text: `The event brief calls for a premium late-night bar experience. Confirm the main cocktail bar faces the primary guest sightline, and ensure the garden bar programme is fully restocked before the late-night transition begins.`,
     })
   }
 
@@ -176,40 +176,40 @@ export function buildTableRecommendation(selectedTable, tables, eventBrief) {
   const { zone, accessiblePriority, wheelchair, babyChairs, label, shape, guests, capacity } = selectedTable
 
   if (accessiblePriority) {
-    return `This table carries accessibility priority. Confirm the step-free path from the accessible entrance remains clear at all times, including during bar resupply and runner circulation.`
+    return `Accessibility priority table. Maintain clear step-free access at all times — review before doors open and again after bar resupply and runner circulation begins.`
   }
 
   if ((wheelchair ?? 0) > 0) {
-    return `${wheelchair} wheelchair space${wheelchair > 1 ? 's' : ''} allocated — verify a minimum 1.5m turning radius is maintained and that no chair placement blocks the accessible restroom route.`
+    return `${wheelchair} wheelchair space${wheelchair > 1 ? 's' : ''} allocated. Verify a minimum 1.5m turning radius is maintained and confirm no chair placement blocks the accessible restroom route before guest arrival.`
   }
 
   if ((babyChairs ?? 0) > 0) {
-    return `${babyChairs} baby chair${babyChairs > 1 ? 's' : ''} requested — confirm seat assembly before guest arrival and assign a waiter briefed on infant safety positioning.`
+    return `${babyChairs} baby chair${babyChairs > 1 ? 's' : ''} requested. Confirm seat assembly before guest arrival and assign a waiter briefed on infant safety positioning at this table.`
   }
 
   if (zone === 'pool') {
-    return `Pool deck seating is the venue's highest-value guest position. Maintain a premium service cadence — no delayed plating, no uncovered plates waiting, and regular refreshment runs throughout the reception.`
+    return `Pool deck — the venue's highest-value guest position. Assign a dedicated waiter to this table and maintain premium service cadence throughout: no delayed plating, no uncovered plates waiting, and proactive refreshment rounds.`
   }
 
   if (zone === 'garden') {
-    return `Garden seating offers a direct chuppah sightline. Confirm chairs are aligned to the ceremony axis and that runner movements during the ceremony do not interrupt the guests' view.`
+    return `Garden seating with a direct chuppah sightline. Confirm chairs are aligned to the ceremony axis. Keep runner movements clear of the guest sightline during the ceremony.`
   }
 
   if (zone === 'vip') {
-    return `VIP and family zone — assign the most experienced available waiter and brief them personally on all dietary and accessibility requirements for this group before service begins.`
+    return `VIP and family zone. Assign the most experienced available waiter and brief them personally on dietary and accessibility requirements for this group before service begins.`
   }
 
   if (shape === 'long') {
-    return `Long tables require synchronized plating. All seats along this table must receive their plates within a 3-minute window to avoid hot and cold discrepancies across the table.`
+    return `Long table — synchronized plating required. All seats must receive their plates within a 3-minute window. Brief the assigned runners before service to prevent hot/cold discrepancies along the table.`
   }
 
   const fillRate = capacity > 0 ? (guests ?? 0) / capacity : null
   if (fillRate !== null && fillRate < 0.70) {
-    return `This table is at ${Math.round(fillRate * 100)}% capacity. Confirm whether remaining seats are held for late arrivals or if the table count should be reduced before the floor plan is finalized.`
+    return `This table is at ${Math.round(fillRate * 100)}% capacity. Confirm whether remaining seats are held for late arrivals or if the table configuration should be adjusted before the floor plan is finalized.`
   }
 
   if (label) {
-    return `Labelled "${label}" — brief the assigned waiter on any personalised requirements for this group prior to doors opening.`
+    return `Table labelled "${label}" — brief the assigned waiter on any personalised requirements for this group prior to doors opening.`
   }
 
   return `Zone: ${zone}. Assigned waiter: ${selectedTable.waiter ?? '—'}. ${guests ?? 0} of ${capacity} seats confirmed.`
