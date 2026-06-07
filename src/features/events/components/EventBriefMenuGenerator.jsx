@@ -15,6 +15,7 @@ import {
 } from '../../../services/eventCocktailMenuService'
 import { notifyCocktailMenuApproved } from '../../../services/notificationService'
 import { buildEventMenuDNA } from '../utils/eventMenuDNA'
+import { buildEventCocktailProduction } from '../utils/eventCocktailProductionEngine'
 
 // ── Form defaults from brief ──────────────────────────────────────────────────
 
@@ -164,6 +165,212 @@ function DesignContextBadge({ designContext, menuDNA }) {
             <span style={{ color: '#5A5550', textTransform: 'uppercase', fontWeight: 700, marginRight: 4 }}>Goal</span>
             {menuDNA.guestExperienceGoal}
           </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Production Intelligence Panel ────────────────────────────────────────────
+
+function SectionDivider({ label }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 8px' }}>
+      <div style={{ height: 1, flex: 1, background: '#1E1E1E' }} />
+      <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#4A4540', whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
+      <div style={{ height: 1, flex: 1, background: '#1E1E1E' }} />
+    </div>
+  )
+}
+
+function ProdRow({ label, value, muted }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '4px 0', borderBottom: '1px solid #141414', gap: 12 }}>
+      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#5A5550', flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 10.5, color: muted ? '#5A5550' : '#9A9590', textAlign: 'right', lineHeight: 1.5 }}>{value}</span>
+    </div>
+  )
+}
+
+function ProductionPanel({ production, eventType }) {
+  const [open, setOpen] = React.useState(true)
+
+  if (!production) return null
+
+  const {
+    productionSheet, bottleEstimate, prepList, garnishList,
+    servicePlan, staffingNotes, welcomeDrinkPlan, executionSummary,
+    totalDrinks, drinksPerGuest,
+  } = production
+
+  return (
+    <div
+      style={{
+        background: '#0D0D0D',
+        border: '1px solid #1E1E1E',
+        borderRadius: 8,
+        overflow: 'hidden',
+        marginTop: 4,
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: '9px 14px',
+          borderBottom: '1px solid #1A1A1A',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#5A5550' }}>
+          Production Intelligence
+        </span>
+        <button
+          type="button"
+          onClick={() => setOpen(v => !v)}
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#3A3A3A', fontSize: 11, padding: 0 }}
+        >
+          {open ? '▲' : '▼'}
+        </button>
+      </div>
+
+      {open && (
+        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+          {/* Execution summary */}
+          <p style={{ fontSize: 11, color: '#9A9590', lineHeight: 1.7, fontStyle: 'italic', margin: '0 0 10px' }}>
+            {executionSummary}
+          </p>
+
+          <ProdRow label="Total drinks" value={`${totalDrinks.toLocaleString()} cocktails`} />
+          <ProdRow label="Assumption" value={`${drinksPerGuest} drinks / guest (${eventType})`} muted />
+
+          {/* Welcome drink plan */}
+          {welcomeDrinkPlan.required && (
+            <>
+              <SectionDivider label="Welcome Drink Plan" />
+              <ProdRow label="Cocktail"         value={welcomeDrinkPlan.recommendedCocktail} />
+              <ProdRow label="Estimated serves" value={`${welcomeDrinkPlan.estimatedServes} serves`} />
+              <div style={{ padding: '6px 0 2px', fontSize: 10.5, color: '#9A9590', lineHeight: 1.65 }}>
+                {welcomeDrinkPlan.productionNotes}
+              </div>
+            </>
+          )}
+
+          {/* Production sheet */}
+          {productionSheet.length > 0 && (
+            <>
+              <SectionDivider label="Production Sheet" />
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10.5 }}>
+                  <thead>
+                    <tr>
+                      {['Cocktail', 'Est. Serves', 'Batch?', 'Garnish'].map(h => (
+                        <th key={h} style={{ textAlign: 'left', padding: '3px 6px 5px 0', fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#3A3A3A', borderBottom: '1px solid #1E1E1E' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {productionSheet.map((row, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #141414' }}>
+                        <td style={{ padding: '5px 6px 5px 0', color: '#E8DCC0', fontWeight: 500 }}>{row.cocktailName}</td>
+                        <td style={{ padding: '5px 6px 5px 0', color: '#9A9590', fontFamily: '"JetBrains Mono", monospace' }}>{row.expectedServes}</td>
+                        <td style={{ padding: '5px 6px 5px 0', color: row.batchRecommended ? '#6BAF80' : '#3A3A3A' }}>
+                          {row.batchRecommended ? '✓ Yes' : '—'}
+                        </td>
+                        <td style={{ padding: '5px 0', color: '#9A9590', fontSize: 10 }}>{row.garnishNeeded}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* Bottle estimate */}
+          {bottleEstimate.length > 0 && (
+            <>
+              <SectionDivider label="Bottle Estimate" />
+              {bottleEstimate.map((row, i) => (
+                <ProdRow
+                  key={i}
+                  label={row.ingredient}
+                  value={`${row.estimatedBottles} × ${row.bottleSizeMl}ml  ·  ${row.estimatedVolumeMl.toLocaleString()}ml total`}
+                />
+              ))}
+              <p style={{ fontSize: 9, color: '#3A3A3A', fontStyle: 'italic', margin: '6px 0 2px' }}>
+                Estimates include 10% operational waste. Planning figures only — verify against actual recipes.
+              </p>
+            </>
+          )}
+
+          {/* Prep list */}
+          {prepList.length > 0 && (
+            <>
+              <SectionDivider label="Prep List" />
+              {prepList.map((item, i) => (
+                <div key={i} style={{ padding: '5px 0', borderBottom: '1px solid #141414' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontSize: 10.5, color: '#E8DCC0', fontWeight: 500 }}>{item.item}</span>
+                    <span style={{ fontSize: 10, color: '#9A9590', fontFamily: '"JetBrains Mono", monospace', flexShrink: 0 }}>
+                      ~{item.estimatedMl.toLocaleString()}ml
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 9, color: '#5A5550', marginTop: 2 }}>{item.timing}</div>
+                  <div style={{ fontSize: 9, color: '#3A3A3A', marginTop: 1 }}>
+                    Used in: {item.cocktails.join(', ')}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Garnish totals */}
+          {garnishList.length > 0 && (
+            <>
+              <SectionDivider label="Garnish Totals" />
+              {garnishList.map((g, i) => (
+                <ProdRow
+                  key={i}
+                  label={g.label}
+                  value={`~${g.quantity} units  ·  ${g.cocktailNames.join(', ')}`}
+                />
+              ))}
+              <p style={{ fontSize: 9, color: '#3A3A3A', fontStyle: 'italic', margin: '6px 0 2px' }}>
+                Includes 8% buffer for prep loss. Planning figures only — adjust to your prep yields.
+              </p>
+            </>
+          )}
+
+          {/* Staffing notes */}
+          {staffingNotes.length > 0 && (
+            <>
+              <SectionDivider label="Staffing Notes" />
+              {staffingNotes.map((note, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, padding: '5px 0', borderBottom: '1px solid #141414' }}>
+                  <span style={{ color: '#C9A96E', flexShrink: 0, fontSize: 10 }}>·</span>
+                  <span style={{ fontSize: 10.5, color: '#9A9590', lineHeight: 1.55 }}>{note}</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Service plan */}
+          {servicePlan.length > 0 && (
+            <>
+              <SectionDivider label="Service Plan" />
+              {servicePlan.map((note, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, padding: '5px 0', borderBottom: '1px solid #141414' }}>
+                  <span style={{ color: '#5A5550', flexShrink: 0, fontSize: 10 }}>·</span>
+                  <span style={{ fontSize: 10.5, color: '#9A9590', lineHeight: 1.55 }}>{note}</span>
+                </div>
+              ))}
+            </>
+          )}
+
         </div>
       )}
     </div>
@@ -349,6 +556,19 @@ export default function EventBriefMenuGenerator({
   const { menuDNA } = useMemo(
     () => buildEventMenuDNA({ event, brief, designContext }),
     [event, brief, designContext]
+  )
+
+  const production = useMemo(
+    () => approved && menu
+      ? buildEventCocktailProduction({
+          event,
+          approvedMenu:  menu,
+          guestCount:    event?.expected_guests || 0,
+          designContext,
+          menuDNA,
+        })
+      : null,
+    [approved, menu, event, designContext, menuDNA]
   )
 
   // Section headers: use live menu's sections first, fall back to DNA sections
@@ -723,9 +943,12 @@ export default function EventBriefMenuGenerator({
             )}
 
             {approved ? (
-              <p className="text-center text-sm text-emerald-400 font-medium py-2">
-                Menu approved and saved to this event ✓
-              </p>
+              <>
+                <p className="text-center text-sm text-emerald-400 font-medium py-2">
+                  Menu approved and saved to this event ✓
+                </p>
+                <ProductionPanel production={production} eventType={event?.event_type || 'other'} />
+              </>
             ) : (
               <button
                 type="button"
