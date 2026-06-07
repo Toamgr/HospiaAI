@@ -60,10 +60,16 @@ export const NAV_GROUPS = {
     roles: ['owner', 'bar_manager', 'fb_director', 'admin'],
     pages: ['ciDashboard']
   },
-  // Events module — events_manager
+  // Events module — events_manager, owner, admin (full CRM + finance + calendar)
   eventsArea: {
     roles: ['events_manager', 'owner', 'admin'],
     pages: ['eventCRM', 'eventOrchestrator']
+  },
+  // Calendar-only view — manager sees business summary; events_manager/owner/admin
+  // also land here so the calendar appears in their Events nav section.
+  eventsCalendarArea: {
+    roles: ['events_manager', 'manager', 'owner', 'admin'],
+    pages: ['eventCalendar']
   },
   // Staff tab — fb_director, bar_manager, owner, admin
   staffArea: {
@@ -188,6 +194,14 @@ export const PAGE_META = {
     code: 'EV',
     section: 'Event Finance',
     description: 'Event financial calculator and revenue pipeline'
+  },
+
+  eventCalendar: {
+    area: 'eventsCalendarArea',
+    roles: ['events_manager', 'manager', 'owner', 'admin'],
+    code: 'CL',
+    section: 'Events',
+    description: 'Internal event calendar — monthly view with operational status',
   },
   // Moved from staffProgression tab into operations
   staffProgression: {

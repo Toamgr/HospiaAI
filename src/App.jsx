@@ -13,6 +13,7 @@ import ManagerActionCenter from './features/operations/ManagerActionCenter'
 import EventOrchestrator from './features/operations/EventOrchestrator'
 import EventBrain from './features/events/EventBrain'
 import EventCRM from './features/events/EventCRM'
+import EventCalendar from './features/events/EventCalendar'
 import EndOfDayReports from './features/operations/EndOfDayReports'
 import EndOfShiftReview from './features/operations/EndOfShiftReview'
 import BudgetRequestPage from './features/operations/BudgetRequestPage'
@@ -431,6 +432,7 @@ function PageRenderer({ t, page, goToPage, pageContext, session, reports, operat
     eventOrchestrator: <EventOrchestrator t={t} eventPlans={eventPlans} onEventPlanSaved={onEventPlanSaved} />,
     eventBrain: <EventBrain pageContext={pageContext} events={events.events} />,
     eventCRM: <EventCRM currentUser={currentUser} goToPage={goToPage} {...events} />,
+    eventCalendar: <EventCalendar currentUser={currentUser} goToPage={goToPage} events={events.events} isLoading={events.isLoadingEvents} onSelectEvent={events.onSelectEvent} />,
     staffProgression: <StaffProgression t={t} users={users} academyProgress={academyProgress} serviceIncidents={serviceIncidents} employeePerformance={employeePerformance} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} />,
     staffReadiness: <StaffReadiness t={t} goToPage={goToPage} />,
     employeeHome: <EmployeeHome t={t} currentUser={currentUser} goToPage={goToPage} academyProgress={academyProgress} employeeTasks={employeeTasks} employeeRequests={employeeRequests} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} assignedTasks={assignedTasks} onUpdateAssignedTask={onUpdateAssignedTask} />,

@@ -79,6 +79,7 @@ export const PAGE_ROUTES = {
   // ── Events ─────────────────────────────────────────────────────────────────
   eventCRM:                   '/events',
   eventOrchestrator:          '/events/finance',
+  eventCalendar:              '/events/calendar',
 
   // ── Staff ──────────────────────────────────────────────────────────────────
   staffTab:                   '/staff',

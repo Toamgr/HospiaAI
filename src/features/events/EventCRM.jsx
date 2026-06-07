@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import EventList from './EventList'
 import EventCreationWizard from './EventCreationWizard'
 import EventDetail from './EventDetail'
@@ -40,6 +40,12 @@ export default function EventCRM({
   refreshDetail
 }) {
   const [view, setView] = useState(VIEW.LIST)
+
+  // When navigating here from the calendar with a pre-selected event,
+  // auto-switch to DETAIL so the user lands directly on the event.
+  useEffect(() => {
+    if (selectedEventId && view === VIEW.LIST) setView(VIEW.DETAIL)
+  }, [selectedEventId])
 
   function handleSelectEvent(id) {
     onSelectEvent(id)
