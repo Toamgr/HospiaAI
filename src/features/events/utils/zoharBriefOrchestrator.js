@@ -5,6 +5,8 @@
  * All fields are null-safe: returns null for missing inputs rather than inventing data.
  */
 
+import { buildHospitalityDNA } from './eventHospitalityDNA.js'
+
 const SERVICE_STYLE = {
   wedding:   'Luxury Plated',
   corporate: 'Standing / Canapés',
@@ -369,6 +371,7 @@ export function buildZoharBrief({ event, guests, tables, tasks, timeline }) {
       dietarySummary:  buildDietarySummary(g),
       kosherFlag:      detectKosher(event, g),
     },
+    hospitalityDNA:    buildHospitalityDNA({ event, guests: g }),
     cocktailMenuBrief: buildCocktailBrief(event, g),
     foodMenuBrief:     buildFoodBrief(event, g),
     operationsBrief:   buildOperationsBrief(event, g, tb, tk, tl),
