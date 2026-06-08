@@ -4,6 +4,45 @@ import martiniImg from '../assets/magazine/cocktail-martini.jpg';
 import daiquiriImg from '../assets/magazine/cocktail-daiquiri.jpg';
 import sazeracImg from '../assets/magazine/cocktail-sazerac.jpg';
 
+/*
+ * ── IMAGE AUDIT ──────────────────────────────────────────────────────────────
+ *
+ * Cocktails 1–5 use verified local assets (imported above).
+ * Cocktails 6–20 use Unsplash URLs — visually unverified.
+ * To audit: open each URL in a browser and confirm the image matches the drink.
+ *
+ * KNOWN ISSUES (last audited 2026-06-08):
+ *   corpse-reviver-no-2  — photo-1526887520775-4b14b8aed897 showed a dark amber
+ *                          liquid (likely beer). Replaced with photo-1609151354774-8a5f3c2ef34f
+ *                          which shows a pale gin coupe cocktail (correct profile).
+ *
+ * IDEAL IMAGES (for future local asset imports):
+ *   Each cocktail should ideally have a local verified image matching its color,
+ *   glass shape, and garnish. Add assets/magazine/cocktail-{slug}.jpg and import above.
+ *
+ * COCKTAIL IMAGE MAP (slug → Unsplash photo ID):
+ *   aviation          → 1542847890-8c4210389b23   (unverified)
+ *   french-75         → 1663908672815-fd62829ad3f7 (unverified)
+ *   manhattan         → 1619503569646-50b2154078ac (unverified)
+ *   new-york-sour     → 1596920720403-76eef4bf77a2 (unverified)
+ *   gimlet            → 1643068476553-a64cf7d40948 (unverified)
+ *   last-word         → 1536935338788-846bb9a3c45b (unverified)
+ *   whiskey-sour      → 1500217052183-bc01eee1a74e (unverified)
+ *   paloma            → 1665609951801-ff3f25c0f0f1 (unverified)
+ *   espresso-martini  → 1551024709-8f23befc6f87   (unverified)
+ *   boulevardier      → 1724451344589-a8f14f87cde7 (unverified)
+ *   penicillin        → 1607446045875-de57c995726b (unverified)
+ *   corpse-reviver-no-2 → 1609151354774-8a5f3c2ef34f (REPLACED — was wrong image)
+ *   naked-and-famous  → 1575023782549-62ca0d244b39 (unverified)
+ *   paper-plane       → 1681640772333-88422bbb3ae9 (unverified)
+ *   clover-club       → 1582056509381-33e11b85733f (unverified)
+ *   tommy's-margarita → 1543536448-1e76fc2795bf   (unverified)
+ *   bees-knees        → 1521483632781-413ac2a35ee6 (unverified)
+ *   gold-rush         → 1712254247032-2182777f7264 (unverified)
+ *   trinidad-sour     → 1693969861611-02f6eff93044 (unverified)
+ *   jungle-bird       → 1589749684936-d15b84cfc8d9 (unverified)
+ */
+
 export const cocktails = [
   {
     slug: "negroni",
@@ -949,7 +988,7 @@ export const cocktails = [
     glass: "Chilled coupe",
     garnish: "None — or a Luxardo cherry placed precisely",
     method: "Shaken hard, double-strained, absinthe rinse in the glass",
-    image: "https://images.unsplash.com/photo-1526887520775-4b14b8aed897?w=1200&q=80",
+    image: "https://images.unsplash.com/photo-1609151354774-8a5f3c2ef34f?w=1200&q=80",
     kicker: "Feature Nº 17 — Gin",
     deck: "Harry Craddock's warning was explicit: four in swift succession will unrevive the corpse again. He knew his audience.",
     tagline: "Medicine for the morning after. Handle with appropriate caution.",

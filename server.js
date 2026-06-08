@@ -4091,7 +4091,7 @@ function rebuildTasteDna(venueId) {
 
 // ── CI DNA ────────────────────────────────────────────────────────────────────
 
-app.get('/api/ci/dna', requireAuth(...CI_ROLES), (req, res) => {
+app.get('/api/ci/dna', requireAuth(...CI_ROLES, 'events_manager'), (req, res) => {
   res.json({ dna: formatDnaForApi(getCIDna(defaultVenueId())) }); // CI MODULE ADDITION — returns UI-friendly aliases
 });
 
@@ -4220,13 +4220,13 @@ app.post('/api/ci/rejections', requireAuth(...CI_ROLES), (req, res) => {
 
 // ── CI TASTE DNA ──────────────────────────────────────────────────────────────
 
-app.get('/api/ci/taste-dna', requireAuth(...CI_ROLES), (req, res) => {
+app.get('/api/ci/taste-dna', requireAuth(...CI_ROLES, 'events_manager'), (req, res) => {
   res.json({ taste_dna: getCITasteDna(defaultVenueId()) });
 });
 
 // ── CI COCKTAILS (ci_generated slice of cocktails table) ──────────────────────
 
-app.get('/api/ci/cocktails', requireAuth(...CI_ROLES), (req, res) => {
+app.get('/api/ci/cocktails', requireAuth(...CI_ROLES, 'events_manager'), (req, res) => {
   const rows = db.prepare(
     "SELECT * FROM cocktails WHERE source='ci_generated' AND is_active=1 ORDER BY created_at DESC"
   ).all();
@@ -4282,7 +4282,7 @@ app.delete('/api/ci/cocktails/:id', requireAuth(...CI_ROLES), (req, res) => {
 // ── CI MENUS ──────────────────────────────────────────────────────────────────
 // CI MODULE ADDITION — named menu records that group approved cocktails
 
-app.get('/api/ci/menus', requireAuth(...CI_ROLES), (req, res) => {
+app.get('/api/ci/menus', requireAuth(...CI_ROLES, 'events_manager'), (req, res) => {
   const venueId = defaultVenueId();
   const menus = db.prepare(
     "SELECT * FROM cocktail_menus WHERE venue_id=? AND status='active' ORDER BY created_at DESC"

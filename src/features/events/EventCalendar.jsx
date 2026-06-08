@@ -9,13 +9,13 @@
  *   owner / manager        : business view (health status, basic event fields, revenue)
  */
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { fetchCocktailMenu } from '../../services/api/eventsApi'
 import { buildZoharBrief } from './utils/zoharBriefOrchestrator'
 import { buildCalendarIntelligence } from './utils/calendarIntelligence'
 import { buildDailyBriefing } from './utils/dailyBriefingEngine'
 import { loadPlan } from './utils/eventArchitectPlanPersistence'
-import { canExportCalendar, downloadEventCalendar } from './utils/calendarExportUtils'
+import { canExportCalendar, downloadEventCalendar, CALENDAR_TOAST_MSG } from './utils/calendarExportUtils'
 import DailyBriefing from './components/DailyBriefing'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -132,6 +132,53 @@ function GhostLink({ children, onClick }) {
     >
       {children}
     </button>
+  )
+}
+
+// Self-contained download button with inline toast (3 s auto-clear)
+function CalendarDownloadBtn({ event }) {
+  const [toastVisible, setToastVisible] = useState(false)
+
+  function handleClick() {
+    const downloaded = downloadEventCalendar(event)
+    if (downloaded) {
+      setToastVisible(true)
+      setTimeout(() => setToastVisible(false), 3500)
+    }
+  }
+
+  if (!canExportCalendar(event)) {
+    return (
+      <span style={{ fontSize: 8, color: '#3A3A3A', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        Start time required for calendar
+      </span>
+    )
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <GhostLink onClick={handleClick}>📅 Add To Calendar</GhostLink>
+      {toastVisible && (
+        <div style={{
+          position:     'absolute',
+          top:          '110%',
+          left:         0,
+          background:   '#1A1A1A',
+          border:       '1px solid rgba(201,169,110,0.25)',
+          borderRadius: 5,
+          color:        '#C9A96E',
+          fontSize:     9,
+          fontWeight:   600,
+          padding:      '5px 10px',
+          whiteSpace:   'nowrap',
+          zIndex:       50,
+          letterSpacing:'0.03em',
+          boxShadow:    '0 4px 12px rgba(0,0,0,0.4)',
+        }}>
+          {CALENDAR_TOAST_MSG}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -458,13 +505,7 @@ function EventPanel({ event, menuStatus, intel, isFullAccess, canNavigateToDetai
           {isFullAccess && (
             <GhostLink onClick={onOpenArchitect}>Open Event Architect →</GhostLink>
           )}
-          {canExportCalendar(event) ? (
-            <GhostLink onClick={() => downloadEventCalendar(event)}>📅 Add To Calendar</GhostLink>
-          ) : (
-            <span style={{ fontSize: 8, color: '#3A3A3A', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              Start time required for calendar
-            </span>
-          )}
+          <CalendarDownloadBtn event={event} />
         </div>
       </div>
     </div>
@@ -656,32 +697,24 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
     <div style={{ padding: '20px 24px', maxWidth: 940, margin: '0 auto' }}>
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isFullAccess && upcomingPriorities.length > 0 ? 16 : 20, flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontFamily: '"Cormorant Garamond", serif', fontSize: 22, fontWeight: 700, color: '#F5F0E8', lineHeight: 1.1 }}>
+          <div style={{ fontFamily: '"Cormorant Garamond", serif', fontSize: 26, fontWeight: 700, color: '#F5F0E8', lineHeight: 1.1 }}>
             Event Calendar
           </div>
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#C9A96E', marginTop: 3, opacity: 0.7 }}>
-            {eventsThisMonth.length} event{eventsThisMonth.length !== 1 ? 's' : ''} this month
+          <div style={{ fontSize: 9, color: '#5A5550', marginTop: 3, letterSpacing: '0.08em' }}>
+            Internal event calendar with operational status
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <NavBtn onClick={goToToday}>Today</NavBtn>
           <NavBtn onClick={prevMonth}>‹</NavBtn>
-          <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 12, fontWeight: 600, color: '#9A9590', minWidth: 130, textAlign: 'center' }}>
+          <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 13, fontWeight: 700, color: '#F5F0E8', minWidth: 140, textAlign: 'center', letterSpacing: '0.04em' }}>
             {MONTH_NAMES[month]} {year}
           </span>
           <NavBtn onClick={nextMonth}>›</NavBtn>
         </div>
       </div>
-
-      {/* ── Daily Briefing ── */}
-      <DailyBriefing
-        briefing={briefing}
-        intelligenceMap={intelligenceMap}
-        isFullAccess={isFullAccess}
-        onEventSelect={setPanelId}
-      />
 
       {/* ── Today's Priorities (full access only) ── */}
       {isFullAccess && upcomingPriorities.length > 0 && (
@@ -731,25 +764,25 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
           {grid.map((day, idx) => {
             if (day === null) {
               return (
-                <div key={`e-${idx}`} style={{ minHeight: 76, borderRight: (idx + 1) % 7 === 0 ? 'none' : '1px solid #141414', borderBottom: '1px solid #141414', background: '#080808' }} />
+                <div key={`e-${idx}`} style={{ minHeight: 92, borderRight: (idx + 1) % 7 === 0 ? 'none' : '1px solid #141414', borderBottom: '1px solid #141414', background: '#070707' }} />
               )
             }
 
             const key      = isoKey(year, month, day)
             const dayEvs   = filteredEventsByDate[key] || []
             const isToday  = key === todayKey
-            const maxVis   = 2
+            const maxVis   = 3
             const overflow = dayEvs.length - maxVis
 
             return (
               <div
                 key={key}
                 style={{
-                  minHeight:   76,
-                  padding:     '5px 4px 4px',
+                  minHeight:   92,
+                  padding:     '6px 5px 5px',
                   borderRight: (idx + 1) % 7 === 0 ? 'none' : '1px solid #141414',
                   borderBottom:'1px solid #141414',
-                  background:  isToday ? 'rgba(201,169,110,0.04)' : 'transparent',
+                  background:  isToday ? 'rgba(201,169,110,0.05)' : 'transparent',
                 }}
               >
                 {/* Day number */}
@@ -853,6 +886,16 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
           <div style={{ width: 3, height: 14, borderRadius: 1, background: '#C44A4A' }} />
           <span style={{ fontSize: 8, color: '#3A3A3A', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Critical</span>
         </div>
+      </div>
+
+      {/* ── Daily Briefing — below calendar so the grid is immediately visible ── */}
+      <div style={{ marginTop: 20 }}>
+        <DailyBriefing
+          briefing={briefing}
+          intelligenceMap={intelligenceMap}
+          isFullAccess={isFullAccess}
+          onEventSelect={setPanelId}
+        />
       </div>
 
       {/* ── Event detail panel ── */}

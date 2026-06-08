@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { canExportCalendar, downloadEventCalendar } from './utils/calendarExportUtils'
+import { canExportCalendar, downloadEventCalendar, CALENDAR_TOAST_MSG } from './utils/calendarExportUtils'
 import EventOverview from './tabs/EventOverview'
 import EventGuests from './tabs/EventGuests'
 import EventSeating from './tabs/EventSeating'
@@ -66,6 +66,15 @@ export default function EventDetail({
 }) {
   const [activeTab, setActiveTab] = useState('overview')
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [calToast, setCalToast] = useState(false)
+
+  function handleCalendarDownload() {
+    const downloaded = downloadEventCalendar(event)
+    if (downloaded) {
+      setCalToast(true)
+      setTimeout(() => setCalToast(false), 3500)
+    }
+  }
 
   const statusColor = STATUS_COLORS[event.status] || STATUS_COLORS.draft
 
@@ -127,20 +136,42 @@ export default function EventDetail({
             </button>
           )}
           {canExportCalendar(event) ? (
-            <button
-              type="button"
-              onClick={() => downloadEventCalendar(event)}
-              className="px-3 py-1.5 rounded-lg border text-xs transition-colors"
-              style={{
-                background:  'rgba(201,169,110,0.06)',
-                borderColor: 'rgba(201,169,110,0.25)',
-                color:       '#C9A96E',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.12)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.06)' }}
-            >
-              📅 Add To Calendar
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={handleCalendarDownload}
+                className="px-3 py-1.5 rounded-lg border text-xs transition-colors"
+                style={{
+                  background:  'rgba(201,169,110,0.06)',
+                  borderColor: 'rgba(201,169,110,0.25)',
+                  color:       '#C9A96E',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.12)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.06)' }}
+              >
+                📅 Add To Calendar
+              </button>
+              {calToast && (
+                <div style={{
+                  position:     'absolute',
+                  top:          '110%',
+                  left:         0,
+                  background:   '#1A1A1A',
+                  border:       '1px solid rgba(201,169,110,0.25)',
+                  borderRadius: 5,
+                  color:        '#C9A96E',
+                  fontSize:     9,
+                  fontWeight:   600,
+                  padding:      '5px 10px',
+                  whiteSpace:   'nowrap',
+                  zIndex:       50,
+                  letterSpacing:'0.03em',
+                  boxShadow:    '0 4px 12px rgba(0,0,0,0.4)',
+                }}>
+                  {CALENDAR_TOAST_MSG}
+                </div>
+              )}
+            </div>
           ) : (
             <span className="text-xs" style={{ color: '#3A3A3A' }}>
               Start time required

@@ -274,7 +274,7 @@ function ResetConfirmModal({ onConfirm, onCancel }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function EventBrain({ pageContext, events }) {
+export default function EventBrain({ pageContext, events, goToPage, onSelectEvent }) {
   // Capture eventId once on mount using a lazy initializer — reads all three signals
   // (pageContext, URL param, sessionStorage) before any effects clear sessionStorage.
   // Stable for the lifetime of this EventBrain mount; does not recompute on re-renders.
@@ -527,8 +527,41 @@ export default function EventBrain({ pageContext, events }) {
     try { await updateGuest(eventId, guestId, { table_id: null }) } catch {}
   }, [eventId])
 
+  function handleBackToEvent() {
+    if (goToPage) {
+      if (onSelectEvent && eventId) onSelectEvent(eventId)
+      goToPage('eventCRM')
+    }
+  }
+
   return (
     <div>
+      {/* ── Back to Event button — shown when a real event is linked ── */}
+      {isEventLinked && goToPage && (
+        <div style={{ marginBottom: 12 }}>
+          <button
+            type="button"
+            onClick={handleBackToEvent}
+            style={{
+              background:    'transparent',
+              border:        '1px solid #1E1E1E',
+              borderRadius:  6,
+              color:         '#9A9590',
+              cursor:        'pointer',
+              fontSize:      11,
+              fontWeight:    600,
+              letterSpacing: '0.04em',
+              padding:       '6px 14px',
+              transition:    'all 150ms ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#C9A96E'; e.currentTarget.style.borderColor = 'rgba(201,169,110,0.35)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#9A9590'; e.currentTarget.style.borderColor = '#1E1E1E' }}
+          >
+            ← Back to Event
+          </button>
+        </div>
+      )}
+
       {/* ── Premium Command Bar ── */}
       <CommandBar eventBrief={eventBrief} isEventLinked={isEventLinked} />
 

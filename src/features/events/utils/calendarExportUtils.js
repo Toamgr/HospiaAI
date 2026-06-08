@@ -178,4 +178,9 @@ export function downloadEventCalendar(event) {
   anchor.click()
   document.body.removeChild(anchor)
   URL.revokeObjectURL(url)
+  return true  // signals that download was triggered (for toast use)
 }
+
+// ── Toast message constant ────────────────────────────────────────────────────
+// Use this text when showing a toast after a successful ICS download.
+export const CALENDAR_TOAST_MSG = 'Calendar file downloaded. Open it to add this event to your calendar.'

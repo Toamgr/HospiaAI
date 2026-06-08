@@ -430,7 +430,7 @@ function PageRenderer({ t, page, goToPage, pageContext, session, reports, operat
     managerActionCenter: <ManagerActionCenter actionItems={actionItems} setActionItems={setActionItems} serviceIncidents={serviceIncidents} onUpdateIncident={onUpdateIncident} shiftNotes={shiftNotes} reportArchive={reportArchive} shiftBrain={shiftBrain} currentUser={currentUser} />,
     managerEmployeeRequests: <ManagerEmployeeRequests t={t} employeeRequests={employeeRequests} onReview={onManagerReviewEmployeeRequest} />,
     eventOrchestrator: <EventOrchestrator t={t} eventPlans={eventPlans} onEventPlanSaved={onEventPlanSaved} />,
-    eventBrain: <EventBrain pageContext={pageContext} events={events.events} />,
+    eventBrain: <EventBrain pageContext={pageContext} events={events.events} goToPage={goToPage} onSelectEvent={events.onSelectEvent} />,
     eventCRM: <EventCRM currentUser={currentUser} goToPage={goToPage} {...events} />,
     eventCalendar: <EventCalendar currentUser={currentUser} goToPage={goToPage} events={events.events} isLoading={events.isLoadingEvents} onSelectEvent={events.onSelectEvent} />,
     staffProgression: <StaffProgression t={t} users={users} academyProgress={academyProgress} serviceIncidents={serviceIncidents} employeePerformance={employeePerformance} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} />,
