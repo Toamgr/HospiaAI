@@ -1126,6 +1126,17 @@ migrateUserCredentials();
 seedNewUsers();
 seedCocktailIntelligence(); // CI MODULE ADDITION — idempotent, skips if already seeded
 
+// Startup role audit — confirms migration ran and shows runtime roles for auth debugging.
+try {
+  const authUsers = db.prepare("SELECT id, full_name, role, is_active FROM auth_users ORDER BY id").all();
+  console.log('[HESTIA] Auth user roles after startup migrations:');
+  for (const u of authUsers) {
+    console.log(`  id=${u.id} | ${u.full_name} | role=${u.role} | active=${u.is_active}`);
+  }
+} catch (e) {
+  console.warn('[HESTIA] Could not read auth_users for role audit:', e.message);
+}
+
 // Phase 5 Step 1: add roles_json column to notifications table so frontend-created
 // multi-role notifications can be stored and retrieved per-role from the backend.
 // Idempotent — safe to run on every startup.
@@ -1251,6 +1262,7 @@ function requireAuth(...allowedRoles) {
     req.user = { id: session.id, full_name: session.full_name, role: session.role };
     req.hospiaRole = session.role;
     if (allowedRoles.length > 0 && session.role !== "admin" && !allowedRoles.includes(session.role)) {
+      console.warn(`[HESTIA AUTH] 403 | user=${session.id} (${session.full_name}) | role=${session.role} | required=${allowedRoles.join(',')} | ${req.method} ${req.path}`);
       return res.status(403).json({ error: "Forbidden.", required: allowedRoles, received: session.role });
     }
     next();

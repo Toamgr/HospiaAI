@@ -588,12 +588,18 @@ export default function CocktailMenuBuilder({ event, tasks, onUpdateTask, brief,
     setError(null)
     try {
       await apiPatch(`/api/events/${event.id}/cocktail-menu/approve`, {})
-      const cocktailTask = tasks?.find(t => t.title?.startsWith('Build cocktail menu'))
-      if (cocktailTask && onUpdateTask) {
-        await onUpdateTask(event.id, cocktailTask.id, { status: 'done' })
-      }
+      // Approval confirmed — mark UI as approved immediately before the task update
       setApproved(true)
       onApproved?.()
+      // Best-effort task update: failure here must NOT revert the approved state or show a blocking error
+      const cocktailTask = tasks?.find(t => t.title?.startsWith('Build cocktail menu'))
+      if (cocktailTask && onUpdateTask) {
+        try {
+          await onUpdateTask(event.id, cocktailTask.id, { status: 'done' })
+        } catch {
+          // Task update failed non-critically — menu is already approved on the server
+        }
+      }
     } catch (err) {
       setError(err.message || 'Failed to approve menu.')
     } finally {

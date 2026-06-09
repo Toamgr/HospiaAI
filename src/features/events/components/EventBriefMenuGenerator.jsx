@@ -633,16 +633,15 @@ export default function EventBriefMenuGenerator({
   }
 
   async function handleApprove() {
+    if (menu?._fallback) return
     setApproving(true)
     setError(null)
     try {
       await apiPatch(`/api/events/${event.id}/cocktail-menu/approve`, {})
 
-      // Mark any open cocktail task as done
-      const cocktailTask = tasks?.find(t => t.title?.startsWith('Build cocktail menu'))
-      if (cocktailTask && onUpdateTask) {
-        await onUpdateTask(event.id, cocktailTask.id, { status: 'done' })
-      }
+      // Approval confirmed — mark UI as approved immediately before task update
+      setApproved(true)
+      if (onApproved) onApproved()
 
       // Fire internal notifications to Owner and F&B Director
       notifyCocktailMenuApproved({
@@ -651,8 +650,15 @@ export default function EventBriefMenuGenerator({
         approvedBy: currentUser?.name || currentUser?.role || 'Events Manager',
       })
 
-      setApproved(true)
-      if (onApproved) onApproved()
+      // Best-effort task update: failure here must NOT revert the approved state
+      const cocktailTask = tasks?.find(t => t.title?.startsWith('Build cocktail menu'))
+      if (cocktailTask && onUpdateTask) {
+        try {
+          await onUpdateTask(event.id, cocktailTask.id, { status: 'done' })
+        } catch {
+          // Task update failed non-critically — menu is already approved on the server
+        }
+      }
     } catch (err) {
       setError(err.message || 'Failed to approve menu.')
     } finally {
@@ -949,6 +955,10 @@ export default function EventBriefMenuGenerator({
                 </p>
                 <ProductionPanel production={production} eventType={event?.event_type || 'other'} />
               </>
+            ) : menu?._fallback || menu?.cocktails?.some(c => c._fallback) ? (
+              <p className="text-center text-xs text-amber-500/80 py-2">
+                Regenerate the menu before approving — this is a placeholder draft.
+              </p>
             ) : (
               <button
                 type="button"
