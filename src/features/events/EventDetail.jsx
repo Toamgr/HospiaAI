@@ -8,16 +8,18 @@ import EventTimeline from './tabs/EventTimeline'
 import EventMessaging from './tabs/EventMessaging'
 import EventTeam from './tabs/EventTeam'
 import EventZohar from './tabs/EventZohar'
+import EventCocktailMenu from './tabs/EventCocktailMenu'
 
 const TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'zohar',    label: 'Zohar' },
-  { id: 'guests',   label: 'Guests' },
-  { id: 'seating',  label: 'Seating' },
-  { id: 'tasks',    label: 'Tasks' },
-  { id: 'messaging', label: 'Messaging' },
-  { id: 'team',     label: 'Team' },
-  { id: 'timeline', label: 'Timeline' }
+  { id: 'overview',      label: 'Overview' },
+  { id: 'zohar',         label: 'Zohar' },
+  { id: 'cocktailMenu',  label: 'Cocktail Menu' },
+  { id: 'guests',        label: 'Guests' },
+  { id: 'seating',       label: 'Seating' },
+  { id: 'tasks',         label: 'Tasks' },
+  { id: 'messaging',     label: 'Messaging' },
+  { id: 'team',          label: 'Team' },
+  { id: 'timeline',      label: 'Timeline' },
 ]
 
 const STATUS_COLORS = {
@@ -67,6 +69,7 @@ export default function EventDetail({
   const [activeTab, setActiveTab] = useState('overview')
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [calToast, setCalToast] = useState(false)
+  const [cocktailMenuStatus, setCocktailMenuStatus] = useState(null)
 
   function handleCalendarDownload() {
     const downloaded = downloadEventCalendar(event)
@@ -206,22 +209,31 @@ export default function EventDetail({
       <div className="flex gap-1 overflow-x-auto pb-1 border-b border-zinc-800">
         {TABS.map(tab => {
           const badge = tabBadges[tab.id]
+          const isActive = activeTab === tab.id
           return (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors ${
-                activeTab === tab.id
+                isActive
                   ? 'text-amber-400 border-b-2 border-amber-400 -mb-px'
                   : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
               {tab.label}
               {badge ? (
-                <span className={`text-xs px-1.5 rounded-full ${activeTab === tab.id ? 'bg-amber-900/60 text-amber-300' : 'bg-zinc-800 text-zinc-400'}`}>
+                <span className={`text-xs px-1.5 rounded-full ${isActive ? 'bg-amber-900/60 text-amber-300' : 'bg-zinc-800 text-zinc-400'}`}>
                   {badge}
                 </span>
+              ) : tab.id === 'cocktailMenu' && cocktailMenuStatus === 'approved' ? (
+                <span style={{ fontSize: 9, fontWeight: 700, color: isActive ? '#C9A96E' : '#7A6A4A' }}>✓</span>
+              ) : tab.id === 'cocktailMenu' && cocktailMenuStatus === 'draft' ? (
+                <span style={{
+                  display: 'inline-block', width: 5, height: 5,
+                  borderRadius: '50%', flexShrink: 0,
+                  background: isActive ? '#C9A96E' : '#5A4A2A',
+                }} />
               ) : null}
             </button>
           )
@@ -298,6 +310,19 @@ export default function EventDetail({
               onUpdateTask={onUpdateTask}
               goToPage={goToPage}
               onGoToOverview={() => setActiveTab('overview')}
+            />
+          )}
+          {activeTab === 'cocktailMenu' && (
+            <EventCocktailMenu
+              event={event}
+              guests={guests}
+              tables={tables}
+              tasks={tasks}
+              timeline={timeline}
+              currentUser={currentUser}
+              onUpdateTask={onUpdateTask}
+              refreshDetail={refreshDetail}
+              onMenuStatusChange={({ status }) => setCocktailMenuStatus(status)}
             />
           )}
           {activeTab === 'messaging' && (

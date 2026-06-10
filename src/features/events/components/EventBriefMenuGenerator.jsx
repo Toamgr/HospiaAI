@@ -38,6 +38,22 @@ const TYPE_FLAVORS = {
 const FLAVOR_PILLS      = ['Citrus', 'Floral', 'Tropical', 'Herbal', 'Spicy', 'Smoky', 'Sweet', 'Bitter']
 const RESTRICTION_PILLS = ['No Gluten', 'No Nuts', 'Low ABV', 'Alcohol-Free Option', 'Kosher']
 
+const EMPTY_HEADLINE = {
+  wedding:   'Every great wedding deserves its own cocktail programme.',
+  corporate: 'Build a drinks programme tailored to your event brief.',
+  private:   'Craft a cocktail menu that matches the evening.',
+  bar_event: 'Design your bar programme for this event.',
+  other:     'Generate a cocktail menu for this event.',
+}
+
+const EMPTY_BTN_LABEL = {
+  wedding:   'Build the Wedding Programme',
+  corporate: 'Build the Drinks Programme',
+  private:   'Build the Cocktail Menu',
+  bar_event: 'Build the Bar Programme',
+  other:     'Build Event Menu',
+}
+
 function defaultCocktailCount(guestCount) {
   if (!guestCount) return 4
   if (guestCount < 40)  return 3
@@ -539,6 +555,7 @@ export default function EventBriefMenuGenerator({
   onUpdateTask,
   onApproved,
   onClose,
+  onMenuStatusChange,
 }) {
   const [menu, setMenu]                   = useState(null)
   const [loadingMenu, setLoadingMenu]     = useState(true)
@@ -552,6 +569,9 @@ export default function EventBriefMenuGenerator({
   const [replaceInstruction, setReplaceInstruction] = useState('')
   const [replacingLoading, setReplacingLoading]     = useState(false)
   const [replaceError, setReplaceError]             = useState(null)
+
+  const emptyHeadline = EMPTY_HEADLINE[event?.event_type] || EMPTY_HEADLINE.other
+  const emptyBtnLabel = EMPTY_BTN_LABEL[event?.event_type] || EMPTY_BTN_LABEL.other
 
   const { menuDNA } = useMemo(
     () => buildEventMenuDNA({ event, brief, designContext }),
@@ -583,10 +603,16 @@ export default function EventBriefMenuGenerator({
             ...data.menu,
             cocktails: enrichCocktailsWithCost(data.menu.cocktails || []),
           })
-          setApproved(data.menu.status === 'approved')
+          const isApproved = data.menu.status === 'approved'
+          setApproved(isApproved)
+          onMenuStatusChange?.({ status: isApproved ? 'approved' : 'draft', menuName: data.menu.menu_name || null })
+        } else {
+          onMenuStatusChange?.({ status: 'none', menuName: null })
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        onMenuStatusChange?.({ status: 'none', menuName: null })
+      })
       .finally(() => setLoadingMenu(false))
   }, [event.id])
 
@@ -610,6 +636,7 @@ export default function EventBriefMenuGenerator({
 
       if (isFallback) {
         setMenu(generatedMenu)
+        onMenuStatusChange?.({ status: 'draft', menuName: generatedMenu.menu_name || null })
         setError(
           fallbackReason ||
           'AI was unavailable. A placeholder draft is shown below — review and regenerate when the service recovers.'
@@ -623,6 +650,7 @@ export default function EventBriefMenuGenerator({
           ...saved.menu,
           cocktails: enrichCocktailsWithCost(saved.menu.cocktails || []),
         })
+        onMenuStatusChange?.({ status: 'draft', menuName: saved.menu.menu_name || null })
       }
     } catch (err) {
       setError(err.message || 'Failed to generate menu. Please try again.')
@@ -641,6 +669,7 @@ export default function EventBriefMenuGenerator({
 
       // Approval confirmed — mark UI as approved immediately before task update
       setApproved(true)
+      onMenuStatusChange?.({ status: 'approved', menuName: menu?.menu_name || null })
       if (onApproved) onApproved()
 
       // Fire internal notifications to Owner and F&B Director
@@ -716,7 +745,7 @@ export default function EventBriefMenuGenerator({
           {menu && !generating && !approved && (
             <button
               type="button"
-              onClick={() => { setMenu(null); setApproved(false); setShowForm(true); setError(null) }}
+              onClick={() => { setMenu(null); setApproved(false); setShowForm(true); setError(null); onMenuStatusChange?.({ status: 'none', menuName: null }) }}
               className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
             >
               Rebuild menu
@@ -763,16 +792,15 @@ export default function EventBriefMenuGenerator({
         {/* No menu — start prompt or form */}
         {!menu && !generating && (
           !showForm ? (
-            <div className="text-center py-6">
-              <p className="text-sm text-zinc-500 mb-4">
-                Generate a full cocktail menu for this event, pre-built from the event brief.
-              </p>
+            <div className="text-center py-6 space-y-3">
+              <p className="text-sm text-zinc-300">{emptyHeadline}</p>
+              <p className="text-xs text-zinc-600">Pre-filled from the event brief — adjust before generating if needed.</p>
               <button
                 type="button"
                 onClick={() => setShowForm(true)}
                 className="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium transition-colors"
               >
-                Build Event Menu
+                {emptyBtnLabel}
               </button>
             </div>
           ) : (
