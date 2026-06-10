@@ -199,6 +199,7 @@ function PanelRow({ label, value, valueColor }) {
 // ── AgendaCard — Today's Priorities (full access only) ───────────────────────
 
 function AgendaCard({ event, intel, isSelected, onClick }) {
+  const [hov, setHov] = useState(false)
   const chip      = TYPE_CHIP[event.event_type] || TYPE_CHIP.other
   const typeLabel = EVENT_TYPE_LABELS[event.event_type] || 'Event'
   const health    = intel?.eventHealth
@@ -218,14 +219,18 @@ function AgendaCard({ event, intel, isSelected, onClick }) {
       role="button"
       tabIndex={0}
       onKeyDown={e => e.key === 'Enter' && onClick()}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
       style={{
-        background:   isSelected ? '#1A1A1A' : '#111111',
-        border:       `1px solid ${isSelected ? (health?.color || '#2A2A2A') : '#1E1E1E'}`,
-        borderLeft:   `3px solid ${health?.color || '#3A3A3A'}`,
+        background:    isSelected ? '#1A1A1A' : hov ? '#161616' : '#111111',
+        borderTop:     `1px solid ${isSelected ? (health?.color || '#2A2A2A') : hov ? (health?.color ? `${health.color}50` : 'rgba(201,169,110,0.25)') : '#1E1E1E'}`,
+        borderRight:   `1px solid ${isSelected ? (health?.color || '#2A2A2A') : hov ? (health?.color ? `${health.color}50` : 'rgba(201,169,110,0.25)') : '#1E1E1E'}`,
+        borderBottom:  `1px solid ${isSelected ? (health?.color || '#2A2A2A') : hov ? (health?.color ? `${health.color}50` : 'rgba(201,169,110,0.25)') : '#1E1E1E'}`,
+        borderLeft:    `3px solid ${health?.color || '#3A3A3A'}`,
         borderRadius: 6,
         cursor:       'pointer',
         padding:      '10px 12px',
-        transition:   'all 120ms ease',
+        transition:   'all 150ms ease',
         userSelect:   'none',
       }}
     >
@@ -315,6 +320,48 @@ function FilterBar({ typeFilter, onTypeFilter, healthFilter, onHealthFilter, sho
         </>
       )}
     </div>
+  )
+}
+
+// ── EventChip — calendar grid event pill ────────────────────────────────────
+
+function EventChip({ ev, chip, healthColor, score, isSelected, daysUntil, menuApproved, onClick }) {
+  const [hov, setHov] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      title={ev.name}
+      style={{
+        background:   isSelected ? chip.border : hov ? `${chip.bg}` : chip.bg,
+        borderTop:    `1px solid ${isSelected || hov ? healthColor : chip.border}`,
+        borderRight:  `1px solid ${isSelected || hov ? healthColor : chip.border}`,
+        borderBottom: `1px solid ${isSelected || hov ? healthColor : chip.border}`,
+        borderLeft:   `3px solid ${healthColor}`,
+        borderRadius: 3,
+        cursor:       'pointer',
+        overflow:     'hidden',
+        padding:      '3px 5px',
+        textAlign:    'left',
+        transition:   'border-color 120ms ease, background 120ms ease',
+        width:        '100%',
+      }}
+    >
+      <div style={{ fontSize: 8, fontWeight: 600, color: hov ? '#F5F0E8' : chip.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '0.02em', transition: 'color 120ms ease' }}>
+        {ev.name}
+      </div>
+      {score != null && (
+        <div style={{ fontSize: 7, color: healthColor, marginTop: 1, display: 'flex', gap: 4, alignItems: 'center' }}>
+          <span>{score}%</span>
+          {menuApproved && <span style={{ color: '#6BAF80' }}>· Menu ✓</span>}
+          {daysUntil != null && daysUntil <= 7 && daysUntil >= 0 && (
+            <span style={{ color: '#D4943A' }}>· {daysUntil}d</span>
+          )}
+        </div>
+      )}
+    </button>
   )
 }
 
@@ -679,7 +726,7 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
 
   function openEventDetail(eventId) {
     if (onSelectEvent) onSelectEvent(eventId)
-    goToPage('eventCRM')
+    goToPage('eventCRM', { fromCalendar: true })
   }
   function openArchitect(eventId) {
     try { sessionStorage.setItem('hestia.architect.linkId', String(eventId)) } catch {}
@@ -702,7 +749,7 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
           <div style={{ fontFamily: '"Cormorant Garamond", serif', fontSize: 26, fontWeight: 700, color: '#F5F0E8', lineHeight: 1.1 }}>
             Event Calendar
           </div>
-          <div style={{ fontSize: 9, color: '#5A5550', marginTop: 3, letterSpacing: '0.08em' }}>
+          <div style={{ fontSize: 9, color: '#9A9590', marginTop: 3, letterSpacing: '0.08em' }}>
             Internal event calendar with operational status
           </div>
         </div>
@@ -719,7 +766,8 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
       {/* ── Today's Priorities (full access only) ── */}
       {isFullAccess && upcomingPriorities.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#5A5550', marginBottom: 8 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8B7355', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'inline-block', width: 2, height: 10, background: '#C9A96E', borderRadius: 1, opacity: 0.7 }} />
             Today's Priorities
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -729,7 +777,10 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
                 event={ev}
                 intel={intelligenceMap[ev.id]}
                 isSelected={ev.id === panelId}
-                onClick={() => setPanelId(ev.id === panelId ? null : ev.id)}
+                onClick={() => isFullAccess
+                  ? openEventDetail(ev.id)
+                  : setPanelId(ev.id === panelId ? null : ev.id)
+                }
               />
             ))}
           </div>
@@ -746,9 +797,9 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
       />
 
       {/* ── Day name headers ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #1E1E1E' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #2A2A2A' }}>
         {DAY_NAMES.map(d => (
-          <div key={d} style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#3A3A3A', padding: '6px 8px 5px', textAlign: 'center' }}>
+          <div key={d} style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5A5550', padding: '7px 8px 6px', textAlign: 'center' }}>
             {d}
           </div>
         ))}
@@ -764,7 +815,7 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
           {grid.map((day, idx) => {
             if (day === null) {
               return (
-                <div key={`e-${idx}`} style={{ minHeight: 92, borderRight: (idx + 1) % 7 === 0 ? 'none' : '1px solid #141414', borderBottom: '1px solid #141414', background: '#070707' }} />
+                <div key={`e-${idx}`} style={{ minHeight: 96, borderRight: (idx + 1) % 7 === 0 ? 'none' : '1px solid #1A1A1A', borderBottom: '1px solid #1A1A1A', background: '#080808' }} />
               )
             }
 
@@ -778,11 +829,11 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
               <div
                 key={key}
                 style={{
-                  minHeight:   92,
+                  minHeight:   96,
                   padding:     '6px 5px 5px',
-                  borderRight: (idx + 1) % 7 === 0 ? 'none' : '1px solid #141414',
-                  borderBottom:'1px solid #141414',
-                  background:  isToday ? 'rgba(201,169,110,0.05)' : 'transparent',
+                  borderRight: (idx + 1) % 7 === 0 ? 'none' : '1px solid #1A1A1A',
+                  borderBottom:'1px solid #1A1A1A',
+                  background:  isToday ? 'rgba(201,169,110,0.06)' : 'transparent',
                 }}
               >
                 {/* Day number */}
@@ -791,9 +842,10 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
                   color:         isToday ? '#C9A96E' : '#3A3A3A',
                   marginBottom:  3,
                   display:       'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  width:         isToday ? 20 : 'auto', height: isToday ? 20 : 'auto',
+                  width:         isToday ? 22 : 'auto', height: isToday ? 22 : 'auto',
                   borderRadius:  isToday ? '50%' : 0,
-                  background:    isToday ? 'rgba(201,169,110,0.14)' : 'transparent',
+                  background:    isToday ? 'rgba(201,169,110,0.18)' : 'transparent',
+                  boxShadow:     isToday ? '0 0 0 1px rgba(201,169,110,0.35)' : 'none',
                 }}>
                   {day}
                 </div>
@@ -809,39 +861,20 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
                     const score      = health?.score
 
                     return (
-                      <button
+                      <EventChip
                         key={ev.id}
-                        type="button"
-                        onClick={() => setPanelId(ev.id === panelId ? null : ev.id)}
-                        title={ev.name}
-                        style={{
-                          background:    isSelected ? chip.border : chip.bg,
-                          border:        `1px solid ${isSelected ? healthColor : chip.border}`,
-                          borderLeft:    `3px solid ${healthColor}`,
-                          borderRadius:  3,
-                          cursor:        'pointer',
-                          overflow:      'hidden',
-                          padding:       '2px 4px',
-                          textAlign:     'left',
-                          width:         '100%',
-                        }}
-                      >
-                        <div style={{ fontSize: 8, fontWeight: 600, color: chip.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>
-                          {ev.name}
-                        </div>
-                        {/* Intelligence row — compact, full access or all roles for health dot */}
-                        {score != null && (
-                          <div style={{ fontSize: 7, color: healthColor, marginTop: 1, display: 'flex', gap: 4, alignItems: 'center' }}>
-                            <span>{score}%</span>
-                            {menuCache[ev.id] === 'approved' && (
-                              <span style={{ color: '#6BAF80' }}>· Menu ✓</span>
-                            )}
-                            {intel?.calendarSummary?.daysUntil != null && intel.calendarSummary.daysUntil <= 7 && intel.calendarSummary.daysUntil >= 0 && (
-                              <span style={{ color: '#D4943A' }}>· {intel.calendarSummary.daysUntil}d</span>
-                            )}
-                          </div>
-                        )}
-                      </button>
+                        ev={ev}
+                        chip={chip}
+                        healthColor={healthColor}
+                        score={score}
+                        isSelected={isSelected}
+                        daysUntil={intel?.calendarSummary?.daysUntil}
+                        menuApproved={menuCache[ev.id] === 'approved'}
+                        onClick={() => isFullAccess
+                          ? openEventDetail(ev.id)
+                          : setPanelId(ev.id === panelId ? null : ev.id)
+                        }
+                      />
                     )
                   })}
                   {overflow > 0 && (
@@ -870,21 +903,21 @@ export default function EventCalendar({ currentUser, goToPage, events, isLoading
           return (
             <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 8, height: 8, borderRadius: 2, background: chip.bg, border: `1px solid ${chip.border}` }} />
-              <span style={{ fontSize: 8, color: '#3A3A3A', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</span>
+              <span style={{ fontSize: 8, color: '#5A5550', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</span>
             </div>
           )
         })}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <div style={{ width: 3, height: 14, borderRadius: 1, background: '#6BAF80' }} />
-          <span style={{ fontSize: 8, color: '#3A3A3A', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Ready</span>
+          <span style={{ fontSize: 8, color: '#5A5550', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Ready</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <div style={{ width: 3, height: 14, borderRadius: 1, background: '#C9A96E' }} />
-          <span style={{ fontSize: 8, color: '#3A3A3A', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Needs Attention</span>
+          <span style={{ fontSize: 8, color: '#5A5550', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Needs Attention</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <div style={{ width: 3, height: 14, borderRadius: 1, background: '#C44A4A' }} />
-          <span style={{ fontSize: 8, color: '#3A3A3A', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Critical</span>
+          <span style={{ fontSize: 8, color: '#5A5550', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Critical</span>
         </div>
       </div>
 

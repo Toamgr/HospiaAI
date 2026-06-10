@@ -16,7 +16,7 @@ export const MODULE_ACCESS_RULES = {
   manager: ['dailyOps', 'cocktailIntelligence', 'cocktailsMagazineArea'],
   bar_manager: ['barManagement', 'cocktailIntelligence', 'shiftOrganizer', 'staffArea', 'cocktailsMagazineArea'],
   fb_director: ['barManagement', 'cocktailIntelligence', 'staffArea', 'cocktailsMagazineArea'],
-  events_manager: ['eventsArea', 'cocktailsMagazineArea'],
+  events_manager: ['eventsCalendarArea', 'eventsArea'],
   chef: ['chefArea', 'cocktailsMagazineArea'],
   owner: ['command', 'planning', 'ownerIntelligence', 'system', 'cocktailIntelligence', 'staffArea', 'chefApproval', 'cocktailsMagazineArea'],
   admin: Object.keys(NAV_GROUPS)

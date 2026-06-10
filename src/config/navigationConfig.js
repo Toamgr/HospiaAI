@@ -94,7 +94,7 @@ export const NAV_GROUPS = {
 
   // Cocktails Magazine + Business Menus — open to all staff
   cocktailsMagazineArea: {
-    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'events_manager', 'chef', 'owner', 'admin'],
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'chef', 'owner', 'admin'],
     pages: ['cocktailsMagazine']
   }
 }
@@ -494,7 +494,7 @@ export const PAGE_META = {
   // ── Cocktails Magazine ────────────────────────────────────────────────────
   cocktailsMagazine: {
     area: 'cocktailsMagazineArea',
-    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'events_manager', 'chef', 'owner', 'admin'],
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'chef', 'owner', 'admin'],
     code: 'CM',
     section: 'Cocktails',
     description: 'Classic cocktail magazine and active bar menus'

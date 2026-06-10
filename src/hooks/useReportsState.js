@@ -38,9 +38,13 @@ function mergeBusinessMemory(local, backend) {
   return merged
 }
 
+const REPORT_ROLES = ['manager', 'bar_manager', 'owner', 'admin']
+
 export function useReportsState({ currentUser } = {}) {
   const [reportArchive, setReportArchive] = useState(getInitialReportArchive)
   const [businessMemory, setBusinessMemory] = useState(getInitialBusinessMemory)
+
+  const role = currentUser?.role || ''
 
   useEffect(() => {
     localStorage.setItem(STORAGE.reportArchive, JSON.stringify(reportArchive))
@@ -51,6 +55,7 @@ export function useReportsState({ currentUser } = {}) {
   }, [businessMemory])
 
   useEffect(() => {
+    if (!REPORT_ROLES.includes(role)) return
     apiGet('/api/shift-reports')
       .then(data => {
         if (Array.isArray(data?.reports)) {
@@ -58,9 +63,10 @@ export function useReportsState({ currentUser } = {}) {
         }
       })
       .catch(() => {})
-  }, [])
+  }, [role])
 
   useEffect(() => {
+    if (!REPORT_ROLES.includes(role)) return
     apiGet('/api/business-memory')
       .then(data => {
         if (Array.isArray(data?.memory)) {
@@ -68,7 +74,7 @@ export function useReportsState({ currentUser } = {}) {
         }
       })
       .catch(() => {})
-  }, [])
+  }, [role])
 
   const addBusinessMemoryEvent = useCallback(event => {
     const memoryEvent = {
@@ -79,15 +85,17 @@ export function useReportsState({ currentUser } = {}) {
       detail: event.detail
     }
     setBusinessMemory(prev => [memoryEvent, ...prev].slice(0, 100))
-    apiPost('/api/business-memory', {
-      id: memoryEvent.id,
-      type: memoryEvent.type,
-      title: memoryEvent.title,
-      detail: memoryEvent.detail,
-      event_date: memoryEvent.date
-    }).catch(() => {})
+    if (REPORT_ROLES.includes(role)) {
+      apiPost('/api/business-memory', {
+        id: memoryEvent.id,
+        type: memoryEvent.type,
+        title: memoryEvent.title,
+        detail: memoryEvent.detail,
+        event_date: memoryEvent.date
+      }).catch(() => {})
+    }
     return memoryEvent
-  }, [])
+  }, [role])
 
   return { reportArchive, setReportArchive, businessMemory, setBusinessMemory, addBusinessMemoryEvent }
 }
