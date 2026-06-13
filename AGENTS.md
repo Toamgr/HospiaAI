@@ -1,23 +1,5 @@
 # HESTIA Development Context
 
----
-
-## ⚠ MANDATORY: Read Before Proposing Any Work
-
-**HESTIA is a standalone hospitality management platform. It is entirely separate from any other AI startup project, EventSheet product, or external codebase. Do not import code, architecture patterns, naming conventions, database schemas, documentation structures, or roadmap decisions from any other project.**
-
-Before proposing any architecture change, roadmap change, new module, major feature, connection, or refactor, every agent MUST read these three files:
-
-1. **`docs/HESTIA_MASTER_STATE.md`** — What HESTIA is today. What is built. What is connected. What is missing. What must not be rebuilt.
-2. **`docs/HESTIA_ARCHITECTURE_AUDIT.md`** — Full module-by-module audit. Persistence map. Dead code. Demo-data risks. Critical conclusions.
-3. **`docs/HESTIA_CTO_ROADMAP.md`** — Official phased development roadmap. What is in Phase 1. What is explicitly excluded. Sequencing rules.
-
-**These three files are the source of truth for HESTIA.** They supersede any prior audit, checkpoint, handoff, or planning document for architecture and roadmap decisions.
-
-If you propose work that contradicts the roadmap, duplicates existing infrastructure, or activates features that will show empty data, you have not read these files.
-
----
-
 ## MASTER MEMORY AUTHORITY
 
 Before any strategic, architectural, product, or development work, read:
@@ -38,19 +20,10 @@ Do not rely on auto-generated project memory summaries when the master memory ex
 
 ---
 
-## Project Identity
+Core strategic documents:
 
-HESTIA is a **hospitality operating system** for premium venues. It is not a SaaS dashboard, not a chatbot, not an admin panel, and not a generic task management system.
-
----
-
-## Core Strategic Documents
-
-- `docs/HESTIA_MASTER_STATE.md` — **Current source of truth** (read first)
-- `docs/HESTIA_ARCHITECTURE_AUDIT.md` — **Architecture audit** (read before any architecture work)
-- `docs/HESTIA_CTO_ROADMAP.md` — **Official roadmap** (read before any roadmap or feature work)
-- `docs/strategy/HOSPIA_STRATEGY_FOUNDATION.md` — Operational philosophy and product direction
-- `docs/architecture/HOSPIA_SYSTEM_ARCHITECTURE.md` — System architecture reference
+- /docs/strategy/HOSPIA_STRATEGY_FOUNDATION.md
+- /docs/architecture/HOSPIA_SYSTEM_ARCHITECTURE.md
 
 These documents define:
 - the operational philosophy,
@@ -174,7 +147,7 @@ These still use the old "HOSPIA" name and must be migrated together:
 - `hospia.*` localStorage keys — renaming without migration clears user data
 - `X-HOSPIA-Role` HTTP header — frontend and backend must rename simultaneously
 - `HOSPIA_LOCAL_APP` package/folder name — safe to rename anytime, no runtime effect
-- `HOSPIA_STRATEGY_FOUNDATION.md`, `HOSPIA_SYSTEM_ARCHITECTURE.md` — safe to rename if CLAUDE.md paths are updated
+- `HOSPIA_STRATEGY_FOUNDATION.md`, `HOSPIA_SYSTEM_ARCHITECTURE.md` — safe to rename if AGENTS.md paths are updated
 
 ## Design System
 Before building any HESTIA UI screen, component, or layout, read:
