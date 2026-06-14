@@ -2,6 +2,7 @@ node_modules/
 dist/
 data/*.sqlite
 data/*.sqlite-*
+data/creative-images/
 *.log
 .env
 node_modules
