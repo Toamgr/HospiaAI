@@ -55,6 +55,32 @@ export function hashVenueDna(venueDNA) {
   return (h >>> 0).toString(16)
 }
 
+// Deterministic one-line synthesis of a brief — reads like a senior operator's
+// note, not a count of items. Built only from the real top signal / priority /
+// opportunity already routed to this brief; invents nothing.
+const TEAM_LEAD = {
+  fb:       'Beverage & F&B direction',
+  training: 'People & training',
+  service:  'Floor & service',
+  event:    'Events',
+  owner:    'Ownership'
+}
+function synthesizeHeadline(type, signals, priorities, opportunities) {
+  const lead = TEAM_LEAD[type] || 'This area'
+  const s = signals[0], p = priorities[0], o = opportunities[0]
+  const parts = []
+  if (s) {
+    parts.push(`${lead} centers on ${s}`)
+    if (p) parts.push(`the main risk to manage is ${p}`)
+  } else if (p) {
+    parts.push(`${lead} priority is ${p}`)
+  }
+  if (o && parts.length < 3) parts.push(`the clearest opening is ${o}`)
+  if (!parts.length) parts.push(`${lead} signal is still forming`)
+  const line = parts.join('; ')
+  return line.charAt(0).toUpperCase() + line.slice(1) + '.'
+}
+
 function assembleBrief(type, { signals, priorities, opportunities, openQuestions, confidence, summary }) {
   const meta = BRIEF_META[type]
   const cleanSignals = uniq(signals)
@@ -71,11 +97,7 @@ function assembleBrief(type, { signals, priorities, opportunities, openQuestions
   } else if (summary && type === 'owner') {
     headline = summary
   } else {
-    const counts = []
-    if (cleanSignals.length) counts.push(`${cleanSignals.length} signal${cleanSignals.length === 1 ? '' : 's'}`)
-    if (cleanPriorities.length) counts.push(`${cleanPriorities.length} priority item${cleanPriorities.length === 1 ? '' : 's'}`)
-    if (cleanOpportunities.length) counts.push(`${cleanOpportunities.length} opportunit${cleanOpportunities.length === 1 ? 'y' : 'ies'}`)
-    headline = `${counts.join(' · ')} routed to ${meta.team}.`
+    headline = synthesizeHeadline(type, cleanSignals, cleanPriorities, cleanOpportunities)
   }
 
   return {

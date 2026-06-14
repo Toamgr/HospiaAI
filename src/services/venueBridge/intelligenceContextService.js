@@ -35,9 +35,11 @@ export function selectOmerContext(bundle = {}) {
   return buildOmerContextBlock(bundle.briefs || [], bundle.metadata || {})
 }
 
-// Academy / Service School — needs briefs + the academy manifest.
+// Academy / Service School — needs briefs + the academy manifest. Venue type
+// (from metadata) lets the academy layer gate cocktail/bar capabilities so
+// non-bar venues are never routed into cocktail technique lessons.
 export function selectAcademyContext(bundle = {}, academies = []) {
-  return buildAcademyContext({ briefs: bundle.briefs || [], academies })
+  return buildAcademyContext({ briefs: bundle.briefs || [], academies, venueType: bundle.metadata?.venueType || '' })
 }
 
 // Owner Intelligence — needs the full picture (DNA, briefs, ops, enrichment, capability).

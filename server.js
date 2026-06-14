@@ -5451,8 +5451,15 @@ RULES FOR venueDNA
 - Return the FULL, updated object every turn. Start from the understanding already provided above and refine it — never reset it.
 - Only add signals you actually heard or can reasonably infer. Never invent facts about the venue.
 - Keep each array concise and deduplicated (at most ~8 items). Phrase signals as short noun phrases.
-- confidence values are integers 0-100 reflecting how well you understand each dimension. They should rise as the conversation deepens, never jump to certainty early.
-- If you have no signal for an array yet, leave it empty.`;
+- If you have no signal for an array yet, leave it empty.
+
+CONFIDENCE CALIBRATION (integers 0-100) — score what you actually understand, not how long you have talked. Do NOT leave a dimension at 0 once its signal is clearly present, and do NOT jump to 90+ from a single remark. Use these anchors:
+- identity: 0 only if the venue's nature is still unclear. Once venue TYPE + STYLE + GUEST PROFILE are evident (e.g. "intimate luxury cocktail bar for regulars"), identity should be 55-75. Raise toward 80+ only when personality, positioning, and differentiation are all clear and consistent.
+- operations: rises once a recurring pain or operational pressure is named (consistency, turnover, coordination, pacing, peaks). One clearly described pain → 40-60. Multiple corroborated pains with detail → 65-80.
+- training: rises the moment staffing, onboarding, consistency, retention, or capability gaps are named. A clearly stated training/consistency pain → 45-65. Do NOT leave training at 0 if the owner has described people or consistency problems.
+- commercial: rises once margins, revenue, check average, pricing, midweek/peak softness, covers, or growth opportunities are named. One concrete commercial signal → 40-60.
+- guest: rises once guest TYPE, occasion, or service expectation is named (regulars, families, business travelers, speed, intimacy). A clear guest profile → 45-65.
+General: a dimension with 2+ concrete, consistent signals should sit at 50-70, not single digits. Confidence may rise across turns but should never fall on a thin turn — keep the higher prior value if a later turn adds nothing new to that dimension.`;
 }
 
 async function askVenueIntelligence(systemInstruction, history) {
@@ -5516,10 +5523,38 @@ function mergeVenueDna(prior, incoming) {
     base.confidence = { ...base.confidence };
     for (const dim of ['identity', 'operations', 'guest', 'training', 'commercial']) {
       const v = Number(incoming.confidence[dim]);
-      if (Number.isFinite(v)) base.confidence[dim] = Math.max(0, Math.min(100, Math.round(v)));
+      // Confidence is monotonic: a recognized dimension never regresses on a thin
+      // turn that simply didn't revisit it. Keep the higher of prior vs incoming.
+      if (Number.isFinite(v)) {
+        const prior = Number(base.confidence[dim]) || 0;
+        base.confidence[dim] = Math.max(prior, Math.max(0, Math.min(100, Math.round(v))));
+      }
     }
   }
   if (typeof incoming.summary === 'string') base.summary = incoming.summary.trim();
+
+  // Deterministic confidence FLOOR — real captured signal must never read as zero
+  // understanding. A populated signal array (or a pain/priority that clearly names
+  // a dimension) implies at least basic understanding, so the dimension is floored
+  // to 40. This is a floor, not an override: it never lowers a higher LLM score and
+  // never asserts certainty — it just stops genuine signal from showing as 0 when
+  // the model under-scores guest/commercial. No fabrication: the floor only lifts a
+  // dimension the venue actually spoke to.
+  const hasCommercial = base.growthOpportunities.length > 0 ||
+    base.ownerPriorities.some(p => /margin|revenue|check|pric|profit|growth|upsell|cost|sales|cover|midweek/i.test(p)) ||
+    base.businessTypeSignals.some(p => /margin|revenue|profit|volume/i.test(p));
+  const hasTraining = base.trainingSignals.length > 0 ||
+    [...base.operationalPainPoints, ...base.serviceSignals].some(p => /train|staff|onboard|turnover|consisten|retention|hire|coach/i.test(p));
+  const floors = {
+    identity:   (base.businessTypeSignals.length || base.hospitalityStyle.length || base.emotionalDrivers.length) ? 40 : 0,
+    operations: base.operationalPainPoints.length ? 40 : 0,
+    guest:      base.guestExperienceSignals.length ? 40 : 0,
+    training:   hasTraining ? 40 : 0,
+    commercial: hasCommercial ? 40 : 0
+  };
+  for (const dim of ['identity', 'operations', 'guest', 'training', 'commercial']) {
+    base.confidence[dim] = Math.max(Number(base.confidence[dim]) || 0, floors[dim]);
+  }
   return base;
 }
 
@@ -5619,9 +5654,25 @@ function readOperationalRaw(venueId) {
     actionsCompleted: one('SELECT COUNT(*) c FROM actions WHERE venue_id=? AND done=1', venueId),
     actionsStale:     one("SELECT COUNT(*) c FROM actions WHERE venue_id=? AND done=0 AND created_at <= datetime('now','-3 days')", venueId),
     memoryCount:      one('SELECT COUNT(*) c FROM business_memory WHERE venue_id=?', venueId),
-    // Academy activity is user/course scoped (single-venue app) — no venue filter.
-    academyCompletedModules: one("SELECT COUNT(*) c FROM staff_progress WHERE status='completed' OR completed_at IS NOT NULL"),
-    academyActiveLearners:   (() => { try { return db.prepare("SELECT COUNT(DISTINCT user_id) c FROM staff_progress WHERE status='completed' OR completed_at IS NOT NULL").get()?.c || 0; } catch { return 0; } })(),
+    // Academy activity is VENUE-SCOPED via venue membership: count only lessons
+    // completed by real staff of THIS venue (active members). Platform admins are
+    // excluded — they are auto-added as the creator of every venue and are not
+    // venue training staff, so their personal progress must not read as this
+    // venue's capability building. A brand-new venue therefore shows zero academy
+    // activity until its own staff actually train, never a global figure.
+    academyCompletedModules: one(
+      "SELECT COUNT(*) c FROM staff_progress sp " +
+      "JOIN venue_members vm ON vm.user_id = sp.user_id AND vm.venue_id = ? AND vm.active = 1 " +
+      "JOIN auth_users au ON au.id = sp.user_id " +
+      "WHERE (sp.status='completed' OR sp.completed_at IS NOT NULL) AND au.role <> 'admin'",
+      venueId
+    ),
+    academyActiveLearners: (() => { try { return db.prepare(
+      "SELECT COUNT(DISTINCT sp.user_id) c FROM staff_progress sp " +
+      "JOIN venue_members vm ON vm.user_id = sp.user_id AND vm.venue_id = ? AND vm.active = 1 " +
+      "JOIN auth_users au ON au.id = sp.user_id " +
+      "WHERE (sp.status='completed' OR sp.completed_at IS NOT NULL) AND au.role <> 'admin'"
+    ).get(venueId)?.c || 0; } catch { return 0; } })(),
     eventsTotal:     one('SELECT COUNT(*) c FROM events WHERE venue_id=?', venueId),
     eventsUpcoming:  one("SELECT COUNT(*) c FROM events WHERE venue_id=? AND status NOT IN ('completed','cancelled') AND event_date >= date('now')", venueId),
     eventsCompleted: one("SELECT COUNT(*) c FROM events WHERE venue_id=? AND status='completed'", venueId)
@@ -5759,9 +5810,11 @@ const ACADEMY_CONTEXT_ROLES = ['employee', 'manager', 'bar_manager', 'fb_directo
 
 function getAcademyVenueContext(venueId) {
   try {
-    // Academy needs only briefs + manifest — light bundle.
+    // Academy needs briefs + venue metadata (venue type gates cocktail/bar
+    // capabilities) + the manifest — a light bundle.
     const briefs = readVenueBriefs(venueId);
-    return selectAcademyContext({ briefs }, UNIVERSITY_MANIFEST);
+    const venue = db.prepare('SELECT name, venue_type FROM venues WHERE id = ?').get(venueId) || {};
+    return selectAcademyContext({ briefs, metadata: { venueName: venue.name, venueType: venue.venue_type } }, UNIVERSITY_MANIFEST);
   } catch (err) {
     debugLog({ event: 'academy_context_failed', error: err.message });
     return { active: false, capabilitySignals: [], recommendations: [] };
