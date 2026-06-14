@@ -4,7 +4,9 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "server": "node server.js",
-    "start": "concurrently \"npm run server\" \"npm run dev\"",
+    "server:dev": "nodemon --watch server.js server.js",
+    "start": "concurrently \"npm run server:dev\" \"npm run dev\"",
+    "start:prod": "concurrently \"npm run server\" \"npm run dev\"",
     "hestia:check": "node scripts/hestia-check.js"
   },
   "dependencies": {
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.5.0",
+    "nodemon": "^3.1.14",
     "postcss": "^8.5.13",
     "tailwindcss": "^3.4.19"
   }
