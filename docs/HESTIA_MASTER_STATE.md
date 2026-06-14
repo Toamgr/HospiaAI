@@ -46,6 +46,19 @@ Every module in HESTIA must help at least one of these roles do real hospitality
 
 ---
 
+## Multi-Venue Foundation (Phase 8 — 2026-06-14)
+
+HESTIA is now **venue-scoped**: a venue is the memory unit, a user is the operator.
+Each venue has fully isolated DNA, briefs, Omer/Academy/Owner Intelligence, and
+operations. Venue context is carried per request via the `X-HESTIA-Venue` header,
+resolved against `venue_members` (Platform Admin sees all; other roles see only
+assigned venues). Missing header falls back to the user's default venue; an
+unauthorized explicit venue is rejected (403). A venue selector appears only when
+a user can reach more than one venue — single-venue installs are unchanged. Full
+detail: `docs/architecture/HESTIA_PHASE_8_MULTI_VENUE.md`.
+
+---
+
 ## Current Maturity Status
 
 HESTIA is a **partially operational hospitality platform** with production-grade infrastructure and uneven module completion.
