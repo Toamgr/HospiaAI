@@ -5453,6 +5453,12 @@ RULES FOR venueDNA
 - Keep each array concise and deduplicated (at most ~8 items). Phrase signals as short noun phrases.
 - If you have no signal for an array yet, leave it empty.
 
+SIGNAL EXTRACTION GUIDANCE — capture these as deliberately as operational pain. Owners state them in passing and they are the signals most often lost. Record them in the DNA, not only in your reply:
+- COMMERCIAL signal is dropped most often. Whenever the owner mentions revenue, margin, profit, check average, covers or volume, pricing, where the money actually comes from (e.g. banquets, weekends, a hero product), a soft or peak period (quiet midweek, brutal Saturdays), or unrealised upside (unsold desserts, missed upsell, an untapped daypart) — capture it. Put unrealised upside in growthOpportunities; put the owner's explicit commercial goals in ownerPriorities.
+- GUEST signal beyond a one-word label. Capture WHO the guest is (regulars, families, business travelers, dates), the OCCASION (Sunday lunch, after-work, celebration, overnight stay), and what they EXPECT (speed, reliability, intimacy, value, theatre) — all into guestExperienceSignals.
+- OWNER PRIORITIES & GOALS. When the owner says what they want to fix, improve, protect, or achieve ("get new bartenders to senior consistency faster", "lift the check without squeezing families", "protect the scores"), record it in ownerPriorities.
+- Guardrail: only capture what was actually said or clearly implied — never invent a number, price, or goal. An empty category is fine; a stated-but-dropped signal is not.
+
 CONFIDENCE CALIBRATION (integers 0-100) — score what you actually understand, not how long you have talked. Do NOT leave a dimension at 0 once its signal is clearly present, and do NOT jump to 90+ from a single remark. Use these anchors:
 - identity: 0 only if the venue's nature is still unclear. Once venue TYPE + STYLE + GUEST PROFILE are evident (e.g. "intimate luxury cocktail bar for regulars"), identity should be 55-75. Raise toward 80+ only when personality, positioning, and differentiation are all clear and consistent.
 - operations: rises once a recurring pain or operational pressure is named (consistency, turnover, coordination, pacing, peaks). One clearly described pain → 40-60. Multiple corroborated pains with detail → 65-80.
