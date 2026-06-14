@@ -1,5 +1,6 @@
 ﻿export const STORAGE = {
   token: 'hospia.token',        // MVP: JWT stored in localStorage until httpOnly-cookie phase
+  currentVenue: 'hospia.currentVenue',  // Phase 8: selected venue (memory unit) sent as X-HESTIA-Venue
   users: 'hospia.users',
   currentUser: 'hospia.currentUser',
   role: 'hospia.role',

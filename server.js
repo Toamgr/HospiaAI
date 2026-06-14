@@ -1,6 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-import { mkdirSync, appendFileSync } from "node:fs";
+import { mkdirSync, appendFileSync, writeFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
@@ -9,14 +9,19 @@ import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import { cocktailLibrary } from "./src/data/cocktails.js";
 import { UNIVERSITY_MANIFEST } from "./src/data/academy/universityManifest.js";
+import { buildVenueBriefs } from "./src/services/venueBridge/venueBridgeService.js";
+import { buildOperationalSignals, deriveDnaEnrichment, applyConfidenceDeltas } from "./src/services/venueBridge/operationalSignalsService.js";
+import {
+  selectOmerContext, selectAcademyContext, selectOwnerIntelligence, assembleUnifiedContext
+} from "./src/services/venueBridge/intelligenceContextService.js";
 
 dotenv.config();
 
-// Startup: confirm GEMINI_API_KEY is loaded. Never log the value.
-if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'PASTE_KEY_HERE') {
-  console.warn('[HESTIA] GEMINI_API_KEY: MISSING or placeholder — AI generation will fail until a valid key is set in .env');
+// Startup: confirm OPENAI_API_KEY is loaded. Never log the value.
+if (!process.env.OPENAI_API_KEY) {
+  console.warn('[HESTIA] OPENAI_API_KEY: MISSING — AI generation will fail until a valid key is set in .env');
 } else {
-  console.log('[HESTIA] GEMINI_API_KEY: present');
+  console.log('[HESTIA] OPENAI_API_KEY: present');
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -24,6 +29,8 @@ const DATA_DIR = path.join(__dirname, "data");
 const DB_PATH = path.join(DATA_DIR, "hospia.sqlite");
 
 mkdirSync(DATA_DIR, { recursive: true });
+const CREATIVE_IMAGES_DIR = path.join(DATA_DIR, "creative-images");
+mkdirSync(CREATIVE_IMAGES_DIR, { recursive: true });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -324,6 +331,7 @@ OUTPUT FORMAT — STRICT JSON ONLY. No markdown. No backticks. No text outside t
 `;
 
 app.use(express.json({ limit: "15mb" }));
+app.use('/creative-images', express.static(CREATIVE_IMAGES_DIR));
 
 app.use((req, res, next) => {
   const origin = req.header("Origin");
@@ -332,7 +340,7 @@ app.use((req, res, next) => {
   }
   res.header("Vary", "Origin");
   res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-HOSPIA-Role,X-HESTIA-User");
+  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-HOSPIA-Role,X-HESTIA-User,X-HESTIA-Venue");
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
@@ -350,6 +358,23 @@ db.exec(`
     name TEXT NOT NULL,
     venue_type TEXT NOT NULL,
     created_at TEXT NOT NULL
+  );
+
+  -- Phase 8 (Multi-Venue Foundation): a venue is a memory unit; a user is the
+  -- operator. venue_members maps an authenticated user (auth_users.id) to the
+  -- venues they may access, with the role they hold INSIDE that venue.
+  -- NOTE: this is venue membership, NOT the platform-level role. The platform
+  -- role 'admin' (Platform Admin / HESTIA Admin) is separate and bypasses
+  -- membership entirely — see resolveVenueId() / venuesForUser().
+  CREATE TABLE IF NOT EXISTS venue_members (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    venue_id    TEXT NOT NULL,
+    venue_role  TEXT NOT NULL,
+    active      INTEGER NOT NULL DEFAULT 1,
+    created_at  TEXT NOT NULL,
+    UNIQUE(user_id, venue_id),
+    FOREIGN KEY (venue_id) REFERENCES venues(id)
   );
 
   CREATE TABLE IF NOT EXISTS users (
@@ -932,6 +957,50 @@ db.exec(`
   );
 `);
 
+// ── Venue Intelligence — Venue Learning Engine + Venue DNA ───────────────────
+// One persistent learning session per venue. The conversation accumulates and
+// the venue_dna_json column holds HESTIA's evolving understanding of the venue.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS venue_intelligence (
+    venue_id        TEXT PRIMARY KEY,
+    stage           TEXT NOT NULL DEFAULT 'story',
+    objective       TEXT,
+    messages_json   TEXT NOT NULL DEFAULT '[]',
+    venue_dna_json  TEXT NOT NULL DEFAULT '{}',
+    created_at      TEXT DEFAULT (datetime('now')),
+    updated_at      TEXT DEFAULT (datetime('now'))
+  );
+`);
+
+// ── Venue Intelligence Bridge — derived specialist briefs ────────────────────
+// One row per (venue, brief type). Briefs are regenerated deterministically
+// whenever Venue DNA changes and read by specialist systems via a shared service.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS venue_briefs (
+    venue_id     TEXT NOT NULL,
+    brief_type   TEXT NOT NULL,
+    title        TEXT,
+    brief_json   TEXT NOT NULL,
+    source_hash  TEXT,
+    confidence   INTEGER,
+    status       TEXT,
+    generated_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (venue_id, brief_type)
+  );
+`);
+
+// ── Operational Intelligence Feed — derived DNA enrichment snapshot ───────────
+// Transparent cache of the operational signals + confidence enrichment applied to
+// Venue DNA. Derived only — never a duplicate source of operational records.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS venue_dna_enrichment (
+    venue_id        TEXT PRIMARY KEY,
+    signals_json    TEXT NOT NULL DEFAULT '{}',
+    enrichment_json TEXT NOT NULL DEFAULT '{}',
+    generated_at    TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 // ── New Role + Staff Module Tables ───────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS employees (
@@ -1097,6 +1166,7 @@ try { db.exec("ALTER TABLE cocktails ADD COLUMN estimated_gp_percent REAL"); } c
 try { db.exec("ALTER TABLE event_plans ADD COLUMN status TEXT"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE event_plans ADD COLUMN approved_by TEXT"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE event_plans ADD COLUMN approved_at TEXT"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE event_cocktail_menus ADD COLUMN programme_brief_json TEXT"); } catch { /* already exists */ }
 
 // shift_reports extended fields
 for (const [col, def] of [
@@ -1143,6 +1213,30 @@ try {
 try { db.exec("ALTER TABLE notifications ADD COLUMN roles_json TEXT"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE food_dishes ADD COLUMN tags_json TEXT"); } catch { /* already exists */ }
 
+// ZOHAR Design Intelligence — creative direction inputs (Phase 1 Finalization)
+try { db.exec("ALTER TABLE venues ADD COLUMN description TEXT"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE events ADD COLUMN aesthetic_subgenre TEXT"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE events ADD COLUMN single_sentence TEXT"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE events ADD COLUMN anti_reference TEXT"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE events ADD COLUMN venue_character TEXT"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE events ADD COLUMN primary_impact_moment TEXT"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE events ADD COLUMN confirmed_mood_keywords TEXT"); } catch { /* already exists */ }
+
+// AI-generated creative images per event (hero + per-cocktail)
+try {
+  db.exec(`CREATE TABLE IF NOT EXISTS event_creative_images (
+    id            TEXT PRIMARY KEY,
+    event_id      TEXT NOT NULL,
+    image_type    TEXT NOT NULL CHECK(image_type IN ('hero','cocktail')),
+    cocktail_id   TEXT,
+    cocktail_name TEXT,
+    prompt        TEXT,
+    image_path    TEXT NOT NULL,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+} catch { /* already exists */ }
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -1151,8 +1245,53 @@ function id(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+// Legacy / bootstrap fallback venue id. Phase 8: this is NO LONGER used inside
+// request handlers (they use req.venueId, resolved per request from the operator's
+// venue membership). It remains the canonical seed venue id and the ultimate
+// fallback for empty installs / platform-admin contexts with no venues yet.
 function defaultVenueId() {
   return "venue-main";
+}
+
+// ── Phase 8: Multi-Venue access resolution ──────────────────────────────────
+// A venue is the memory unit; a user is the operator. The platform role 'admin'
+// means Platform Admin / HESTIA Admin (manages HESTIA itself) — NOT a venue admin.
+// Platform Admin can see every venue for support/debug; all other roles see only
+// the venues they are members of (venue_members.active = 1).
+
+// All venue ids a user may access. Platform Admin → all venues; everyone else →
+// their active memberships.
+function venuesForUser(user) {
+  if (user?.role === "admin") {
+    return db.prepare("SELECT id FROM venues ORDER BY created_at ASC").all().map(r => r.id);
+  }
+  return db.prepare(
+    "SELECT venue_id FROM venue_members WHERE user_id = ? AND active = 1 ORDER BY created_at ASC"
+  ).all(user?.id).map(r => r.venue_id);
+}
+
+// The user's default venue when no explicit venue is requested: their first
+// accessible venue, falling back to the bootstrap venue for empty installs.
+function defaultVenueForUser(user) {
+  const list = venuesForUser(user);
+  return list[0] || defaultVenueId();
+}
+
+// Resolve the venue context for a request.
+//  - Missing X-HESTIA-Venue header        → silent fallback to the user's default
+//                                            venue (preserves legacy single-venue
+//                                            behavior; zero friction).
+//  - Present but NOT accessible to the user → throws { status: 403 }. We never
+//    silently fall back on an explicit-but-unauthorized selection: doing so could
+//    make the UI believe it operates on Venue B while the backend writes Venue A.
+function resolveVenueId(req) {
+  const requested = req.header("X-HESTIA-Venue");
+  if (!requested) return defaultVenueForUser(req.user);
+  const allowed = venuesForUser(req.user);
+  if (allowed.includes(requested)) return requested;
+  const err = new Error("You do not have access to the requested venue.");
+  err.status = 403;
+  throw err;
 }
 
 function seedDatabase() {
@@ -1183,6 +1322,31 @@ function seedDatabase() {
     for (const u of SEED_USERS) {
       insertAuthUser.run(u.id, u.full_name, u.role, u.access_code);
     }
+  }
+
+  // Phase 8 backfill — preserve single-venue behavior. If no venue memberships
+  // exist yet, grant every authenticated (non platform-admin) user membership of
+  // the bootstrap venue, using their platform role as the venue role. After this,
+  // every legacy user resolves to venue-main with or without the X-HESTIA-Venue
+  // header — identical to pre-Phase-8 behavior, zero friction. Runs after
+  // auth_users seeding so the rows exist on a fresh database.
+  try {
+    const memberCount = db.prepare("SELECT COUNT(*) AS count FROM venue_members").get().count;
+    if (!memberCount) {
+      const authUsers = db.prepare("SELECT id, role FROM auth_users").all();
+      const insertMember = db.prepare(
+        "INSERT OR IGNORE INTO venue_members (user_id, venue_id, venue_role, active, created_at) VALUES (?, ?, ?, 1, ?)"
+      );
+      const seedNow = nowIso();
+      for (const u of authUsers) {
+        // Platform admins ('admin') are not venue members — they see all venues
+        // (see venuesForUser). Everyone else is seeded into the bootstrap venue.
+        if (u.role === "admin") continue;
+        insertMember.run(u.id, defaultVenueId(), u.role, seedNow);
+      }
+    }
+  } catch (e) {
+    console.warn("[HESTIA Phase 8] venue_members backfill skipped:", e.message);
   }
 
   const insertHospiaUser = db.prepare(
@@ -1264,6 +1428,29 @@ function requireAuth(...allowedRoles) {
     if (allowedRoles.length > 0 && session.role !== "admin" && !allowedRoles.includes(session.role)) {
       console.warn(`[HESTIA AUTH] 403 | user=${session.id} (${session.full_name}) | role=${session.role} | required=${allowedRoles.join(',')} | ${req.method} ${req.path}`);
       return res.status(403).json({ error: "Forbidden.", required: allowedRoles, received: session.role });
+    }
+    // Phase 8: resolve the venue memory context for this request. Missing header
+    // falls back to the user's default venue; an explicit-but-unauthorized venue
+    // is rejected (403) rather than silently redirected to another venue.
+    //
+    // Exception: the bootstrap/discovery endpoints (auth/me and the venue list)
+    // must always succeed so the client can recover from a stale venue header
+    // (e.g. a venue the user just lost access to, or another user's leftover
+    // selection on a shared browser). For those, an invalid venue falls back
+    // instead of 403 — they never read venue-scoped business data.
+    const isVenueBootstrap = (req.path === "/api/auth/me") ||
+                             (req.method === "GET" && req.path === "/api/venues");
+    try {
+      req.venueId = resolveVenueId(req);
+    } catch (e) {
+      if (e.status === 403 && isVenueBootstrap) {
+        req.venueId = defaultVenueForUser(req.user);
+      } else if (e.status === 403) {
+        console.warn(`[HESTIA VENUE] 403 | user=${session.id} (${session.full_name}) | requested=${req.header("X-HESTIA-Venue")} | ${req.method} ${req.path}`);
+        return res.status(403).json({ error: e.message || "Venue access denied." });
+      } else {
+        return res.status(500).json({ error: "Could not resolve venue context." });
+      }
     }
     next();
   };
@@ -1378,44 +1565,41 @@ function actionRow(row) {
 }
 
 async function askGemini(prompt, { jsonMode = false } = {}) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'PASTE_KEY_HERE') {
-    throw new Error("Missing GEMINI_API_KEY in .env.");
-  }
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("Missing OPENAI_API_KEY in .env.");
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
+  const messages = jsonMode
+    ? [
+        { role: "system", content: "You are a JSON generation assistant. Respond with valid JSON only. No markdown, no explanation." },
+        { role: "user", content: prompt },
+      ]
+    : [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: prompt },
+      ];
 
-  // In JSON mode the prompt already contains its own system context, so skip the
-  // general SYSTEM preamble (which is conversational and conflicts with JSON-only output).
-  const fullPrompt = jsonMode ? prompt : `${SYSTEM}\n\n${prompt}`;
+  const body = { model: "gpt-4o-mini", messages };
+  if (jsonMode) body.response_format = { type: "json_object" };
 
-  const body = {
-    contents: [{ parts: [{ text: fullPrompt }] }],
-  };
-  if (jsonMode) {
-    body.generationConfig = { responseMimeType: "application/json" };
-  }
-
-  const response = await fetch(url, {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify(body),
   });
 
   const data = await response.json();
   if (!response.ok) {
-    const geminiMsg = data.error?.message || "Gemini request failed.";
-    console.error("[GEMINI ERROR]", JSON.stringify(data));
-    if (/api.?key|key.*invalid|invalid.*key/i.test(geminiMsg)) {
+    const msg = data.error?.message || "OpenAI request failed.";
+    console.error("[OPENAI ERROR]", JSON.stringify(data));
+    if (/api.?key|key.*invalid|invalid.*key/i.test(msg)) {
       throw new Error("AI generation is unavailable — the server API key is missing or invalid. Please contact your administrator.");
     }
-    throw new Error(geminiMsg);
+    throw new Error(msg);
   }
 
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const text = data.choices?.[0]?.message?.content || "";
 
   if (jsonMode && text) {
-    // Validate the JSON is parseable; repair trailing commas if not.
     try {
       JSON.parse(text);
     } catch {
@@ -1424,8 +1608,7 @@ async function askGemini(prompt, { jsonMode = false } = {}) {
         JSON.parse(repaired);
         return repaired;
       } catch {
-        // Return raw text and let the client parser handle it
-        console.warn("GEMINI JSON MODE: response could not be repaired server-side.");
+        console.warn("OPENAI JSON MODE: response could not be repaired server-side.");
       }
     }
     return text;
@@ -1501,7 +1684,7 @@ app.get("/api/shift-reports", requireAuth("manager", "bar_manager", "owner", "ad
     WHERE venue_id = ?
     ORDER BY submitted_at DESC
     LIMIT 50
-  `).all(defaultVenueId());
+  `).all(req.venueId);
 
   res.json({ reports: rows.map(reportRow) });
 });
@@ -1510,7 +1693,7 @@ app.post("/api/shift-reports", requireAuth("manager", "bar_manager", "admin"), (
   const clientId = String(req.body.id || "").trim();
   const report = {
     id: clientId || id("eod"),
-    venue_id: defaultVenueId(),
+    venue_id: req.venueId,
     shift_date: String(req.body.shift_date || new Date().toISOString().slice(0, 10)),
     manager_name: String(req.body.manager_name || ""),
     shift_summary: String(req.body.shift_summary || ""),
@@ -1558,7 +1741,7 @@ app.post("/api/shift-reports", requireAuth("manager", "bar_manager", "admin"), (
   if (report.urgent_items || report.complaints) {
     db.prepare("INSERT INTO business_memory (id, venue_id, type, title, detail, event_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
       id("memory"),
-      defaultVenueId(),
+      req.venueId,
       report.complaints ? "alert" : "report",
       `End Of Day submitted by ${report.manager_name || "Manager"}`,
       report.urgent_items || report.complaints || report.shift_summary || "Shift report submitted.",
@@ -1577,7 +1760,7 @@ app.get("/api/business-memory", requireAuth("manager", "bar_manager", "owner", "
     WHERE venue_id = ?
     ORDER BY created_at DESC
     LIMIT 80
-  `).all(defaultVenueId());
+  `).all(req.venueId);
 
   res.json({ memory: rows });
 });
@@ -1588,7 +1771,7 @@ app.get("/api/actions", requireAuth("manager", "bar_manager", "owner", "admin"),
     FROM actions
     WHERE venue_id = ?
     ORDER BY done ASC, created_at DESC
-  `).all(defaultVenueId());
+  `).all(req.venueId);
 
   res.json({ actions: rows.map(actionRow) });
 });
@@ -1596,7 +1779,7 @@ app.get("/api/actions", requireAuth("manager", "bar_manager", "owner", "admin"),
 app.post("/api/actions", requireAuth("manager", "bar_manager", "admin"), (req, res) => {
   const action = {
     id: req.body.id || id("action"),
-    venue_id: defaultVenueId(),
+    venue_id: req.venueId,
     priority: String(req.body.priority || "normal"),
     title: String(req.body.title || "Untitled action"),
     owner: String(req.body.owner || req.body.assignedPerson || "Manager"),
@@ -1611,7 +1794,7 @@ app.post("/api/actions", requireAuth("manager", "bar_manager", "admin"), (req, r
   const existing = db.prepare("SELECT id FROM actions WHERE id = ?").get(action.id);
   if (existing) {
     db.prepare("UPDATE actions SET priority=?, title=?, owner=?, due=?, signal=?, page=?, done=?, updated_at=? WHERE id=? AND venue_id=?").run(
-      action.priority, action.title, action.owner, action.due, action.signal, action.page, action.done, nowIso(), action.id, defaultVenueId()
+      action.priority, action.title, action.owner, action.due, action.signal, action.page, action.done, nowIso(), action.id, req.venueId
     );
   } else {
     db.prepare(`
@@ -1629,7 +1812,7 @@ app.patch("/api/actions/:id", requireAuth("manager", "bar_manager", "admin"), (r
     done,
     nowIso(),
     req.params.id,
-    defaultVenueId()
+    req.venueId
   );
 
   const row = db.prepare("SELECT id, priority, title, owner, due, signal, page, done, created_at, updated_at FROM actions WHERE id = ?").get(req.params.id);
@@ -1643,14 +1826,14 @@ app.get("/api/incidents", requireAuth("manager", "bar_manager", "owner", "admin"
            compensation, reported_by, shift_date, created_at,
            severity, root_cause, resolved_at, updated_at, shift_id
     FROM incidents WHERE venue_id = ? ORDER BY created_at DESC LIMIT 100
-  `).all(defaultVenueId());
+  `).all(req.venueId);
   res.json({ incidents: rows.map(r => ({ ...r, resolved: Boolean(r.resolved) })) });
 });
 
 app.post("/api/incidents", requireAuth("manager", "bar_manager", "employee", "admin"), (req, res) => {
   const incident = {
     id: req.body.id || id("incident"),
-    venue_id: defaultVenueId(),
+    venue_id: req.venueId,
     type: String(req.body.type || "service"),
     description: String(req.body.description || ""),
     table_number: String(req.body.table_number || req.body.tableNumber || ""),
@@ -1673,7 +1856,7 @@ app.post("/api/incidents", requireAuth("manager", "bar_manager", "employee", "ad
   `).run(incident.id, incident.venue_id, incident.type, incident.description, incident.table_number, incident.resolved, incident.resolution, incident.compensation, incident.reported_by, incident.shift_date, incident.created_at, incident.severity, incident.root_cause, incident.shift_id, incident.resolved_at, incident.updated_at);
 
   db.prepare("INSERT INTO business_memory (id, venue_id, type, title, detail, event_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
-    id("memory"), defaultVenueId(), "alert",
+    id("memory"), req.venueId, "alert",
     `Service incident reported: ${incident.type}`,
     incident.description || "Service incident logged.",
     incident.shift_date, incident.created_at
@@ -1701,7 +1884,7 @@ app.patch("/api/incidents/:id", requireAuth("manager", "bar_manager", "admin"), 
   values.push(nowIso());
 
   db.prepare(`UPDATE incidents SET ${fields.join(", ")} WHERE id = ? AND venue_id = ?`).run(
-    ...values, req.params.id, defaultVenueId()
+    ...values, req.params.id, req.venueId
   );
 
   const row = db.prepare(`
@@ -1718,7 +1901,7 @@ app.post("/api/business-memory", requireAuth("manager", "bar_manager", "owner", 
   const clientId = String(req.body.id || "").trim();
   const entry = {
     id: clientId || id("memory"),
-    venue_id: defaultVenueId(),
+    venue_id: req.venueId,
     type: String(req.body.type || "note"),
     title: String(req.body.title || ""),
     detail: String(req.body.detail || ""),
@@ -1736,14 +1919,14 @@ app.post("/api/business-memory", requireAuth("manager", "bar_manager", "owner", 
 app.get("/api/notes", requireAuth("manager", "bar_manager", "admin"), (req, res) => {
   const rows = db.prepare(`
     SELECT * FROM notes WHERE venue_id = ? AND archived = 0 ORDER BY pinned DESC, created_at DESC LIMIT 50
-  `).all(defaultVenueId());
+  `).all(req.venueId);
   res.json({ notes: rows.map(r => ({ ...r, pinned: Boolean(r.pinned), archived: Boolean(r.archived) })) });
 });
 
 app.post("/api/notes", requireAuth("manager", "bar_manager", "admin"), (req, res) => {
   const note = {
     id: id("note"),
-    venue_id: defaultVenueId(),
+    venue_id: req.venueId,
     content: String(req.body.content || ""),
     tag: String(req.body.tag || "reminder"),
     pinned: req.body.pinned ? 1 : 0,
@@ -1772,7 +1955,7 @@ app.patch("/api/notes/:id", requireAuth("manager", "bar_manager", "admin"), (req
   fields.push("updated_at = ?");
   values.push(nowIso());
 
-  db.prepare(`UPDATE notes SET ${fields.join(", ")} WHERE id = ? AND venue_id = ?`).run(...values, req.params.id, defaultVenueId());
+  db.prepare(`UPDATE notes SET ${fields.join(", ")} WHERE id = ? AND venue_id = ?`).run(...values, req.params.id, req.venueId);
 
   const row = db.prepare("SELECT * FROM notes WHERE id = ?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "Note not found." });
@@ -1784,7 +1967,7 @@ app.patch("/api/notes/:id", requireAuth("manager", "bar_manager", "admin"), (req
 app.post("/api/shifts", requireAuth("manager", "bar_manager", "admin"), (req, res) => {
   const existing = db.prepare(
     "SELECT id FROM shifts WHERE venue_id = ? AND status = 'open'"
-  ).get(defaultVenueId());
+  ).get(req.venueId);
   if (existing) {
     return res.status(409).json({
       error: "A shift is already open. Close it before opening a new one.",
@@ -1798,7 +1981,7 @@ app.post("/api/shifts", requireAuth("manager", "bar_manager", "admin"), (req, re
 
   const shift = {
     id:           id("shift"),
-    venue_id:     defaultVenueId(),
+    venue_id:     req.venueId,
     manager_id:   managerId,
     manager_name: managerName,
     opened_at:    nowIso(),
@@ -1817,20 +2000,20 @@ app.post("/api/shifts", requireAuth("manager", "bar_manager", "admin"), (req, re
 app.get("/api/shifts/current", requireAuth("manager", "bar_manager", "owner", "admin"), (req, res) => {
   const shift = db.prepare(
     "SELECT * FROM shifts WHERE venue_id = ? AND status = 'open' ORDER BY opened_at DESC LIMIT 1"
-  ).get(defaultVenueId());
+  ).get(req.venueId);
   res.json({ shift: shift || null });
 });
 
 app.get("/api/shifts/last-handover", requireAuth("manager", "bar_manager", "owner", "admin"), (req, res) => {
   const shift = db.prepare(
     "SELECT * FROM shifts WHERE venue_id = ? AND status = 'closed' ORDER BY closed_at DESC LIMIT 1"
-  ).get(defaultVenueId());
+  ).get(req.venueId);
   if (!shift) {
     return res.json({ shift: null, tasks: [], unresolvedIncidents: [] });
   }
   const tasks = db.prepare(
     "SELECT * FROM carry_forward_tasks WHERE venue_id = ? AND status = 'open' ORDER BY created_at ASC"
-  ).all(defaultVenueId());
+  ).all(req.venueId);
   const unresolvedIncidents = db.prepare(
     "SELECT id, type, description, severity, shift_date FROM incidents WHERE shift_id = ? AND resolved = 0"
   ).all(shift.id);
@@ -1859,7 +2042,7 @@ app.post("/api/shifts/:id/briefing", requireAuth("manager", "bar_manager", "admi
   }
 
   db.prepare("UPDATE shifts SET briefing = ? WHERE id = ? AND venue_id = ?")
-    .run(briefing, req.params.id, defaultVenueId());
+    .run(briefing, req.params.id, req.venueId);
   const shift = db.prepare("SELECT * FROM shifts WHERE id = ?").get(req.params.id);
   if (!shift) return res.status(404).json({ error: "Shift not found." });
   res.json({ shift });
@@ -1872,7 +2055,7 @@ app.post("/api/shifts/:id/close", requireAuth("manager", "bar_manager", "admin")
 
   db.prepare(
     "UPDATE shifts SET status = 'closed', closed_at = ?, summary = ?, cover_count = ? WHERE id = ? AND venue_id = ?"
-  ).run(closed_at, summary, cover_count, req.params.id, defaultVenueId());
+  ).run(closed_at, summary, cover_count, req.params.id, req.venueId);
 
   const shift = db.prepare("SELECT * FROM shifts WHERE id = ?").get(req.params.id);
   if (!shift) return res.status(404).json({ error: "Shift not found." });
@@ -1882,7 +2065,7 @@ app.post("/api/shifts/:id/close", requireAuth("manager", "bar_manager", "admin")
 app.post("/api/shifts/:id/handover", requireAuth("manager", "bar_manager", "admin"), (req, res) => {
   const message = String(req.body.message || "").trim();
   db.prepare("UPDATE shifts SET handover_notes = ? WHERE id = ? AND venue_id = ?")
-    .run(message, req.params.id, defaultVenueId());
+    .run(message, req.params.id, req.venueId);
   const shift = db.prepare("SELECT * FROM shifts WHERE id = ?").get(req.params.id);
   if (!shift) return res.status(404).json({ error: "Shift not found." });
   res.json({ shift });
@@ -1895,10 +2078,10 @@ app.get("/api/tasks", requireAuth("manager", "bar_manager", "owner", "admin"), (
   const rows = status
     ? db.prepare(
         "SELECT * FROM carry_forward_tasks WHERE venue_id = ? AND status = ? ORDER BY created_at DESC LIMIT 50"
-      ).all(defaultVenueId(), status)
+      ).all(req.venueId, status)
     : db.prepare(
         "SELECT * FROM carry_forward_tasks WHERE venue_id = ? ORDER BY created_at DESC LIMIT 50"
-      ).all(defaultVenueId());
+      ).all(req.venueId);
   res.json({ tasks: rows });
 });
 
@@ -1909,7 +2092,7 @@ app.post("/api/tasks", requireAuth("manager", "bar_manager", "admin"), (req, res
   const clientId = String(req.body.id || "").trim();
   const task = {
     id:               clientId || id("task"),
-    venue_id:         defaultVenueId(),
+    venue_id:         req.venueId,
     shift_id:         String(req.body.shift_id || ""),
     content,
     priority:         String(req.body.priority || "normal"),
@@ -1941,7 +2124,7 @@ app.patch("/api/tasks/:id", requireAuth("manager", "bar_manager", "admin"), (req
   if (!fields.length) return res.status(400).json({ error: "No valid fields provided." });
 
   db.prepare(`UPDATE carry_forward_tasks SET ${fields.join(", ")} WHERE id = ? AND venue_id = ?`)
-    .run(...values, req.params.id, defaultVenueId());
+    .run(...values, req.params.id, req.venueId);
 
   const row = db.prepare("SELECT * FROM carry_forward_tasks WHERE id = ?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "Task not found." });
@@ -1952,7 +2135,7 @@ app.post("/api/event-plans", requireAuth("manager", "owner", "admin", "events_ma
   const clientId = String(req.body.id || "").trim();
   const plan = {
     id: clientId || id("event"),
-    venue_id: defaultVenueId(),
+    venue_id: req.venueId,
     name: String(req.body.name || "Untitled Event Plan"),
     config_json: JSON.stringify(req.body.config || {}),
     calculations_json: JSON.stringify(req.body.calculations || {}),
@@ -1982,7 +2165,7 @@ app.post("/api/event-plans", requireAuth("manager", "owner", "admin", "events_ma
 
   db.prepare("INSERT INTO business_memory (id, venue_id, type, title, detail, event_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
     id("memory"),
-    defaultVenueId(),
+    req.venueId,
     "event",
     `Event plan saved: ${plan.name}`,
     `Projected revenue: NIS ${Math.round(plan.projected_revenue).toLocaleString()}. Projected profit: NIS ${Math.round(plan.projected_profit).toLocaleString()}. Margin: ${plan.projected_margin.toFixed(1)}%.`,
@@ -2005,7 +2188,7 @@ app.post("/api/event-plans", requireAuth("manager", "owner", "admin", "events_ma
 });
 
 app.patch("/api/event-plans/:id", requireAuth("owner", "admin"), (req, res) => {
-  const existing = db.prepare("SELECT id FROM event_plans WHERE id = ? AND venue_id = ?").get(req.params.id, defaultVenueId());
+  const existing = db.prepare("SELECT id FROM event_plans WHERE id = ? AND venue_id = ?").get(req.params.id, req.venueId);
   if (!existing) return res.status(404).json({ error: "Event plan not found." });
 
   db.prepare(`
@@ -2018,7 +2201,7 @@ app.patch("/api/event-plans/:id", requireAuth("owner", "admin"), (req, res) => {
     req.body.approved_by ? String(req.body.approved_by) : null,
     req.body.approved_at ? String(req.body.approved_at) : null,
     req.params.id,
-    defaultVenueId()
+    req.venueId
   );
 
   const row = db.prepare("SELECT * FROM event_plans WHERE id = ?").get(req.params.id);
@@ -2045,7 +2228,7 @@ app.get("/api/event-plans", requireAuth("manager", "owner", "admin", "events_man
     WHERE venue_id = ?
     ORDER BY created_at DESC
     LIMIT 30
-  `).all(defaultVenueId());
+  `).all(req.venueId);
 
   res.json({
     eventPlans: rows.map(row => ({
@@ -2213,6 +2396,57 @@ app.patch("/api/users/:id", requireAuth("owner", "admin"), (req, res) => {
   db.prepare(`UPDATE hospia_users SET ${fields.join(",")} WHERE id=?`).run(...values, req.params.id);
   const updated = db.prepare("SELECT * FROM hospia_users WHERE id=?").get(req.params.id);
   res.json({ user: huspiaUserRow(updated) });
+});
+
+// ─── Venue Routes (Phase 8 — Multi-Venue Foundation) ──────────────────────────
+// A venue is the memory unit. These routes drive the venue selector and let an
+// owner / platform admin create a new venue. Each venue's intelligence (DNA,
+// briefs, Omer, Academy, Owner Intelligence, operations) is fully isolated and
+// lazily initialized on first read — nothing else needs seeding here.
+
+// GET — venues the current user can access, plus the venue resolved for this
+// request. The frontend shows a selector only when more than one is returned.
+app.get("/api/venues", requireAuth(), (req, res) => {
+  const ids = venuesForUser(req.user);
+  const venues = ids.length
+    ? db.prepare(
+        `SELECT id, name, venue_type, description, created_at
+         FROM venues WHERE id IN (${ids.map(() => "?").join(",")}) ORDER BY created_at ASC`
+      ).all(...ids)
+    : [];
+  res.json({ venues, currentVenueId: req.venueId });
+});
+
+// POST — create a venue. Owner / Platform Admin only. The creator is auto-assigned
+// as the venue owner (venue_members). No invitations / portfolio / billing here.
+app.post("/api/venues", requireAuth("owner", "admin"), (req, res) => {
+  const name = String(req.body?.name || "").trim();
+  const venueType = String(req.body?.venue_type || req.body?.venueType || "").trim();
+  const description = req.body?.description != null ? String(req.body.description).trim() : null;
+  if (!name) return res.status(400).json({ error: "Venue name is required." });
+  if (!venueType) return res.status(400).json({ error: "Venue type is required." });
+
+  const venueId = id("venue");
+  const now = nowIso();
+  // Atomic via BEGIN/COMMIT (node:sqlite DatabaseSync has no .transaction()).
+  db.exec("BEGIN");
+  try {
+    db.prepare("INSERT INTO venues (id, name, venue_type, description, created_at) VALUES (?, ?, ?, ?, ?)")
+      .run(venueId, name, venueType, description || null, now);
+    // Auto-assign the creator as the venue owner so it appears in their selector.
+    // Platform admins already see all venues, but recording the membership keeps
+    // the model consistent and harmless.
+    db.prepare(
+      "INSERT OR IGNORE INTO venue_members (user_id, venue_id, venue_role, active, created_at) VALUES (?, ?, 'owner', 1, ?)"
+    ).run(req.user.id, venueId, now);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    return res.status(500).json({ error: err.message || "Could not create the venue." });
+  }
+
+  const venue = db.prepare("SELECT id, name, venue_type, description, created_at FROM venues WHERE id = ?").get(venueId);
+  res.status(201).json({ venue });
 });
 
 // ─── Cocktail & Bar Routes ────────────────────────────────────────────────────
@@ -2579,24 +2813,24 @@ app.get("/api/academy/team-overview", requireAuth("manager", "bar_manager", "own
 app.get("/api/owner/pulse", requireAuth("owner", "admin"), (req, res) => {
   const closedShifts = db.prepare(
     "SELECT COUNT(*) as count FROM shifts WHERE venue_id = ? AND status = 'closed'"
-  ).get(defaultVenueId()).count;
+  ).get(req.venueId).count;
 
   const openShift = db.prepare(
     "SELECT id FROM shifts WHERE venue_id = ? AND status = 'open' LIMIT 1"
-  ).get(defaultVenueId());
+  ).get(req.venueId);
 
   const openTasks = db.prepare(
     "SELECT COUNT(*) as count FROM carry_forward_tasks WHERE venue_id = ? AND status = 'open'"
-  ).get(defaultVenueId()).count;
+  ).get(req.venueId).count;
 
   const unresolvedIncidents = db.prepare(
     "SELECT COUNT(*) as count FROM incidents WHERE venue_id = ? AND resolved = 0"
-  ).get(defaultVenueId()).count;
+  ).get(req.venueId).count;
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const incidents30d = db.prepare(
     "SELECT COUNT(*) as count FROM incidents WHERE venue_id = ? AND created_at >= ?"
-  ).get(defaultVenueId(), thirtyDaysAgo).count;
+  ).get(req.venueId, thirtyDaysAgo).count;
 
   const approvedCocktails = db.prepare(
     "SELECT COUNT(*) as count FROM cocktails WHERE is_active = 1"
@@ -2612,7 +2846,7 @@ app.get("/api/owner/pulse", requireAuth("owner", "admin"), (req, res) => {
 
   const lastInsight = db.prepare(
     "SELECT content, saved_at FROM owner_insights WHERE venue_id = ? ORDER BY saved_at DESC LIMIT 1"
-  ).get(defaultVenueId());
+  ).get(req.venueId);
 
   res.json({
     total_closed_shifts: closedShifts,
@@ -2638,7 +2872,7 @@ app.get("/api/owner/trends", requireAuth("owner", "admin"), (req, res) => {
       AND closed_at >= date('now', '-30 days')
     GROUP BY date(closed_at)
     ORDER BY shift_date ASC
-  `).all(defaultVenueId());
+  `).all(req.venueId);
 
   const incidentRows = db.prepare(`
     SELECT
@@ -2648,7 +2882,7 @@ app.get("/api/owner/trends", requireAuth("owner", "admin"), (req, res) => {
     WHERE venue_id = ? AND shift_date >= date('now', '-30 days')
     GROUP BY shift_date
     ORDER BY shift_date ASC
-  `).all(defaultVenueId());
+  `).all(req.venueId);
 
   const incidentsByDate = Object.fromEntries(incidentRows.map(r => [r.shift_date, r.incident_count]));
   const trends = rows.map(r => ({
@@ -2664,7 +2898,7 @@ app.get("/api/owner/trends", requireAuth("owner", "admin"), (req, res) => {
 app.post("/api/owner/insights", requireAuth("owner", "admin"), async (req, res) => {
   const lastInsight = db.prepare(
     "SELECT saved_at FROM owner_insights WHERE venue_id = ? ORDER BY saved_at DESC LIMIT 1"
-  ).get(defaultVenueId());
+  ).get(req.venueId);
 
   if (lastInsight) {
     const secondsAgo = (Date.now() - new Date(lastInsight.saved_at).getTime()) / 1000;
@@ -2679,16 +2913,16 @@ app.post("/api/owner/insights", requireAuth("owner", "admin"), async (req, res) 
   try {
     const closedShifts = db.prepare(
       "SELECT COUNT(*) as count FROM shifts WHERE venue_id = ? AND status = 'closed'"
-    ).get(defaultVenueId()).count;
+    ).get(req.venueId).count;
     const openTasks = db.prepare(
       "SELECT COUNT(*) as count FROM carry_forward_tasks WHERE venue_id = ? AND status = 'open'"
-    ).get(defaultVenueId()).count;
+    ).get(req.venueId).count;
     const unresolvedIncidents = db.prepare(
       "SELECT COUNT(*) as count FROM incidents WHERE venue_id = ? AND resolved = 0"
-    ).get(defaultVenueId()).count;
+    ).get(req.venueId).count;
     const incidents30d = db.prepare(
       "SELECT COUNT(*) as count FROM incidents WHERE venue_id = ? AND created_at >= date('now', '-30 days')"
-    ).get(defaultVenueId()).count;
+    ).get(req.venueId).count;
     const approvedCocktails = db.prepare(
       "SELECT COUNT(*) as count FROM cocktails WHERE is_active = 1"
     ).get().count;
@@ -2716,7 +2950,7 @@ Provide a concise executive pulse — 3 to 5 sentences. Identify the most import
 
     db.prepare(
       "INSERT INTO owner_insights (venue_id, content, saved_at) VALUES (?, ?, ?)"
-    ).run(defaultVenueId(), content, savedAt);
+    ).run(req.venueId, content, savedAt);
 
     res.json({ ok: true, content, saved_at: savedAt });
   } catch (error) {
@@ -2770,7 +3004,7 @@ app.get("/api/verified-price-overrides", requireVerifiedPriceAccess, (req, res) 
     SELECT product_id, normalized_update_json, saved_by, saved_at
     FROM verified_price_overrides
     WHERE venue_id = ?
-  `).all(defaultVenueId());
+  `).all(req.venueId);
 
   const overrides = rows.map(row => {
     try {
@@ -2806,7 +3040,7 @@ app.post("/api/verified-price-overrides/:product_id", requireVerifiedPriceAccess
 
   const existing = db.prepare(
     `SELECT normalized_update_json FROM verified_price_overrides WHERE product_id = ? AND venue_id = ?`
-  ).get(product_id, defaultVenueId());
+  ).get(product_id, req.venueId);
 
   let oldPriceNis = null;
   if (existing) {
@@ -2818,14 +3052,14 @@ app.post("/api/verified-price-overrides/:product_id", requireVerifiedPriceAccess
     INSERT OR REPLACE INTO verified_price_overrides
       (product_id, venue_id, normalized_update_json, saved_by, saved_at)
     VALUES (?, ?, ?, ?, ?)
-  `).run(product_id, defaultVenueId(), json, String(savedBy || ""), now);
+  `).run(product_id, req.venueId, json, String(savedBy || ""), now);
 
   db.prepare(`
     INSERT INTO verified_price_audit_log
       (id, product_id, venue_id, action, old_price_nis, new_price_nis, supplier_name, source_type, saved_by, saved_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    id('audit'), product_id, defaultVenueId(), 'save',
+    id('audit'), product_id, req.venueId, 'save',
     oldPriceNis,
     Number(normalizedUpdate.actual_venue_price_nis),
     String(normalizedUpdate.supplier_name || ''),
@@ -2841,7 +3075,7 @@ app.delete("/api/verified-price-overrides/:product_id", requireVerifiedPriceAcce
 
   const existing = db.prepare(
     `SELECT normalized_update_json FROM verified_price_overrides WHERE product_id = ? AND venue_id = ?`
-  ).get(product_id, defaultVenueId());
+  ).get(product_id, req.venueId);
 
   let oldPriceNis = null;
   if (existing) {
@@ -2850,7 +3084,7 @@ app.delete("/api/verified-price-overrides/:product_id", requireVerifiedPriceAcce
 
   db.prepare(`
     DELETE FROM verified_price_overrides WHERE product_id = ? AND venue_id = ?
-  `).run(product_id, defaultVenueId());
+  `).run(product_id, req.venueId);
 
   if (existing) {
     db.prepare(`
@@ -2858,7 +3092,7 @@ app.delete("/api/verified-price-overrides/:product_id", requireVerifiedPriceAcce
         (id, product_id, venue_id, action, old_price_nis, new_price_nis, supplier_name, source_type, saved_by, saved_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      id('audit'), product_id, defaultVenueId(), 'clear',
+      id('audit'), product_id, req.venueId, 'clear',
       oldPriceNis, null, null, null,
       req.verifiedPriceUser, nowIso()
     );
@@ -2881,7 +3115,7 @@ app.get("/api/verified-price-audit-log", requireVerifiedPriceAccess, (req, res) 
     WHERE product_id = ? AND venue_id = ?
     ORDER BY saved_at DESC
     LIMIT ?
-  `).all(productId, defaultVenueId(), limit);
+  `).all(productId, req.venueId, limit);
 
   res.json({ log: rows });
 });
@@ -2917,6 +3151,14 @@ function eventRow(row) {
     location: row.location || null, notes: row.notes || null,
     portal_token: row.portal_token, created_by: row.created_by,
     created_at: row.created_at, updated_at: row.updated_at,
+    // ZOHAR Design Intelligence — creative direction inputs
+    aesthetic_subgenre:       row.aesthetic_subgenre       || null,
+    single_sentence:          row.single_sentence          || null,
+    anti_reference:           row.anti_reference           || null,
+    venue_character:          row.venue_character          || null,
+    primary_impact_moment:    row.primary_impact_moment    || null,
+    confirmed_mood_keywords:  row.confirmed_mood_keywords
+      ? JSON.parse(row.confirmed_mood_keywords) : null,
   };
 }
 
@@ -2979,7 +3221,7 @@ function addTimeline(eventId, actor, actorRole, actionType, description, metadat
 app.get('/api/events', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const rows = db.prepare(`
     SELECT * FROM events WHERE venue_id = ? ORDER BY event_date ASC
-  `).all(defaultVenueId());
+  `).all(req.venueId);
   res.json({ events: rows.map(eventRow) });
 });
 
@@ -2988,7 +3230,7 @@ app.post('/api/events', requireAuth('manager', 'bar_manager', 'owner', 'admin', 
   const token = randomUUID();
   const now = nowIso();
   const evt = {
-    id: id('evt'), venue_id: defaultVenueId(),
+    id: id('evt'), venue_id: req.venueId,
     name: String(b.name || 'Untitled Event'),
     event_type: b.event_type || 'other',
     event_date: String(b.event_date || now.slice(0, 10)),
@@ -3008,16 +3250,27 @@ app.post('/api/events', requireAuth('manager', 'bar_manager', 'owner', 'admin', 
     portal_token: token,
     created_by: req.user.full_name,
     created_at: now, updated_at: now,
+    // ZOHAR Design Intelligence fields
+    aesthetic_subgenre:    b.aesthetic_subgenre    || null,
+    single_sentence:       b.single_sentence       || null,
+    anti_reference:        b.anti_reference        || null,
+    venue_character:       b.venue_character       || null,
+    primary_impact_moment: b.primary_impact_moment || null,
+    confirmed_mood_keywords: Array.isArray(b.confirmed_mood_keywords)
+      ? JSON.stringify(b.confirmed_mood_keywords) : null,
   };
   db.prepare(`
     INSERT INTO events (id,venue_id,name,event_type,event_date,start_time,end_time,status,
       client_name,client_phone,client_email,expected_guests,table_count,host_message,
-      theme_color,plus_one_allowed,location,notes,portal_token,created_by,created_at,updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      theme_color,plus_one_allowed,location,notes,portal_token,created_by,created_at,updated_at,
+      aesthetic_subgenre,single_sentence,anti_reference,venue_character,primary_impact_moment,confirmed_mood_keywords)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(evt.id,evt.venue_id,evt.name,evt.event_type,evt.event_date,evt.start_time,evt.end_time,
     evt.status,evt.client_name,evt.client_phone,evt.client_email,evt.expected_guests,evt.table_count,
     evt.host_message,evt.theme_color,evt.plus_one_allowed,evt.location,evt.notes,
-    evt.portal_token,evt.created_by,evt.created_at,evt.updated_at);
+    evt.portal_token,evt.created_by,evt.created_at,evt.updated_at,
+    evt.aesthetic_subgenre,evt.single_sentence,evt.anti_reference,evt.venue_character,
+    evt.primary_impact_moment,evt.confirmed_mood_keywords);
 
   db.prepare(`INSERT INTO guest_portal_tokens (token, event_id, created_at) VALUES (?,?,?)`)
     .run(token, evt.id, now);
@@ -3032,19 +3285,19 @@ app.post('/api/events', requireAuth('manager', 'bar_manager', 'owner', 'admin', 
     `INSERT INTO notifications (id,venue_id,target_role,title,body,type,page,created_at) VALUES (?,?,?,?,?,?,?,?)`
   );
   for (const t of tasks) {
-    insertTask.run(id('etask'), evt.id, defaultVenueId(), t.title, t.assigned_role, t.due_date, 'open', 1, now, now);
+    insertTask.run(id('etask'), evt.id, req.venueId, t.title, t.assigned_role, t.due_date, 'open', 1, now, now);
   }
 
   // Notify bar_manager about cocktail/bar prep tasks
   const barTask = tasks.find(t => t.assigned_role === 'bar_manager');
   if (barTask) {
-    insertNotif.run(id('notif'), defaultVenueId(), 'bar_manager',
+    insertNotif.run(id('notif'), req.venueId, 'bar_manager',
       'New event task assigned',
       `${barTask.title} — due ${barTask.due_date || 'TBD'}`,
       'event_task', 'eventCRM', now);
   }
   // Notify manager about the new event
-  insertNotif.run(id('notif'), defaultVenueId(), 'manager',
+  insertNotif.run(id('notif'), req.venueId, 'manager',
     `New event created: ${evt.name}`,
     `${evt.name} on ${evt.event_date} for ${evt.expected_guests} guests`,
     'event', 'eventCRM', now);
@@ -3057,23 +3310,29 @@ app.post('/api/events', requireAuth('manager', 'bar_manager', 'owner', 'admin', 
 
 app.get('/api/events/:id', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const row = db.prepare('SELECT * FROM events WHERE id = ? AND venue_id = ?')
-    .get(req.params.id, defaultVenueId());
+    .get(req.params.id, req.venueId);
   if (!row) return res.status(404).json({ error: 'Event not found.' });
   res.json({ event: eventRow(row) });
 });
 
 app.patch('/api/events/:id', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const existing = db.prepare('SELECT * FROM events WHERE id = ? AND venue_id = ?')
-    .get(req.params.id, defaultVenueId());
+    .get(req.params.id, req.venueId);
   if (!existing) return res.status(404).json({ error: 'Event not found.' });
   const b = req.body;
   const now = nowIso();
   const fields = [], vals = [];
   const allowed = ['name','event_type','event_date','start_time','end_time','status','client_name',
     'client_phone','client_email','expected_guests','table_count','host_message','theme_color',
-    'plus_one_allowed','location','notes'];
+    'plus_one_allowed','location','notes',
+    'aesthetic_subgenre','single_sentence','anti_reference','venue_character','primary_impact_moment'];
   for (const f of allowed) {
     if (b[f] !== undefined) { fields.push(`${f}=?`); vals.push(b[f]); }
+  }
+  // confirmed_mood_keywords is an array — serialize before storing
+  if (b.confirmed_mood_keywords !== undefined) {
+    fields.push('confirmed_mood_keywords=?');
+    vals.push(Array.isArray(b.confirmed_mood_keywords) ? JSON.stringify(b.confirmed_mood_keywords) : null);
   }
   if (!fields.length) return res.status(400).json({ error: 'No fields to update.' });
   fields.push('updated_at=?'); vals.push(now);
@@ -3089,7 +3348,7 @@ app.patch('/api/events/:id', requireAuth('manager', 'bar_manager', 'owner', 'adm
 
 app.delete('/api/events/:id', requireAuth('owner', 'admin'), (req, res) => {
   const existing = db.prepare('SELECT id,name FROM events WHERE id=? AND venue_id=?')
-    .get(req.params.id, defaultVenueId());
+    .get(req.params.id, req.venueId);
   if (!existing) return res.status(404).json({ error: 'Event not found.' });
   db.prepare(`UPDATE events SET status='cancelled', updated_at=? WHERE id=?`)
     .run(nowIso(), req.params.id);
@@ -3110,7 +3369,7 @@ app.post('/api/events/:id/guests', requireAuth('manager', 'bar_manager', 'owner'
   const b = req.body;
   const now = nowIso();
   const g = {
-    id: id('eg'), event_id: req.params.id, venue_id: defaultVenueId(),
+    id: id('eg'), event_id: req.params.id, venue_id: req.venueId,
     name: String(b.name || '').trim(),
     phone: b.phone || null, email: b.email || null,
     guest_group: b.guest_group || null, rsvp_status: b.rsvp_status || 'no_response',
@@ -3156,7 +3415,7 @@ app.post('/api/events/:id/guests/import', requireAuth('manager', 'bar_manager', 
       .get(req.params.id, name.toLowerCase(), g.phone || '', g.phone || '');
     if (existing) { skipped.push(name); continue; }
     const newId = id('eg');
-    insertG.run(newId, req.params.id, defaultVenueId(), name,
+    insertG.run(newId, req.params.id, req.venueId, name,
       g.phone || null, g.email || null, g.guest_group || null,
       'no_response', Number(g.adult_count) || 1, Number(g.children_count) || 0,
       'import', now, now);
@@ -3228,7 +3487,7 @@ app.get('/api/events/:id/tables', requireAuth('manager', 'bar_manager', 'owner',
 app.post('/api/events/:id/tables', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const b = req.body; const now = nowIso();
   const t = {
-    id: id('etbl'), event_id: req.params.id, venue_id: defaultVenueId(),
+    id: id('etbl'), event_id: req.params.id, venue_id: req.venueId,
     table_number: Number(b.table_number) || 1,
     capacity: Number(b.capacity) || 10,
     shape: b.shape || 'round', label: b.label || null,
@@ -3297,7 +3556,7 @@ app.get('/api/events/:id/tasks', requireAuth('manager', 'bar_manager', 'owner', 
 app.post('/api/events/:id/tasks', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const b = req.body; const now = nowIso();
   const t = {
-    id: id('etask'), event_id: req.params.id, venue_id: defaultVenueId(),
+    id: id('etask'), event_id: req.params.id, venue_id: req.venueId,
     title: String(b.title || '').trim(),
     assigned_role: b.assigned_role || 'manager',
     due_date: b.due_date || null, status: 'open',
@@ -3378,22 +3637,46 @@ app.post('/api/events/:id/messages', requireAuth('manager', 'bar_manager', 'owne
 app.get('/api/events/:id/cocktail-menu', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
   const row = db.prepare('SELECT * FROM event_cocktail_menus WHERE event_id=?').get(req.params.id);
   if (!row) return res.json({ menu: null });
-  res.json({ menu: { id: row.id, menu_name: row.menu_name, cocktails: JSON.parse(row.menu_json), status: row.status } });
+  res.json({ menu: {
+    id: row.id,
+    menu_name: row.menu_name,
+    cocktails: JSON.parse(row.menu_json),
+    status: row.status,
+    programme_brief: row.programme_brief_json ? JSON.parse(row.programme_brief_json) : null,
+  }});
 });
 
 app.post('/api/events/:id/cocktail-menu', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
-  const { menu_name, cocktails } = req.body;
+  const { menu_name, cocktails, programme_brief } = req.body;
   if (!Array.isArray(cocktails) || !cocktails.length) return res.status(400).json({ error: 'cocktails array required.' });
   const now = nowIso();
-  const existing = db.prepare('SELECT id FROM event_cocktail_menus WHERE event_id=?').get(req.params.id);
+  const existing = db.prepare('SELECT id, programme_brief_json FROM event_cocktail_menus WHERE event_id=?').get(req.params.id);
   const menuId = existing ? existing.id : id('ecm');
+  const briefJson = programme_brief ? JSON.stringify(programme_brief) : (existing?.programme_brief_json || null);
   db.prepare(`
-    INSERT INTO event_cocktail_menus (id,event_id,venue_id,menu_name,menu_json,status,created_by,created_at,updated_at)
-    VALUES (?,?,?,?,?,'draft',?,?,?)
-    ON CONFLICT(event_id) DO UPDATE SET menu_name=excluded.menu_name, menu_json=excluded.menu_json, status='draft', updated_at=excluded.updated_at
-  `).run(menuId, req.params.id, defaultVenueId(), menu_name || null, JSON.stringify(cocktails), req.user.full_name, now, now);
+    INSERT INTO event_cocktail_menus (id,event_id,venue_id,menu_name,menu_json,programme_brief_json,status,created_by,created_at,updated_at)
+    VALUES (?,?,?,?,?,?,'draft',?,?,?)
+    ON CONFLICT(event_id) DO UPDATE SET menu_name=excluded.menu_name, menu_json=excluded.menu_json, programme_brief_json=COALESCE(excluded.programme_brief_json, programme_brief_json), status='draft', updated_at=excluded.updated_at
+  `).run(menuId, req.params.id, req.venueId, menu_name || null, JSON.stringify(cocktails), briefJson, req.user.full_name, now, now);
   const row = db.prepare('SELECT * FROM event_cocktail_menus WHERE event_id=?').get(req.params.id);
-  res.status(201).json({ menu: { id: row.id, menu_name: row.menu_name, cocktails: JSON.parse(row.menu_json), status: row.status } });
+  res.status(201).json({ menu: {
+    id: row.id,
+    menu_name: row.menu_name,
+    cocktails: JSON.parse(row.menu_json),
+    status: row.status,
+    programme_brief: row.programme_brief_json ? JSON.parse(row.programme_brief_json) : null,
+  }});
+});
+
+app.patch('/api/events/:id/cocktail-menu/programme-brief', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
+  const { brief } = req.body;
+  if (!brief || typeof brief !== 'object') return res.status(400).json({ error: 'brief object required.' });
+  const existing = db.prepare('SELECT id FROM event_cocktail_menus WHERE event_id=?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'No cocktail menu found. Generate a menu first.' });
+  const now = nowIso();
+  db.prepare('UPDATE event_cocktail_menus SET programme_brief_json=?, updated_at=? WHERE event_id=?')
+    .run(JSON.stringify(brief), now, req.params.id);
+  res.json({ ok: true });
 });
 
 app.patch('/api/events/:id/cocktail-menu/approve', requireAuth('events_manager', 'manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
@@ -3403,6 +3686,133 @@ app.patch('/api/events/:id/cocktail-menu/approve', requireAuth('events_manager',
   db.prepare("UPDATE event_cocktail_menus SET status='approved', updated_at=? WHERE event_id=?").run(now, req.params.id);
   addTimeline(req.params.id, req.user.full_name, req.user.role, 'cocktail_menu_approved', 'Cocktail menu approved');
   res.json({ ok: true });
+});
+
+// ── Event Creative Images ─────────────────────────────────────────────────────
+
+app.get('/api/events/:id/creative-images', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), (req, res) => {
+  const rows = db.prepare('SELECT * FROM event_creative_images WHERE event_id=?').all(req.params.id);
+  const heroRow = rows.find(r => r.image_type === 'hero');
+  const cocktails = {};
+  rows.filter(r => r.image_type === 'cocktail').forEach(r => {
+    cocktails[r.cocktail_id] = { url: `/creative-images/${path.basename(r.image_path)}`, name: r.cocktail_name, created_at: r.created_at };
+  });
+  res.json({
+    hero: heroRow ? { url: `/creative-images/${path.basename(heroRow.image_path)}`, created_at: heroRow.created_at } : null,
+    cocktails,
+  });
+});
+
+async function callDalle(prompt, size) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+  const resp = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: 'gpt-image-2', prompt, n: 1, size }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => String(resp.status));
+    throw new Error(`OpenAI ${resp.status}: ${errText}`);
+  }
+  const json = await resp.json();
+  const b64 = json.data[0].b64_json;
+  if (!b64) throw new Error('No image data in response');
+  return Buffer.from(b64, 'base64');
+}
+
+function buildHeroPrompt(event, sections) {
+  const typeMap = {
+    wedding:   'romantic luxury wedding celebration',
+    corporate: 'elevated corporate hospitality event',
+    private:   'intimate private luxury gathering',
+    bar_event: 'exclusive bar event experience',
+    other:     'premium curated event experience',
+  };
+  const typeDesc = typeMap[event.event_type] || typeMap.other;
+  const mood = (sections.moodKeywords || []).slice(0, 4).join(', ');
+  const palette = (sections.colorPalette || []).slice(0, 3).map(c => c.name).join(', ');
+  const narrative = sections.narrative ? sections.narrative.substring(0, 140) : '';
+  return [
+    `Cinematic luxury hospitality atmosphere. ${typeDesc}.`,
+    mood && `Mood: ${mood}.`,
+    narrative && `Atmosphere: ${narrative}.`,
+    palette && `Color palette: warm ${palette} tones.`,
+    `Editorial luxury venue photography. No people. No text. No branding. No signage.`,
+    `Aman Resorts, Four Seasons, Rafanelli Events visual language.`,
+    `Soft dramatic lighting, rich textures, generous negative space, premium materials.`,
+  ].filter(Boolean).join(' ');
+}
+
+function buildCocktailPrompt(cocktail, sections) {
+  const mood = (sections.moodKeywords || []).slice(0, 3).join(', ');
+  const palette = (sections.colorPalette || []).slice(0, 2).map(c => c.name).join(', ');
+  return [
+    `Premium luxury cocktail photography editorial.`,
+    `Cocktail: "${cocktail.name}".`,
+    cocktail.tagline && `Concept: ${cocktail.tagline}.`,
+    cocktail.flavor_notes && `Flavor: ${cocktail.flavor_notes}.`,
+    mood && `Event mood: ${mood}.`,
+    palette && `Color atmosphere: ${palette} tones.`,
+    `World's 50 Best Bars editorial photography. Moody studio, elegant dark background, rim light, premium glassware.`,
+    `No text. No labels. No branding. No menu. Magazine quality still life.`,
+  ].filter(Boolean).join(' ');
+}
+
+app.post('/api/events/:id/creative-images/generate', requireAuth('manager', 'bar_manager', 'owner', 'admin', 'events_manager'), async (req, res) => {
+  const { event, sections, cocktails } = req.body;
+  if (!event) return res.status(400).json({ error: 'event data required' });
+
+  const eventId = req.params.id;
+  const now = nowIso();
+  const safeSection = sections || {};
+  const safeCocktails = Array.isArray(cocktails) ? cocktails : [];
+
+  // Remove existing images for this event
+  const existing = db.prepare('SELECT image_path FROM event_creative_images WHERE event_id=?').all(eventId);
+  for (const row of existing) {
+    try { unlinkSync(row.image_path); } catch { /* file may already be gone */ }
+  }
+  db.prepare('DELETE FROM event_creative_images WHERE event_id=?').run(eventId);
+
+  const results = { hero: null, cocktails: {} };
+  const errors = [];
+
+  const heroPrompt = buildHeroPrompt(event, safeSection);
+  const cocktailTasks = safeCocktails.map(c => ({
+    cocktail: c,
+    prompt: buildCocktailPrompt(c, safeSection),
+    cId: (c.id || c.name || 'unknown').replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase().slice(0, 40),
+  }));
+
+  const allTasks = [
+    callDalle(heroPrompt, '1536x1024')
+      .then(buf => {
+        const fname = `${eventId}-hero.png`;
+        const fpath = path.join(CREATIVE_IMAGES_DIR, fname);
+        writeFileSync(fpath, buf);
+        db.prepare(`INSERT INTO event_creative_images (id,event_id,image_type,cocktail_id,cocktail_name,prompt,image_path,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)`)
+          .run(id('eci'), eventId, 'hero', null, null, heroPrompt, fpath, now, now);
+        results.hero = { url: `/creative-images/${fname}`, created_at: now };
+      })
+      .catch(e => errors.push(`hero: ${e.message}`)),
+
+    ...cocktailTasks.map(({ cocktail, prompt, cId }) =>
+      callDalle(prompt, '1024x1024')
+        .then(buf => {
+          const fname = `${eventId}-cocktail-${cId}.png`;
+          const fpath = path.join(CREATIVE_IMAGES_DIR, fname);
+          writeFileSync(fpath, buf);
+          db.prepare(`INSERT INTO event_creative_images (id,event_id,image_type,cocktail_id,cocktail_name,prompt,image_path,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)`)
+            .run(id('eci'), eventId, 'cocktail', cId, cocktail.name, prompt, fpath, now, now);
+          results.cocktails[cId] = { url: `/creative-images/${fname}`, name: cocktail.name, created_at: now };
+        })
+        .catch(e => errors.push(`cocktail "${cocktail.name}": ${e.message}`))
+    ),
+  ];
+
+  await Promise.all(allTasks);
+  res.json({ hero: results.hero, cocktails: results.cocktails, errors: errors.length ? errors : undefined });
 });
 
 // ── Guest Portal (no auth) ───────────────────────────────────────────────────
@@ -3479,7 +3889,7 @@ app.get('/api/notifications', requireAuth(), (req, res) => {
         ))
       )
     ORDER BY created_at DESC LIMIT 50
-  `).all(defaultVenueId(), role, role);
+  `).all(req.venueId, role, role);
   res.json({ notifications: rows });
 });
 
@@ -3505,7 +3915,7 @@ app.post('/api/notifications', requireAuth(), (req, res) => {
     INSERT OR IGNORE INTO notifications (id, venue_id, target_role, title, body, type, page, read, created_at, roles_json)
     VALUES (?,?,?,?,?,?,?,0,?,?)
   `).run(
-    notifId, defaultVenueId(), validRoles[0],
+    notifId, req.venueId, validRoles[0],
     String(title).slice(0, 200), String(body).slice(0, 500),
     String(type || 'info').slice(0, 50),
     page ? String(page).slice(0, 100) : null,
@@ -3525,7 +3935,7 @@ app.patch('/api/notifications/:id/read', requireAuth(), (req, res) => {
       AND (target_role=? OR (roles_json IS NOT NULL AND EXISTS (
         SELECT 1 FROM json_each(roles_json) WHERE value=?
       )))
-  `).run(req.params.id, defaultVenueId(), role, role);
+  `).run(req.params.id, req.venueId, role, role);
   res.json({ ok: true });
 });
 
@@ -3705,13 +4115,13 @@ function buildMenuContextString(cocktails) {
   }).join('\n');
 }
 
-function buildDirectorSystemInstruction(dna, menuCocktails = []) {
+function buildDirectorSystemInstruction(dna, menuCocktails = [], venueContext = '') {
   const hasMenu = Array.isArray(menuCocktails) && menuCocktails.length > 0;
   return `${DIRECTOR_PERSONA}
 
 BAR DNA:
 ${buildDnaContextString(dna)}
-
+${venueContext ? `\n${venueContext}\n` : ''}
 ACTIVE MENU (the specific cocktails the operator has loaded for this session):
 ${hasMenu ? buildMenuContextString(menuCocktails) : 'No menu loaded — operator is asking general questions.'}
 
@@ -3731,48 +4141,37 @@ function debugLog(obj) {
 }
 
 async function askGeminiChat(systemInstruction, history, message) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'PASTE_KEY_HERE') {
-    throw new Error('Missing GEMINI_API_KEY in .env.');
-  }
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('Missing OPENAI_API_KEY in .env.');
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
-
-  const contents = [
-    ...history.map(turn => ({
-      role: turn.role,
-      parts: [{ text: turn.content }]
-    })),
-    { role: 'user', parts: [{ text: message }] }
+  const messages = [
+    { role: 'system', content: systemInstruction },
+    ...history.map(turn => ({ role: turn.role, content: turn.content })),
+    { role: 'user', content: message },
   ];
 
-  debugLog({ event: 'gemini_chat_request', model: MODEL, history_turns: history.length, contents_roles: contents.map(c => c.role) });
+  debugLog({ event: 'openai_chat_request', model: 'gpt-4o-mini', history_turns: history.length });
 
-  const body = {
-    system_instruction: { parts: [{ text: systemInstruction }] },
-    contents
-  };
-
-  const response = await fetch(url, {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: 'gpt-4o-mini', messages }),
   });
 
   const data = await response.json();
   if (!response.ok) {
-    const geminiMsg = data.error?.message || 'Gemini request failed.';
-    debugLog({ event: 'gemini_chat_error', status: response.status, body: data });
-    if (/api.?key|key.*invalid|invalid.*key/i.test(geminiMsg)) {
+    const msg = data.error?.message || 'OpenAI request failed.';
+    debugLog({ event: 'openai_chat_error', status: response.status, body: data });
+    if (/api.?key|key.*invalid|invalid.*key/i.test(msg)) {
       throw new Error('AI Beverage Director is unavailable — the server API key is missing or invalid. Please contact your administrator.');
     }
-    throw new Error(geminiMsg);
+    throw new Error(msg);
   }
 
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
+  return data.choices?.[0]?.message?.content || 'No response generated.';
 }
 
-function buildGenerationPrompt(flowType, params, dna, tasteDna, existingNames) {
+function buildGenerationPrompt(flowType, params, dna, tasteDna, existingNames, venueContext = '') {
   const dnaContext   = buildDnaContextString(dna);
   const tasteContext = buildTasteDnaContextString(tasteDna);
   const existingList = existingNames.length ? existingNames.join(', ') : 'none';
@@ -4032,7 +4431,7 @@ Return ONLY valid JSON:
 
 BAR DNA:
 ${dnaContext}
-
+${venueContext ? `\n${venueContext}\n` : ''}
 TASTE DNA (learned from past approvals and rejections):
 ${tasteContext}
 
@@ -4104,13 +4503,13 @@ function rebuildTasteDna(venueId) {
 // ── CI DNA ────────────────────────────────────────────────────────────────────
 
 app.get('/api/ci/dna', requireAuth(...CI_ROLES, 'events_manager'), (req, res) => {
-  res.json({ dna: formatDnaForApi(getCIDna(defaultVenueId())) }); // CI MODULE ADDITION — returns UI-friendly aliases
+  res.json({ dna: formatDnaForApi(getCIDna(req.venueId)) }); // CI MODULE ADDITION — returns UI-friendly aliases
 });
 
 app.post('/api/ci/dna', requireAuth(...CI_ROLES), (req, res) => {
   const b   = req.body;
   const now = nowIso();
-  const existing = getCIDna(defaultVenueId());
+  const existing = getCIDna(req.venueId);
 
   // CI MODULE ADDITION — accept UI field names (bar_name, target_guest, etc.) with DB column fallbacks
   const venueName  = b.bar_name       || b.venue_name   || '';
@@ -4152,8 +4551,8 @@ app.post('/api/ci/dna', requireAuth(...CI_ROLES), (req, res) => {
           equipment_json=?,glassware_json=?,is_kosher=?,flavor_identity_json=?,
           price_range=?,service_pressure=?,hero_ingredient=?,meta_json=?,updated_at=?
       WHERE venue_id=?
-    `).run(...fields, now, defaultVenueId());
-    res.json({ ok: true, updated: true, dna: formatDnaForApi(getCIDna(defaultVenueId())) });
+    `).run(...fields, now, req.venueId);
+    res.json({ ok: true, updated: true, dna: formatDnaForApi(getCIDna(req.venueId)) });
   } else {
     db.prepare(`
       INSERT INTO cocktail_intelligence_dna
@@ -4162,8 +4561,8 @@ app.post('/api/ci/dna', requireAuth(...CI_ROLES), (req, res) => {
          equipment_json,glassware_json,is_kosher,flavor_identity_json,
          price_range,service_pressure,hero_ingredient,meta_json,created_at,updated_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    `).run(defaultVenueId(), ...fields, now, now);
-    res.status(201).json({ ok: true, updated: false, dna: formatDnaForApi(getCIDna(defaultVenueId())) });
+    `).run(req.venueId, ...fields, now, now);
+    res.status(201).json({ ok: true, updated: false, dna: formatDnaForApi(getCIDna(req.venueId)) });
   }
 });
 
@@ -4174,18 +4573,19 @@ app.post('/api/ci/generate', requireAuth(...CI_ROLES), async (req, res) => {
     const { flow_type, ...params } = req.body;
     if (!flow_type) return res.status(400).json({ error: 'flow_type is required.' });
 
-    const dna      = getCIDna(defaultVenueId());
-    const tasteDna = getCITasteDna(defaultVenueId());
+    const dna      = getCIDna(req.venueId);
+    const tasteDna = getCITasteDna(req.venueId);
     const existingNames = db.prepare('SELECT name FROM cocktails WHERE is_active=1 ORDER BY name').all().map(r => r.name);
 
-    const prompt = buildGenerationPrompt(flow_type, params, dna, tasteDna, existingNames);
+    const omer   = getOmerVenueContext(req.venueId);
+    const prompt = buildGenerationPrompt(flow_type, params, dna, tasteDna, existingNames, omer.text || '');
     const raw    = await askGemini(prompt, { jsonMode: true });
 
     let result;
     try { result = JSON.parse(raw); }
     catch { return res.status(500).json({ error: 'AI response could not be parsed.', raw }); }
 
-    res.json({ ok: true, flow_type, result });
+    res.json({ ok: true, flow_type, result, venue_context_active: omer.active });
   } catch (err) {
     console.error('CI GENERATE ERROR:', err);
     res.status(500).json({ error: err.message || 'Generation failed.' });
@@ -4197,7 +4597,7 @@ app.post('/api/ci/generate', requireAuth(...CI_ROLES), async (req, res) => {
 app.get('/api/ci/rejections', requireAuth(...CI_ROLES), (req, res) => {
   const rows = db.prepare(
     'SELECT * FROM cocktail_rejections WHERE venue_id=? ORDER BY rejected_at DESC'
-  ).all(defaultVenueId());
+  ).all(req.venueId);
   res.json({
     rejections: rows.map(r => ({
       ...r,
@@ -4220,20 +4620,20 @@ app.post('/api/ci/rejections', requireAuth(...CI_ROLES), (req, res) => {
     INSERT INTO cocktail_rejections (venue_id,cocktail_name,cocktail_profile_json,reasons_json,rejected_by,rejected_at)
     VALUES (?,?,?,?,?,?)
   `).run(
-    defaultVenueId(), b.cocktail_name,
+    req.venueId, b.cocktail_name,
     JSON.stringify({ ...b.cocktail_profile, base_spirit: b.base_spirit || null }),
     JSON.stringify(b.reasons),
     req.user.full_name, nowIso()
   );
 
-  rebuildTasteDna(defaultVenueId());
+  rebuildTasteDna(req.venueId);
   res.status(201).json({ ok: true, saved: true });
 });
 
 // ── CI TASTE DNA ──────────────────────────────────────────────────────────────
 
 app.get('/api/ci/taste-dna', requireAuth(...CI_ROLES, 'events_manager'), (req, res) => {
-  res.json({ taste_dna: getCITasteDna(defaultVenueId()) });
+  res.json({ taste_dna: getCITasteDna(req.venueId) });
 });
 
 // ── CI COCKTAILS (ci_generated slice of cocktails table) ──────────────────────
@@ -4277,7 +4677,7 @@ app.post('/api/ci/cocktails', requireAuth(...CI_ROLES), (req, res) => {
     INSERT INTO cocktail_lifecycle
       (venue_id,cocktail_id,cocktail_name,date_added,season_added,status,created_at,updated_at)
     VALUES (?,?,?,?,?,?,?,?)
-  `).run(defaultVenueId(), newId, b.name, now.slice(0, 10), getCurrentSeason(), 'active', now, now);
+  `).run(req.venueId, newId, b.name, now.slice(0, 10), getCurrentSeason(), 'active', now, now);
 
   const saved = db.prepare('SELECT * FROM cocktails WHERE id=?').get(newId);
   res.status(201).json({
@@ -4295,7 +4695,7 @@ app.delete('/api/ci/cocktails/:id', requireAuth(...CI_ROLES), (req, res) => {
 // CI MODULE ADDITION — named menu records that group approved cocktails
 
 app.get('/api/ci/menus', requireAuth(...CI_ROLES, 'events_manager'), (req, res) => {
-  const venueId = defaultVenueId();
+  const venueId = req.venueId;
   const menus = db.prepare(
     "SELECT * FROM cocktail_menus WHERE venue_id=? AND status='active' ORDER BY created_at DESC"
   ).all(venueId);
@@ -4318,7 +4718,7 @@ app.get('/api/ci/menus', requireAuth(...CI_ROLES, 'events_manager'), (req, res) 
 app.post('/api/ci/menus', requireAuth(...CI_ROLES), (req, res) => {
   const { name, occasion, description, season } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required.' });
-  const venueId = defaultVenueId();
+  const venueId = req.venueId;
   const now     = nowIso();
 
   const result = db.prepare(`
@@ -4332,7 +4732,7 @@ app.post('/api/ci/menus', requireAuth(...CI_ROLES), (req, res) => {
 
 // GET /api/ci/menus/published — employee-facing: only visible_to_staff=1 menus, no cost data
 app.get('/api/ci/menus/published', requireAuth('employee', ...CI_ROLES), (req, res) => {
-  const venueId = defaultVenueId();
+  const venueId = req.venueId;
   const menus = db.prepare(
     "SELECT id, name, occasion, description, season FROM cocktail_menus WHERE venue_id=? AND status='active' AND visible_to_staff=1 ORDER BY created_at DESC"
   ).all(venueId);
@@ -4415,7 +4815,7 @@ app.delete('/api/ci/menus/:id', requireAuth(...CI_ROLES), (req, res) => {
 app.get('/api/ci/sales', requireAuth(...CI_ROLES), (req, res) => {
   const { start, end } = req.query;
   let q    = 'SELECT * FROM cocktail_sales WHERE venue_id=?';
-  const args = [defaultVenueId()];
+  const args = [req.venueId];
   if (start) { q += ' AND sale_date >= ?'; args.push(start); }
   if (end)   { q += ' AND sale_date <= ?'; args.push(end); }
   q += ' ORDER BY sale_date DESC';
@@ -4437,7 +4837,7 @@ app.post('/api/ci/sales', requireAuth(...CI_ROLES), (req, res) => {
       (venue_id,cocktail_id,cocktail_name,sale_date,period_type,
        units_sold,sale_price,cost_per_unit,revenue,gross_profit,gp_percent,created_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-  `).run(defaultVenueId(), b.cocktail_id || null, b.cocktail_name,
+  `).run(req.venueId, b.cocktail_id || null, b.cocktail_name,
     b.sale_date, b.period_type || 'day', units, price, cost, rev, gp, gpPct, nowIso());
   res.status(201).json({ ok: true, id: r.lastInsertRowid });
 });
@@ -4454,12 +4854,12 @@ app.patch('/api/ci/sales/:id', requireAuth(...CI_ROLES), (req, res) => {
     UPDATE cocktail_sales
     SET units_sold=?,sale_price=?,cost_per_unit=?,revenue=?,gross_profit=?,gp_percent=?
     WHERE id=? AND venue_id=?
-  `).run(units, price, cost, rev, gp, gpPct, req.params.id, defaultVenueId());
+  `).run(units, price, cost, rev, gp, gpPct, req.params.id, req.venueId);
   res.json({ ok: true });
 });
 
 app.delete('/api/ci/sales/:id', requireAuth(...CI_ROLES), (req, res) => {
-  db.prepare('DELETE FROM cocktail_sales WHERE id=? AND venue_id=?').run(req.params.id, defaultVenueId());
+  db.prepare('DELETE FROM cocktail_sales WHERE id=? AND venue_id=?').run(req.params.id, req.venueId);
   res.json({ ok: true });
 });
 
@@ -4468,7 +4868,7 @@ app.delete('/api/ci/sales/:id', requireAuth(...CI_ROLES), (req, res) => {
 app.get('/api/ci/narratives/:cocktailId', requireAuth(...CI_ROLES), (req, res) => {
   const row = db.prepare(
     'SELECT * FROM cocktail_narratives WHERE venue_id=? AND cocktail_id=? ORDER BY generated_at DESC LIMIT 1'
-  ).get(defaultVenueId(), req.params.cocktailId);
+  ).get(req.venueId, req.params.cocktailId);
   res.json({ narrative: row || null });
 });
 
@@ -4477,7 +4877,7 @@ app.post('/api/ci/narratives/:cocktailId', requireAuth(...CI_ROLES), async (req,
     const cocktail = db.prepare('SELECT * FROM cocktails WHERE id=?').get(req.params.cocktailId);
     if (!cocktail) return res.status(404).json({ error: 'Cocktail not found.' });
 
-    const dna = getCIDna(defaultVenueId());
+    const dna = getCIDna(req.venueId);
     const prompt = `You are a luxury hospitality copywriter and brand storyteller.
 
 BAR DNA:
@@ -4505,7 +4905,7 @@ Generate 3 layers of narrative. Return ONLY valid JSON:
       INSERT INTO cocktail_narratives
         (venue_id,cocktail_id,cocktail_name,menu_description,server_script,story_card,generated_at)
       VALUES (?,?,?,?,?,?,?)
-    `).run(defaultVenueId(), req.params.cocktailId, cocktail.name,
+    `).run(req.venueId, req.params.cocktailId, cocktail.name,
       narrative.menu_description, narrative.server_script, narrative.story_card, nowIso());
 
     res.json({ ok: true, narrative });
@@ -4519,7 +4919,7 @@ Generate 3 layers of narrative. Return ONLY valid JSON:
 app.get('/api/ci/scores/:cocktailId', requireAuth(...CI_ROLES), (req, res) => {
   const row = db.prepare(
     'SELECT * FROM cocktail_scores WHERE venue_id=? AND cocktail_id=? ORDER BY generated_at DESC LIMIT 1'
-  ).get(defaultVenueId(), req.params.cocktailId);
+  ).get(req.venueId, req.params.cocktailId);
   res.json({ scores: row ? { ...row, score_notes: JSON.parse(row.score_notes_json || '[]') } : null });
 });
 
@@ -4533,7 +4933,7 @@ app.post('/api/ci/scores/:cocktailId', requireAuth(...CI_ROLES), (req, res) => {
        score_notes_json,generated_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(
-    defaultVenueId(), req.params.cocktailId, b.cocktail_name || '',
+    req.venueId, req.params.cocktailId, b.cocktail_name || '',
     b.flavor_balance || null, b.menu_fit || null, b.profit_score || null,
     b.prep_complexity || null, b.staff_execution || null, b.guest_appeal || null,
     b.originality || null, b.seasonal_fit || null, b.speed_of_service || null,
@@ -4548,7 +4948,7 @@ app.post('/api/ci/scores/:cocktailId', requireAuth(...CI_ROLES), (req, res) => {
 app.get('/api/ci/lifecycle', requireAuth(...CI_ROLES), (req, res) => {
   const rows = db.prepare(
     'SELECT * FROM cocktail_lifecycle WHERE venue_id=? ORDER BY created_at DESC'
-  ).all(defaultVenueId());
+  ).all(req.venueId);
   res.json({ lifecycle: rows.map(r => ({ ...r, alert_flags: JSON.parse(r.alert_flags_json || '[]') })) });
 });
 
@@ -4562,7 +4962,7 @@ app.post('/api/ci/lifecycle', requireAuth(...CI_ROLES), (req, res) => {
        revenue_generated,cost_per_serve,status,alert_flags_json,created_at,updated_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(
-    defaultVenueId(), b.cocktail_id || null, b.cocktail_name,
+    req.venueId, b.cocktail_id || null, b.cocktail_name,
     b.date_added || now.slice(0, 10), b.season_added || getCurrentSeason(),
     b.times_ordered || 0, b.revenue_generated || 0, b.cost_per_serve || null,
     b.status || 'active', JSON.stringify(b.alert_flags || []), now, now
@@ -4589,7 +4989,7 @@ app.patch('/api/ci/lifecycle/:id', requireAuth(...CI_ROLES), (req, res) => {
     b.cost_per_serve != null ? b.cost_per_serve : null,
     b.status || null,
     b.alert_flags ? JSON.stringify(b.alert_flags) : null,
-    now, now, req.params.id, defaultVenueId()
+    now, now, req.params.id, req.venueId
   );
   res.json({ ok: true });
 });
@@ -4599,7 +4999,7 @@ app.patch('/api/ci/lifecycle/:id', requireAuth(...CI_ROLES), (req, res) => {
 app.get('/api/ci/trends', requireAuth(...CI_ROLES), (req, res) => {
   const rows = db.prepare(
     'SELECT * FROM cocktail_trends_db WHERE (venue_id=? OR venue_id IS NULL) AND is_active=1 ORDER BY added_at DESC'
-  ).all(defaultVenueId());
+  ).all(req.venueId);
   res.json({ trends: rows.map(r => ({ ...r, tags: JSON.parse(r.tags_json || '[]') })) });
 });
 
@@ -4620,7 +5020,7 @@ app.put('/api/ci/trends/:id', requireAuth('owner', 'admin'), (req, res) => {
 app.get('/api/ci/emergency/last', requireAuth(...CI_ROLES), (req, res) => {
   const row = db.prepare(
     'SELECT * FROM cocktail_emergency_log WHERE venue_id=? ORDER BY created_at DESC LIMIT 1'
-  ).get(defaultVenueId());
+  ).get(req.venueId);
   if (!row) return res.json({ session: null });
   res.json({
     session: {
@@ -4648,7 +5048,7 @@ app.post('/api/ci/emergency', requireAuth(...CI_ROLES), async (req, res) => {
            decisions_json,snapshot_json,created_by,created_at)
         VALUES (?,?,?,?,?,?,?,?)
       `).run(
-        defaultVenueId(), nowIso().slice(0, 10),
+        req.venueId, nowIso().slice(0, 10),
         JSON.stringify(missing_items),
         JSON.stringify(req.body.affected_cocktails || []),
         JSON.stringify(confirmed_decisions),
@@ -4659,7 +5059,7 @@ app.post('/api/ci/emergency', requireAuth(...CI_ROLES), async (req, res) => {
     }
 
     const activeCocktails = db.prepare('SELECT name, ingredients_text_json FROM cocktails WHERE is_active=1').all();
-    const dna             = getCIDna(defaultVenueId());
+    const dna             = getCIDna(req.venueId);
 
     const prompt = `You are a Beverage Director doing rapid pre-service prep for ${dna?.venue_name || 'the venue'}.
 
@@ -4694,7 +5094,7 @@ For each affected cocktail, assess impact and suggest the best substitution. Ret
 // ── CI DAILY CLOSE ────────────────────────────────────────────────────────────
 
 app.get('/api/ci/daily-close/active-menu/:venueId', requireAuth(...CI_ROLES), (req, res) => {
-  const venueId = defaultVenueId();
+  const venueId = req.venueId;
 
   const active = db.prepare(
     "SELECT * FROM cocktail_menus WHERE venue_id=? AND status='active' ORDER BY created_at DESC LIMIT 1"
@@ -4731,7 +5131,7 @@ app.get('/api/ci/daily-close/cocktails/:menuId', requireAuth(...CI_ROLES), (req,
 
 app.post('/api/ci/daily-close/submit', requireAuth(...CI_ROLES), (req, res) => {
   const { menuId, saleDate, entries } = req.body;
-  const venueId = defaultVenueId();
+  const venueId = req.venueId;
 
   if (!saleDate || !Array.isArray(entries)) {
     return res.status(400).json({ error: 'saleDate and entries are required.' });
@@ -4784,7 +5184,7 @@ app.post('/api/ci/daily-close/submit', requireAuth(...CI_ROLES), (req, res) => {
 app.get('/api/ci/export/:type', requireAuth(...CI_ROLES), (req, res) => {
   const { type }       = req.params;
   const cocktailIds    = req.query.cocktail_ids;
-  const venueId        = defaultVenueId();
+  const venueId        = req.venueId;
   const dna            = getCIDna(venueId);
   const venueName      = dna?.venue_name || 'HESTIA Venue';
   const date           = new Date().toLocaleDateString('en-GB');
@@ -4902,13 +5302,541 @@ app.post('/api/ci/director/chat', requireAuth(...CI_ROLES), async (req, res) => 
     if (!message || typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ error: 'message is required.' });
     }
-    const dna = getCIDna(defaultVenueId());
-    const systemInstruction = buildDirectorSystemInstruction(dna, menuCocktails);
+    const dna = getCIDna(req.venueId);
+    const omer = getOmerVenueContext(req.venueId);
+    const systemInstruction = buildDirectorSystemInstruction(dna, menuCocktails, omer.text || '');
     const reply = await askGeminiChat(systemInstruction, history, message.trim());
-    res.json({ reply });
+    res.json({ reply, venueContextActive: omer.active, venueContextConfidence: omer.confidence });
   } catch (err) {
     debugLog({ event: 'director_chat_threw', error: err.message, stack: err.stack?.slice(0, 300) });
     res.status(500).json({ error: err.message || 'Chat request failed.' });
+  }
+});
+
+// ── Venue Intelligence — Venue Learning Engine ───────────────────────────────
+// A focused, premium client conversation that progressively learns the venue and
+// extracts Venue DNA. Owner/Admin only. Not a generic chatbot — a strategic session.
+
+const VENUE_INTELLIGENCE_STAGES = ['story', 'identity', 'operations', 'discovery'];
+
+function emptyVenueDna() {
+  return {
+    hospitalityStyle: [],
+    businessTypeSignals: [],
+    guestExperienceSignals: [],
+    beverageSignals: [],
+    foodSignals: [],
+    serviceSignals: [],
+    trainingSignals: [],
+    operationalPainPoints: [],
+    ownerPriorities: [],
+    emotionalDrivers: [],
+    growthOpportunities: [],
+    confidence: { identity: 0, operations: 0, guest: 0, training: 0, commercial: 0 },
+    summary: '',
+    openQuestions: []
+  };
+}
+
+// Loads (or lazily creates) the single venue intelligence row for a venue.
+function getVenueIntelligence(venueId) {
+  let row = db.prepare('SELECT * FROM venue_intelligence WHERE venue_id = ?').get(venueId);
+  if (!row) {
+    db.prepare('INSERT INTO venue_intelligence (venue_id) VALUES (?)').run(venueId);
+    row = db.prepare('SELECT * FROM venue_intelligence WHERE venue_id = ?').get(venueId);
+  }
+  let messages = [];
+  let venueDNA = emptyVenueDna();
+  try { messages = JSON.parse(row.messages_json || '[]'); } catch { messages = []; }
+  try { venueDNA = { ...emptyVenueDna(), ...JSON.parse(row.venue_dna_json || '{}') }; } catch { venueDNA = emptyVenueDna(); }
+  return {
+    venueId,
+    stage: row.stage || 'story',
+    objective: row.objective || '',
+    messages: Array.isArray(messages) ? messages : [],
+    venueDNA,
+    updatedAt: row.updated_at
+  };
+}
+
+// Light grounding context — real venue identity if the venue has already entered
+// Bar DNA. Never fabricated; absent fields are simply omitted.
+function venueGroundingContext(venueId) {
+  const lines = [];
+  const venue = db.prepare('SELECT name, venue_type FROM venues WHERE id = ?').get(venueId);
+  if (venue?.name && venue.name !== 'HESTIA Flagship Venue') lines.push(`Known venue name: ${venue.name}`);
+  if (venue?.venue_type) lines.push(`Recorded venue type: ${venue.venue_type}`);
+  try {
+    const dna = getCIDna(venueId);
+    if (dna?.venue_name) lines.push(`Bar DNA venue name: ${dna.venue_name}`);
+    if (dna?.venue_type) lines.push(`Bar DNA venue type: ${dna.venue_type}`);
+    if (dna?.atmosphere) lines.push(`Bar DNA atmosphere: ${dna.atmosphere}`);
+    if (dna?.cuisine_style) lines.push(`Bar DNA cuisine style: ${dna.cuisine_style}`);
+  } catch { /* CI DNA optional */ }
+  return lines.length
+    ? `KNOWN VENUE CONTEXT (already on record — use it, do not re-ask what you already know):\n${lines.join('\n')}`
+    : 'KNOWN VENUE CONTEXT: none on record yet. This may be the venue\'s first conversation with HESTIA.';
+}
+
+function buildVenueIntelligenceSystemInstruction(state) {
+  const stageGuide = {
+    story: 'STORY LAYER — Begin humanly. Learn the founder and the soul of the place. Ask about why they opened it, what they are proud of, the feeling they want guests to have, the moment that still gives them energy. Do not ask "what problem do you want to solve". Collect emotional and founder DNA.',
+    identity: 'IDENTITY LAYER — Start inferring the venue type and personality from what they have said (luxury, casual, nightlife, culinary, beverage-led, community-led, hotel-style, events-driven, premium-casual, founder-led, staff-dependent, training-heavy). Do not ask "what type of business are you". Infer it, then confirm gently.',
+    operations: 'OPERATIONAL REALITY LAYER — Trust has been built. Explore operational pain. What drains energy, where the business feels heavier than it should, what keeps repeating no matter how often it is fixed. Detect patterns behind answers — a "bartenders forget training" comment may signal onboarding, knowledge retention, management capacity, or consistency problems.',
+    discovery: 'INTELLIGENCE DISCOVERY LAYER — Discover what intelligence the venue actually needs. What would they want in a morning briefing, what they would ask a 24/7 AI F&B Director, what they wish they understood about guests, which decisions they make with too little information, which part of the business feels like guesswork.'
+  };
+
+  return `You are HESTIA — a senior hospitality strategist conducting a focused, intelligent working session with the owner of a premium venue.
+
+This is not a questionnaire and not a support chat. It is the start of a relationship in which HESTIA learns the venue deeply over time. The owner should leave feeling: "HESTIA is starting to understand my business."
+
+VOICE
+- Calm, direct, warm, intelligent. A senior advisor, never a cheerful assistant.
+- Short paragraphs. One strong question at a time. Occasional reflection and synthesis.
+- Hospitality-specific interpretation, not generic consulting language.
+- Never say "As an AI", never "Great question!", no buzzwords, no fake certainty, no invented numbers or KPIs, no overpromising.
+
+CONVERSATION MODEL — four layers, advanced gently as understanding deepens:
+1. ${stageGuide.story}
+2. ${stageGuide.identity}
+3. ${stageGuide.operations}
+4. ${stageGuide.discovery}
+
+You decide each turn whether to keep exploring, summarize, clarify, gently refocus, move to another layer, ask a concrete follow-up, or offer a choice between directions. Do not blindly march through questions.
+
+GENTLE FOCUS
+When the owner becomes scattered, vague, or drifts far from the current objective, refocus warmly and briefly — never aggressively. Examples of the tone:
+- "I want to hold onto that, because it sounds important. Let's connect it back to the main question."
+- "It feels like we're circling around staff and consistency. Is that the real pressure point?"
+- "Let me pause for a second and reflect what I heard."
+- "I may be wrong, but it sounds like the issue is less the menu and more how the team executes it."
+- "Should we focus this on service, team capability, or revenue opportunities?"
+Prefer short, useful refocusing over long explanation.
+
+CURRENT SESSION STATE
+- Current stage: ${state.stage}
+- Current objective: ${state.objective || '(not yet set — set one)'}
+- Venue understanding so far (Venue DNA): ${JSON.stringify(state.venueDNA)}
+
+${venueGroundingContext(state.venueId)}
+
+YOUR TASK EACH TURN
+Read the latest owner message in the context of the whole conversation. Update HESTIA's understanding, then respond as the strategist.
+
+Return ONLY valid JSON — no markdown, no commentary — with this EXACT shape:
+{
+  "reply": "string — what you say to the owner next. Strategist voice. Usually one reflection plus one strong question. Keep it tight.",
+  "stage": "one of: story | identity | operations | discovery — the stage the conversation is now in",
+  "objective": "string — the single focus of the conversation right now, one short phrase",
+  "venueDNA": {
+    "hospitalityStyle": ["..."],
+    "businessTypeSignals": ["..."],
+    "guestExperienceSignals": ["..."],
+    "beverageSignals": ["..."],
+    "foodSignals": ["..."],
+    "serviceSignals": ["..."],
+    "trainingSignals": ["..."],
+    "operationalPainPoints": ["..."],
+    "ownerPriorities": ["..."],
+    "emotionalDrivers": ["..."],
+    "growthOpportunities": ["..."],
+    "confidence": { "identity": 0, "operations": 0, "guest": 0, "training": 0, "commercial": 0 },
+    "summary": "string — 1-3 sentences on what HESTIA now understands about this venue",
+    "openQuestions": ["..."]
+  },
+  "focusSuggestions": ["2-3 short possible directions to take the conversation next"]
+}
+
+RULES FOR venueDNA
+- Return the FULL, updated object every turn. Start from the understanding already provided above and refine it — never reset it.
+- Only add signals you actually heard or can reasonably infer. Never invent facts about the venue.
+- Keep each array concise and deduplicated (at most ~8 items). Phrase signals as short noun phrases.
+- confidence values are integers 0-100 reflecting how well you understand each dimension. They should rise as the conversation deepens, never jump to certainty early.
+- If you have no signal for an array yet, leave it empty.`;
+}
+
+async function askVenueIntelligence(systemInstruction, history) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('Venue Intelligence is unavailable — the server API key is not configured. Please contact your administrator.');
+
+  const messages = [
+    { role: 'system', content: systemInstruction },
+    ...history.map(turn => ({ role: turn.role === 'model' ? 'assistant' : turn.role, content: turn.content }))
+  ];
+
+  debugLog({ event: 'venue_intelligence_request', model: 'gpt-4o-mini', history_turns: history.length });
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages,
+      temperature: 0.7,
+      response_format: { type: 'json_object' }
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    const msg = data.error?.message || 'OpenAI request failed.';
+    debugLog({ event: 'venue_intelligence_error', status: response.status, body: data });
+    if (/api.?key|key.*invalid|invalid.*key/i.test(msg)) {
+      throw new Error('Venue Intelligence is unavailable — the server API key is missing or invalid. Please contact your administrator.');
+    }
+    throw new Error(msg);
+  }
+
+  const raw = data.choices?.[0]?.message?.content || '{}';
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch {
+    debugLog({ event: 'venue_intelligence_parse_failed', raw: raw.slice(0, 300) });
+    throw new Error('HESTIA returned a response it could not structure. Please try again.');
+  }
+  return parsed;
+}
+
+// Merge model output onto the prior DNA so the structure is always complete and
+// confidence never silently regresses to zero on a thin turn.
+function mergeVenueDna(prior, incoming) {
+  const base = { ...emptyVenueDna(), ...prior };
+  if (!incoming || typeof incoming !== 'object') return base;
+  const arrayKeys = [
+    'hospitalityStyle', 'businessTypeSignals', 'guestExperienceSignals', 'beverageSignals',
+    'foodSignals', 'serviceSignals', 'trainingSignals', 'operationalPainPoints',
+    'ownerPriorities', 'emotionalDrivers', 'growthOpportunities', 'openQuestions'
+  ];
+  for (const key of arrayKeys) {
+    if (Array.isArray(incoming[key])) {
+      const cleaned = incoming[key].map(v => String(v).trim()).filter(Boolean);
+      base[key] = Array.from(new Set(cleaned)).slice(0, 8);
+    }
+  }
+  if (incoming.confidence && typeof incoming.confidence === 'object') {
+    base.confidence = { ...base.confidence };
+    for (const dim of ['identity', 'operations', 'guest', 'training', 'commercial']) {
+      const v = Number(incoming.confidence[dim]);
+      if (Number.isFinite(v)) base.confidence[dim] = Math.max(0, Math.min(100, Math.round(v)));
+    }
+  }
+  if (typeof incoming.summary === 'string') base.summary = incoming.summary.trim();
+  return base;
+}
+
+// GET — current learning session for the venue (graceful empty state on first visit).
+app.get('/api/venue-intelligence', requireAuth('owner'), (req, res) => {
+  try {
+    const state = getVenueIntelligence(req.venueId);
+    res.json({ state });
+  } catch (err) {
+    debugLog({ event: 'venue_intelligence_get_threw', error: err.message });
+    res.status(500).json({ error: err.message || 'Could not load the venue learning session.' });
+  }
+});
+
+// POST — owner sends a message; HESTIA replies and updates Venue DNA.
+app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, res) => {
+  try {
+    const { message } = req.body || {};
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'A message is required.' });
+    }
+    const venueId = req.venueId;
+    const state = getVenueIntelligence(venueId);
+
+    const userTurn = { role: 'user', content: message.trim(), ts: new Date().toISOString() };
+    const historyForModel = [...state.messages, userTurn];
+
+    const systemInstruction = buildVenueIntelligenceSystemInstruction(state);
+    const ai = await askVenueIntelligence(systemInstruction, historyForModel);
+
+    const reply = typeof ai.reply === 'string' && ai.reply.trim()
+      ? ai.reply.trim()
+      : 'Let me sit with that for a moment. Tell me a little more about how that plays out on a normal night.';
+    const stage = VENUE_INTELLIGENCE_STAGES.includes(ai.stage) ? ai.stage : state.stage;
+    const objective = typeof ai.objective === 'string' && ai.objective.trim() ? ai.objective.trim() : state.objective;
+    const venueDNA = mergeVenueDna(state.venueDNA, ai.venueDNA);
+    const focusSuggestions = Array.isArray(ai.focusSuggestions)
+      ? ai.focusSuggestions.map(v => String(v).trim()).filter(Boolean).slice(0, 3)
+      : [];
+
+    const modelTurn = { role: 'model', content: reply, ts: new Date().toISOString() };
+    const nextMessages = [...historyForModel, modelTurn].slice(-80);
+
+    db.prepare(`
+      UPDATE venue_intelligence
+      SET stage = ?, objective = ?, messages_json = ?, venue_dna_json = ?, updated_at = datetime('now')
+      WHERE venue_id = ?
+    `).run(stage, objective, JSON.stringify(nextMessages), JSON.stringify(venueDNA), venueId);
+
+    // Venue DNA changed — refresh the derived specialist briefs (non-fatal).
+    try { regenerateVenueBriefs(venueId); }
+    catch (e) { debugLog({ event: 'venue_briefs_regen_failed', error: e.message }); }
+
+    res.json({ reply, stage, objective, venueDNA, focusSuggestions });
+  } catch (err) {
+    debugLog({ event: 'venue_intelligence_message_threw', error: err.message, stack: err.stack?.slice(0, 300) });
+    res.status(500).json({ error: err.message || 'The conversation could not continue. Please try again.' });
+  }
+});
+
+// POST — start fresh. Clears the conversation, Venue DNA, and derived briefs.
+app.post('/api/venue-intelligence/reset', requireAuth('owner'), (req, res) => {
+  try {
+    const venueId = req.venueId;
+    db.prepare(`
+      UPDATE venue_intelligence
+      SET stage = 'story', objective = '', messages_json = '[]', venue_dna_json = '{}', updated_at = datetime('now')
+      WHERE venue_id = ?
+    `).run(venueId);
+    db.prepare('DELETE FROM venue_briefs WHERE venue_id = ?').run(venueId);
+    res.json({ state: getVenueIntelligence(venueId) });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not reset the session.' });
+  }
+});
+
+// ── Venue Intelligence Bridge — distribution layer ───────────────────────────
+// Reads Venue DNA + venue metadata + Bar DNA + operational memory, derives the
+// specialist briefs deterministically, and persists them. Specialist modules
+// read the result through the shared service endpoints below; they are not
+// modified by this layer.
+
+const BRIDGE_READ_ROLES = ['owner', 'admin', 'bar_manager', 'fb_director', 'manager', 'events_manager', 'chef'];
+
+// Read raw operational counts from EXISTING systems only. Every query is
+// defensive — a missing table/column yields 0, never an error or fabricated value.
+function readOperationalRaw(venueId) {
+  const one = (sql, ...args) => { try { return db.prepare(sql).get(...args)?.c || 0; } catch { return 0; } };
+  return {
+    closedShifts:    one("SELECT COUNT(*) c FROM shifts WHERE venue_id=? AND status='closed'", venueId)
+                     || one('SELECT COUNT(*) c FROM shift_reports WHERE venue_id=?', venueId),
+    complaintsReports: one("SELECT COUNT(*) c FROM shift_reports WHERE venue_id=? AND complaints IS NOT NULL AND TRIM(complaints)<>''", venueId),
+    incidentsTotal:      one('SELECT COUNT(*) c FROM incidents WHERE venue_id=?', venueId),
+    incidentsUnresolved: one('SELECT COUNT(*) c FROM incidents WHERE venue_id=? AND resolved=0', venueId),
+    incidents30d:        one("SELECT COUNT(*) c FROM incidents WHERE venue_id=? AND created_at >= datetime('now','-30 days')", venueId),
+    actionsOpen:      one('SELECT COUNT(*) c FROM actions WHERE venue_id=? AND done=0', venueId),
+    actionsCompleted: one('SELECT COUNT(*) c FROM actions WHERE venue_id=? AND done=1', venueId),
+    actionsStale:     one("SELECT COUNT(*) c FROM actions WHERE venue_id=? AND done=0 AND created_at <= datetime('now','-3 days')", venueId),
+    memoryCount:      one('SELECT COUNT(*) c FROM business_memory WHERE venue_id=?', venueId),
+    // Academy activity is user/course scoped (single-venue app) — no venue filter.
+    academyCompletedModules: one("SELECT COUNT(*) c FROM staff_progress WHERE status='completed' OR completed_at IS NOT NULL"),
+    academyActiveLearners:   (() => { try { return db.prepare("SELECT COUNT(DISTINCT user_id) c FROM staff_progress WHERE status='completed' OR completed_at IS NOT NULL").get()?.c || 0; } catch { return 0; } })(),
+    eventsTotal:     one('SELECT COUNT(*) c FROM events WHERE venue_id=?', venueId),
+    eventsUpcoming:  one("SELECT COUNT(*) c FROM events WHERE venue_id=? AND status NOT IN ('completed','cancelled') AND event_date >= date('now')", venueId),
+    eventsCompleted: one("SELECT COUNT(*) c FROM events WHERE venue_id=? AND status='completed'", venueId)
+  };
+}
+
+// Operational Intelligence Feed: normalized signals + additive DNA enrichment.
+// Persists a transparent snapshot. Never overwrites the conversational Venue DNA.
+function getOperationalIntelligence(venueId) {
+  const state = getVenueIntelligence(venueId);
+  const signals = buildOperationalSignals(readOperationalRaw(venueId));
+  const enrichment = deriveDnaEnrichment(state.venueDNA, signals);
+  try {
+    db.prepare(`
+      INSERT INTO venue_dna_enrichment (venue_id, signals_json, enrichment_json, generated_at)
+      VALUES (?, ?, ?, datetime('now'))
+      ON CONFLICT(venue_id) DO UPDATE SET
+        signals_json = excluded.signals_json, enrichment_json = excluded.enrichment_json, generated_at = datetime('now')
+    `).run(venueId, JSON.stringify(signals), JSON.stringify(enrichment));
+  } catch (e) { debugLog({ event: 'enrichment_persist_failed', error: e.message }); }
+  return { signals, enrichment };
+}
+
+// Regenerate and persist all specialist briefs for a venue from its current DNA,
+// enriched by operational reality (Phase 5).
+function regenerateVenueBriefs(venueId) {
+  const state = getVenueIntelligence(venueId);
+
+  let barDNA = null;
+  try { barDNA = getCIDna(venueId); } catch { barDNA = null; }
+
+  const venue = db.prepare('SELECT name, venue_type FROM venues WHERE id = ?').get(venueId) || {};
+
+  // Operational feedback loop — enrich DNA confidence additively from real ops.
+  const { signals, enrichment } = getOperationalIntelligence(venueId);
+  const enrichedDNA = {
+    ...state.venueDNA,
+    confidence: applyConfidenceDeltas(state.venueDNA.confidence, enrichment.confidenceDeltas)
+  };
+
+  const result = buildVenueBriefs({
+    venueDNA: enrichedDNA,
+    metadata: { venueName: venue.name, venueType: venue.venue_type, stage: state.stage, objective: state.objective },
+    barDNA,
+    operationalMemory: { memoryEventCount: signals.memory.count }
+  });
+
+  const upsert = db.prepare(`
+    INSERT INTO venue_briefs (venue_id, brief_type, title, brief_json, source_hash, confidence, status, generated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(venue_id, brief_type) DO UPDATE SET
+      title = excluded.title, brief_json = excluded.brief_json, source_hash = excluded.source_hash,
+      confidence = excluded.confidence, status = excluded.status, generated_at = datetime('now')
+  `);
+  for (const b of result.briefs) {
+    upsert.run(venueId, b.type, b.title, JSON.stringify(b), result.sourceHash, b.confidence ?? 0, b.status || 'ready');
+  }
+  return result;
+}
+
+// Shared read service — lazily generates briefs on first read so specialist
+// modules always receive a complete, current set.
+function readVenueBriefs(venueId) {
+  let rows = db.prepare('SELECT * FROM venue_briefs WHERE venue_id = ?').all(venueId);
+  if (!rows.length) {
+    regenerateVenueBriefs(venueId);
+    rows = db.prepare('SELECT * FROM venue_briefs WHERE venue_id = ?').all(venueId);
+  }
+  return rows.map(r => {
+    let body = {};
+    try { body = JSON.parse(r.brief_json); } catch { body = {}; }
+    return { ...body, generatedAt: r.generated_at, sourceHash: r.source_hash };
+  });
+}
+
+// Shared accessor: the venue-intelligence context block Omer / Cocktail
+// Intelligence inject into their AI requests. Always safe — any failure returns
+// an inactive context so existing generation continues unchanged.
+function getOmerVenueContext(venueId) {
+  try {
+    // Omer needs only briefs + metadata — a light bundle (no ops recompute per chat).
+    const briefs = readVenueBriefs(venueId);
+    const venue = db.prepare('SELECT name, venue_type FROM venues WHERE id = ?').get(venueId) || {};
+    return selectOmerContext({ briefs, metadata: { venueName: venue.name, venueType: venue.venue_type } });
+  } catch (err) {
+    debugLog({ event: 'omer_context_failed', error: err.message });
+    return { active: false, confidence: 0, text: null };
+  }
+}
+
+// Single raw reader for the full venue intelligence picture — loaded ONCE and
+// shared across specialist selectors (Phase 7 — no duplicate DNA/brief readers).
+function loadVenueIntelligenceBundle(venueId) {
+  const state = getVenueIntelligence(venueId);
+  const briefs = readVenueBriefs(venueId);
+  const venue = db.prepare('SELECT name, venue_type FROM venues WHERE id = ?').get(venueId) || {};
+  const { signals, enrichment } = getOperationalIntelligence(venueId);
+  return {
+    venueId,
+    venueDNA: state.venueDNA,
+    stage: state.stage,
+    objective: state.objective,
+    metadata: { venueName: venue.name, venueType: venue.venue_type },
+    briefs,
+    signals,
+    enrichment
+  };
+}
+
+// GET — all specialist briefs for the venue (shared service entry point).
+app.get('/api/venue-bridge/briefs', requireAuth(...BRIDGE_READ_ROLES), (req, res) => {
+  try {
+    res.json({ briefs: readVenueBriefs(req.venueId) });
+  } catch (err) {
+    debugLog({ event: 'venue_bridge_read_threw', error: err.message });
+    res.status(500).json({ error: err.message || 'Could not read venue briefs.' });
+  }
+});
+
+// GET — a single specialist brief by type (fb | training | service | event | owner).
+app.get('/api/venue-bridge/briefs/:type', requireAuth(...BRIDGE_READ_ROLES), (req, res) => {
+  try {
+    const brief = readVenueBriefs(req.venueId).find(b => b.type === req.params.type);
+    if (!brief) return res.status(404).json({ error: `Unknown brief type: ${req.params.type}` });
+    res.json({ brief });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not read the brief.' });
+  }
+});
+
+// Academy capability context — venue-level capability signals + recommended
+// learning, derived from the Training Brief (and supporting briefs). Read by the
+// Academy "Recommended For Your Venue" panel. Available to academy-consuming roles.
+const ACADEMY_CONTEXT_ROLES = ['employee', 'manager', 'bar_manager', 'fb_director', 'owner', 'admin'];
+
+function getAcademyVenueContext(venueId) {
+  try {
+    // Academy needs only briefs + manifest — light bundle.
+    const briefs = readVenueBriefs(venueId);
+    return selectAcademyContext({ briefs }, UNIVERSITY_MANIFEST);
+  } catch (err) {
+    debugLog({ event: 'academy_context_failed', error: err.message });
+    return { active: false, capabilitySignals: [], recommendations: [] };
+  }
+}
+
+app.get('/api/venue-bridge/academy', requireAuth(...ACADEMY_CONTEXT_ROLES), (req, res) => {
+  try {
+    res.json(getAcademyVenueContext(req.venueId));
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not read academy context.' });
+  }
+});
+
+// POST — manually regenerate briefs (developer/owner action).
+app.post('/api/venue-bridge/regenerate', requireAuth('owner'), (req, res) => {
+  try {
+    const venueId = req.venueId;
+    const result = regenerateVenueBriefs(venueId);
+    res.json({ ok: true, generatedAt: result.generatedAt, sourceHash: result.sourceHash, briefs: readVenueBriefs(venueId) });
+  } catch (err) {
+    debugLog({ event: 'venue_bridge_regen_threw', error: err.message });
+    res.status(500).json({ error: err.message || 'Could not regenerate briefs.' });
+  }
+});
+
+// GET — operational intelligence feed: normalized signals + DNA enrichment.
+app.get('/api/venue-bridge/operations', requireAuth('owner'), (req, res) => {
+  try {
+    res.json(getOperationalIntelligence(req.venueId));
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not read operational intelligence.' });
+  }
+});
+
+// GET — Owner Intelligence: "What HESTIA Learned" advisor narrative.
+// Sources from the shared bundle (briefs read once) via the unified context layer.
+function getOwnerIntelligence(venueId) {
+  try {
+    return selectOwnerIntelligence(loadVenueIntelligenceBundle(venueId), UNIVERSITY_MANIFEST);
+  } catch (err) {
+    debugLog({ event: 'owner_intelligence_failed', error: err.message });
+    return { active: false, headline: '', learnings: [] };
+  }
+}
+
+app.get('/api/venue-bridge/owner-intelligence', requireAuth('owner'), (req, res) => {
+  try {
+    res.json(getOwnerIntelligence(req.venueId));
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not read owner intelligence.' });
+  }
+});
+
+// GET — Unified Intelligence Context: the single shared venue understanding.
+// One read, every specialist's slice. Owner/admin scope.
+app.get('/api/venue-bridge/context', requireAuth('owner'), (req, res) => {
+  try {
+    res.json(assembleUnifiedContext(loadVenueIntelligenceBundle(req.venueId), UNIVERSITY_MANIFEST));
+  } catch (err) {
+    debugLog({ event: 'unified_context_failed', error: err.message });
+    res.status(500).json({ error: err.message || 'Could not read the unified intelligence context.' });
+  }
+});
+
+// POST — sync from operations: refresh signals/enrichment and rebuild briefs so
+// Venue DNA reflects current operational reality, not only the conversation.
+app.post('/api/venue-bridge/sync-operations', requireAuth('owner'), (req, res) => {
+  try {
+    const venueId = req.venueId;
+    regenerateVenueBriefs(venueId);
+    res.json({ ok: true, ...getOperationalIntelligence(venueId), briefs: readVenueBriefs(venueId) });
+  } catch (err) {
+    debugLog({ event: 'venue_bridge_sync_ops_threw', error: err.message });
+    res.status(500).json({ error: err.message || 'Could not sync operations.' });
   }
 });
 
@@ -5125,7 +6053,7 @@ app.post('/api/ci/generate-menu-design', requireAuth(...CI_ROLES), async (req, r
     const { menuId, outputContext, languageMode } = req.body;
     if (!menuId) return res.status(400).json({ error: 'menuId is required.' });
 
-    const venueId = defaultVenueId();
+    const venueId = req.venueId;
 
     // 1. Fetch bar DNA
     const dna = getCIDna(venueId);
@@ -6005,7 +6933,7 @@ No markdown, no backticks, no preamble.`;
     const menuResult = db.prepare(`
       INSERT INTO food_menus (venue_id, name, menu_type, story, status, created_by, created_at, updated_at)
       VALUES (?,?,?,?,'draft',?,?,?)
-    `).run(defaultVenueId(), generated.menuName || menuName || 'Generated Menu',
+    `).run(req.venueId, generated.menuName || menuName || 'Generated Menu',
       menuType || 'daily_operations', generated.menuStory || null,
       req.user.id, now, now);
     const menuId = menuResult.lastInsertRowid;
@@ -6130,7 +7058,7 @@ app.patch('/api/chef/menus/:menuId/visible', requireAuth('fb_director', 'owner',
 app.post('/api/ci/daily-close/submit-food', requireAuth('manager', 'bar_manager', 'owner', 'admin'), (req, res) => {
   const { venueId, saleDate, entries } = req.body;
   if (!Array.isArray(entries) || !entries.length) return res.status(400).json({ error: 'entries required.' });
-  const vid = venueId || defaultVenueId();
+  const vid = venueId || req.venueId;
   const now = nowIso();
   const insert = db.prepare(`
     INSERT INTO food_sales (venue_id, dish_name, sale_date, units_sold, sale_price, cost_per_unit, revenue, gross_profit, gp_percent, created_at)
@@ -6151,9 +7079,9 @@ app.get('/api/food-sales', requireAuth('manager', 'bar_manager', 'owner', 'admin
   const { start, end } = req.query;
   let rows;
   if (start && end) {
-    rows = db.prepare('SELECT * FROM food_sales WHERE venue_id=? AND sale_date>=? AND sale_date<=? ORDER BY sale_date DESC').all(defaultVenueId(), start, end);
+    rows = db.prepare('SELECT * FROM food_sales WHERE venue_id=? AND sale_date>=? AND sale_date<=? ORDER BY sale_date DESC').all(req.venueId, start, end);
   } else {
-    rows = db.prepare('SELECT * FROM food_sales WHERE venue_id=? ORDER BY sale_date DESC LIMIT 200').all(defaultVenueId());
+    rows = db.prepare('SELECT * FROM food_sales WHERE venue_id=? ORDER BY sale_date DESC LIMIT 200').all(req.venueId);
   }
   res.json({ sales: rows });
 });
@@ -6362,7 +7290,7 @@ app.post('/api/employee-shifts/publish', requireAuth('bar_manager', 'manager', '
       .run(JSON.stringify(shifts || {}), now, req.user.id, existing.id);
   } else {
     db.prepare('INSERT INTO employee_weekly_schedules (venue_id, week_start, published_at, published_by, shifts_json) VALUES (?,?,?,?,?)')
-      .run(defaultVenueId(), week_start, now, req.user.id, JSON.stringify(shifts || {}));
+      .run(req.venueId, week_start, now, req.user.id, JSON.stringify(shifts || {}));
   }
 
   // Notify each employee + send email

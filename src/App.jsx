@@ -81,12 +81,19 @@ import { useOwnerPulseState } from './hooks/useOwnerPulseState'
 import { useEventState } from './hooks/useEventState'
 import { useCocktailIntelligenceState } from './hooks/useCocktailIntelligenceState' // CI MODULE ADDITION
 import { CocktailIntelligenceDashboard } from './features/cocktail-intelligence/CocktailIntelligenceDashboard' // CI MODULE ADDITION
+import { useVenueIntelligenceState } from './hooks/useVenueIntelligenceState'
+import { useVenueState } from './hooks/useVenueState'
+import VenueIntelligence from './features/venue-intelligence/VenueIntelligence'
+import VenueBridgeInspector from './features/venue-intelligence/VenueBridgeInspector'
 import CocktailsTab from './features/magazine/CocktailsTab' // COCKTAILS TAB
 import WineAtlas from './features/wine-atlas/WineAtlas'
 
 
 export default function App() {
   const { lang, setLang, currentUser, setCurrentUser, role, users, setUsers, logout, sessionRestoring, showIdleWarning, dismissIdleWarning } = useSessionState()
+  // Phase 8 — venue (memory unit) context: which venues this operator can reach
+  // and which one is active. Selected venue is sent as X-HESTIA-Venue on every call.
+  const { venues, currentVenueId, switchVenue, createVenue } = useVenueState(currentUser)
   const t = TEXT.en
 
   const { area, page, collapsed, setCollapsed, navigate, goToArea, goToPage, pageContext, navigateAfterLogin } = useNavigationState({ currentUser })
@@ -161,6 +168,7 @@ export default function App() {
 
   const eventState = useEventState({ currentUser, pushNotification })
   const cocktailIntelligenceState = useCocktailIntelligenceState({ currentUser }) // CI MODULE ADDITION
+  const venueIntelligenceState = useVenueIntelligenceState({ currentUser })
 
   useBackendSync({ role, setReportArchive, setBusinessMemory, setActionItems, setUsers, setServiceIncidents })
 
@@ -261,6 +269,10 @@ export default function App() {
         unreadCount={unreadCount}
         onToggleNotifications={() => setShowNotifications(prev => !prev)}
         logout={logout}
+        venues={venues}
+        currentVenueId={currentVenueId}
+        onSwitchVenue={switchVenue}
+        onCreateVenue={createVenue}
       />
 
       <div className="min-h-[calc(100vh-5rem)] flex">
@@ -393,6 +405,7 @@ export default function App() {
             }}
             events={eventState}
             cocktailIntelligence={cocktailIntelligenceState} // CI MODULE ADDITION
+            venueIntelligence={venueIntelligenceState}
           />
         </main>
       </div>
@@ -400,7 +413,7 @@ export default function App() {
   )
 }
 
-function PageRenderer({ t, page, goToPage, pageContext, session, reports, operations, cocktails, academy, notifications, events, cocktailIntelligence }) { // CI MODULE ADDITION: added cocktailIntelligence
+function PageRenderer({ t, page, goToPage, pageContext, session, reports, operations, cocktails, academy, notifications, events, cocktailIntelligence, venueIntelligence }) { // CI MODULE ADDITION: added cocktailIntelligence
   const { currentUser, lang, role, users, onCreateUser, onUpdateUser, onDisableUser } = session
   const { reportArchive, businessMemory, onReportArchived, onMemoryEvent,
     pulseData, isLoadingPulse, trends, insight, isLoadingInsight, insightError, insightCooldownSeconds, onRequestInsight } = reports
@@ -473,6 +486,8 @@ function PageRenderer({ t, page, goToPage, pageContext, session, reports, operat
     userManagement: <UserManagement currentUser={currentUser} users={users} onCreateUser={onCreateUser} onUpdateUser={onUpdateUser} onDisableUser={onDisableUser} />,
     settings: <SettingsPage />,
     ciDashboard: <CocktailIntelligenceDashboard cocktailIntelligence={cocktailIntelligence} />, // CI MODULE ADDITION
+    venueLearning: <VenueIntelligence venueIntelligence={venueIntelligence} />,
+    venueBridgeInspector: <VenueBridgeInspector />,
     cocktailsMagazine: <CocktailsTab approvedCocktails={approvedCocktails} goToPage={goToPage} role={role} />, // COCKTAILS TAB
     chefDashboard: <ChefDashboard currentUser={currentUser} />,
     staffTab: <StaffTab />,

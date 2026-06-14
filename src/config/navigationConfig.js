@@ -60,6 +60,11 @@ export const NAV_GROUPS = {
     roles: ['owner', 'bar_manager', 'fb_director', 'admin'],
     pages: ['ciDashboard']
   },
+  // Venue Intelligence — owner/admin only Venue Learning Engine + Bridge inspector
+  venueIntelligence: {
+    roles: ['owner', 'admin'],
+    pages: ['venueLearning', 'venueBridgeInspector']
+  },
   // Events module — events_manager, owner, admin (full CRM + finance + calendar)
   eventsArea: {
     roles: ['events_manager', 'owner', 'admin'],
@@ -454,7 +459,23 @@ export const PAGE_META = {
     roles: ['owner', 'manager', 'bar_manager', 'fb_director', 'admin'],
     code: 'CI',
     section: 'Intelligence',
-    description: 'AI beverage director — DNA, menus, narratives, and 5PM emergency mode'
+    description: 'AI beverage director — DNA, menus, and narratives'
+  },
+
+  // ── Venue Intelligence (Venue Learning Engine) ────────────────────────────
+  venueLearning: {
+    area: 'venueIntelligence',
+    roles: ['owner', 'admin'],
+    code: 'VL',
+    section: 'Intelligence',
+    description: 'Learn the venue through conversation and build its Venue DNA'
+  },
+  venueBridgeInspector: {
+    area: 'venueIntelligence',
+    roles: ['owner', 'admin'],
+    code: 'VB',
+    section: 'Intelligence',
+    description: 'Inspect the specialist briefs derived from Venue DNA'
   },
 
   // ── System (merged into command area) ────────────────────────────────────

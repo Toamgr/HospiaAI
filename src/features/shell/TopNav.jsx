@@ -3,8 +3,9 @@ import { cx } from '../../utils/format'
 import { NAV_GROUPS } from '../../config/navigationConfig'
 import { allowedPagesForArea, canAccessPage } from '../../config/roleConfig'
 import { getAreaLabel, getAreaDescription } from './shellUtils'
+import VenueSelector from './VenueSelector'
 
-export default function TopNav({ t, currentUser, role, area, page, goToArea, goToPage, collapsed, setCollapsed, unreadCount = 0, onToggleNotifications, logout }) {
+export default function TopNav({ t, currentUser, role, area, page, goToArea, goToPage, collapsed, setCollapsed, unreadCount = 0, onToggleNotifications, logout, venues = [], currentVenueId, onSwitchVenue, onCreateVenue }) {
   const areas = Object.entries(NAV_GROUPS)
     .filter(([key]) => allowedPagesForArea(currentUser, key).length)
     .map(([key]) => key)
@@ -133,6 +134,14 @@ export default function TopNav({ t, currentUser, role, area, page, goToArea, goT
             <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#c9a96e] px-1 text-[10px] font-black text-[#11100d]">{unreadCount}</span>
           )}
         </button>
+
+        <VenueSelector
+          venues={venues}
+          currentVenueId={currentVenueId}
+          onSwitch={onSwitchVenue}
+          onCreate={onCreateVenue}
+          canCreate={role === 'owner' || role === 'admin'}
+        />
 
         <div className="hidden rounded-2xl border border-[#c9a96e]/20 bg-[#c9a96e]/5 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#c9a96e] lg:block">
           {currentUser.username} - {t.app[role] || role}

@@ -32,6 +32,7 @@
       ownerIntelligence: 'Business Intelligence',
       system: 'System',
       cocktailIntelligence: 'Cocktail Intelligence', // CI MODULE ADDITION
+      venueIntelligence: 'Venue Intelligence',
       cocktailsMagazineArea: 'Classic Cocktails Magazine',
       dailyOps: 'Daily Operations',
       employeeShifts: 'My Schedule',
@@ -52,7 +53,8 @@
       barManagement: 'Cocktail R&D, costing, and menu approval pipeline',
       ownerIntelligence: 'Reports, approvals, business memory, and operational intelligence',
       system: 'Owner workspace',
-      cocktailIntelligence: 'AI beverage director — menus, narratives, lifecycle, and emergency mode',
+      cocktailIntelligence: 'AI beverage director — menus, narratives, and lifecycle',
+      venueIntelligence: 'Learn the venue through conversation and build its Venue DNA',
       cocktailsMagazineArea: 'Classic cocktail magazine and active bar menus',
       dailyOps: 'Daily close and sales tracker',
       employeeShifts: 'Your shifts, availability, and menus',
@@ -109,6 +111,8 @@
       settings: 'Settings',
       cocktailsMagazine: 'Cocktails',
       ciDashboard: 'Cocktail Intelligence', // CI MODULE ADDITION
+      venueLearning: 'Venue Learning',
+      venueBridgeInspector: 'Bridge Inspector',
       chefDashboard: 'Kitchen Intelligence',
       staffTab: 'Team Roster',
       shiftOrganizerPage: 'Shift Builder',
