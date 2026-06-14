@@ -39,3 +39,8 @@ export const sendMessage = (eventId, data) => apiPost(`/api/events/${eventId}/me
 export const fetchCocktailMenu = (eventId) => apiGet(`/api/events/${eventId}/cocktail-menu`)
 export const saveCocktailMenu = (eventId, data) => apiPost(`/api/events/${eventId}/cocktail-menu`, data)
 export const approveCocktailMenu = (eventId) => apiPatch(`/api/events/${eventId}/cocktail-menu/approve`, {})
+export const saveProgrammeBrief = (eventId, brief) => apiPatch(`/api/events/${eventId}/cocktail-menu/programme-brief`, { brief })
+
+// Creative images
+export const fetchCreativeImages = (eventId) => apiGet(`/api/events/${eventId}/creative-images`)
+export const generateCreativeImages = (eventId, data) => apiPost(`/api/events/${eventId}/creative-images/generate`, data)

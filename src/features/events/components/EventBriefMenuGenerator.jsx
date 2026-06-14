@@ -605,7 +605,11 @@ export default function EventBriefMenuGenerator({
           })
           const isApproved = data.menu.status === 'approved'
           setApproved(isApproved)
-          onMenuStatusChange?.({ status: isApproved ? 'approved' : 'draft', menuName: data.menu.menu_name || null })
+          onMenuStatusChange?.({
+            status:    isApproved ? 'approved' : 'draft',
+            menuName:  data.menu.menu_name || null,
+            cocktails: isApproved ? data.menu.cocktails || [] : null,
+          })
         } else {
           onMenuStatusChange?.({ status: 'none', menuName: null })
         }
@@ -669,7 +673,11 @@ export default function EventBriefMenuGenerator({
 
       // Approval confirmed — mark UI as approved immediately before task update
       setApproved(true)
-      onMenuStatusChange?.({ status: 'approved', menuName: menu?.menu_name || null })
+      onMenuStatusChange?.({
+        status:    'approved',
+        menuName:  menu?.menu_name || null,
+        cocktails: menu?.cocktails || [],
+      })
       if (onApproved) onApproved()
 
       // Fire internal notifications to Owner and F&B Director
