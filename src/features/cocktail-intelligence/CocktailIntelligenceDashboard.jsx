@@ -202,13 +202,6 @@ const MODULES = [
     icon: '⤴'
   },
   {
-    id: 'emergency',
-    title: '5PM Emergency Mode',
-    subtitle: 'Rapid decisions when service is minutes away',
-    icon: '⚡',
-    urgent: true
-  },
-  {
     id: 'exports',
     title: 'Exports',
     subtitle: 'Guest menus, spec sheets, costing, and reports',
@@ -629,18 +622,9 @@ export function CocktailIntelligenceDashboard({ cocktailIntelligence }) {
           </div>
           <h1 className="text-2xl font-bold text-[#f5f5f0]">AI Beverage Director</h1>
           <p className="mt-0.5 text-sm text-[#e8dcc0]/60">
-            Menus, narratives, lifecycle, scoring, and emergency decisions — all shaped by your bar's DNA.
+            Menus, narratives, lifecycle, and scoring — all shaped by your bar's DNA.
           </p>
         </div>
-
-        {/* 5PM Emergency Button — always visible */}
-        <button
-          onClick={() => setActiveModule('emergency')}
-          className="shrink-0 flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-950/40 px-5 py-2.5 text-sm font-bold text-red-300 transition hover:border-red-400/60 hover:bg-red-900/40 hover:text-red-200"
-        >
-          <span className="text-base">⚡</span>
-          5PM Emergency Mode
-        </button>
       </div>
 
       {/* Error */}
@@ -723,24 +707,6 @@ export function CocktailIntelligenceDashboard({ cocktailIntelligence }) {
               />
             </CIErrorBoundary>
           )}
-        </div>
-      )}
-
-      {activeModule === 'emergency' && (
-        <div className="mb-10 rounded-2xl border border-red-500/20 bg-red-950/10 p-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-red-400 text-lg">⚡</span>
-              <h2 className="text-lg font-bold text-red-300">5PM Emergency Mode</h2>
-            </div>
-            <button
-              onClick={() => setActiveModule(null)}
-              className="rounded-xl border border-red-500/30 px-4 py-2 text-xs text-red-400 hover:border-red-400/50"
-            >
-              ← Back
-            </button>
-          </div>
-          <p className="text-sm text-[#e8dcc0]/60">Emergency Mode coming in Module 10. For urgent needs, use Menu Generator with a short brief and 2–4 cocktails.</p>
         </div>
       )}
 
@@ -949,7 +915,7 @@ export function CocktailIntelligenceDashboard({ cocktailIntelligence }) {
         <>
           <div className="mb-3 flex items-center gap-2">
             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#c9a96e] opacity-70">Intelligence Modules</span>
-            <span className="rounded-full border border-[#6b705c]/20 px-2 py-0.5 text-[9px] text-[#6b705c]">14 total</span>
+            <span className="rounded-full border border-[#6b705c]/20 px-2 py-0.5 text-[9px] text-[#6b705c]">13 total</span>
           </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {MODULES.map(mod => (

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { cx } from '../../utils/format'
 import { Card, Header } from '../../components/AppPrimitives'
+import WhatHestiaLearned from './WhatHestiaLearned'
 import {
   deriveOperationalActions, enrichActions,
   loadManagerActionStatuses, loadManagerActionCarryForward,
@@ -164,6 +165,7 @@ export default function OperationalPulse({
           title="Owner Brief"
           body="HESTIA's view of your business — built from real manager activity, not estimates."
         />
+        <WhatHestiaLearned />
         <Card>
           <div className="py-12 text-center">
             <div className="font-serif text-[5rem] font-black leading-none text-[#c9a96e]/[0.05] mb-4 select-none">◎</div>
@@ -197,6 +199,8 @@ export default function OperationalPulse({
         title="Owner Brief"
         body="HESTIA's view of your business — built from real manager activity, not estimates."
       />
+
+      <WhatHestiaLearned />
 
       {/* ── 1. Owner Brief ──────────────────────────────────────────────────── */}
       <Card className="mb-6">

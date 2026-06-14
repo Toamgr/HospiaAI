@@ -14,10 +14,6 @@ const QUICK_ACTIONS = [
     message: "I want to run the financials on my cocktail program. Can you walk me through pour cost, GP, and where the biggest margin opportunities are?"
   },
   {
-    label: '⚡ 5PM Emergency',
-    message: "Service starts in under an hour and I need fast decisions. Walk me through the most important things to check and lock down right now."
-  },
-  {
     label: 'Trend briefing',
     message: "Give me a trend briefing relevant to the Israeli bar market — what's gaining traction, what's fading, and what I should be testing right now."
   }
@@ -73,6 +69,7 @@ export function BeverageDirector({ dna, onSendMessage, ciMenus, onLoadMenu }) {
   const [loading, setLoading]           = useState(false)
   const [error, setError]               = useState(null)
   const [apiHistory, setApiHistory]     = useState([])
+  const [venueContextActive, setVenueContextActive] = useState(false)
 
   // Menu context state
   const [selectedMenu, setSelectedMenu]     = useState(null)
@@ -125,7 +122,10 @@ export function BeverageDirector({ dna, onSendMessage, ciMenus, onLoadMenu }) {
     setError(null)
 
     try {
-      const reply = await onSendMessage(trimmed, apiHistory, menuCocktailsRef.current)
+      const res = await onSendMessage(trimmed, apiHistory, menuCocktailsRef.current)
+      // Back-compatible: onSendMessage may return a string or { reply, venueContextActive }
+      const reply = typeof res === 'string' ? res : (res?.reply || '')
+      if (res && typeof res === 'object' && res.venueContextActive) setVenueContextActive(true)
       setMessages(prev => [...prev, { role: 'model', content: reply }])
       setApiHistory(prev => [...prev, { role: 'user', content: trimmed }, { role: 'model', content: reply }])
     } catch {
@@ -163,6 +163,11 @@ export function BeverageDirector({ dna, onSendMessage, ciMenus, onLoadMenu }) {
           {dna.is_kosher && dna.is_kosher !== 'no' && (
             <span className="rounded-full border border-amber-500/20 bg-amber-500/5 px-2 py-0.5 text-amber-400">
               Kosher-aware
+            </span>
+          )}
+          {venueContextActive && (
+            <span className="ml-auto rounded-full border border-[#c9a96e]/30 bg-[#c9a96e]/5 px-2 py-0.5 text-[10px] text-[#c9a96e]/80">
+              Personalized by Venue DNA
             </span>
           )}
         </div>

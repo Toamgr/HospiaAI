@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { Card, Button, Label, Header, Progress } from '../../components/AppPrimitives'
 import { getVisibleAcademies, getUserLessonProgress, isLessonComplete, isLessonUnlocked, countCompletedLessons, countUniversityLessons } from '../../utils/academy'
 import { resolveInstructorPersona } from './services/academyInstructorPersonaResolver'
+import RecommendedForVenue from './RecommendedForVenue'
 
 export default function Courses({ t, currentUser, academyProgress = {}, onOpenLesson }) {
   const academies = useMemo(() => {
@@ -35,6 +36,8 @@ export default function Courses({ t, currentUser, academyProgress = {}, onOpenLe
           </div>
         </div>
       </Card>
+
+      <RecommendedForVenue onOpenLesson={onOpenLesson} />
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {academies.map(academy => {

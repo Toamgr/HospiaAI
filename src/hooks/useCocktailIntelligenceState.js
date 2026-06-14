@@ -147,7 +147,10 @@ export function useCocktailIntelligenceState({ currentUser } = {}) {
 
   const sendDirectorMessage = useCallback(async (message, history, menuCocktails = []) => {
     const res = await chatWithDirector(message, history, menuCocktails)
-    return res?.reply || ''
+    // Returns the reply plus whether Venue Intelligence context was injected
+    // (Phase 3 — Omer reads the Venue Bridge F&B brief). Back-compatible: callers
+    // that only read `.reply` are unaffected.
+    return { reply: res?.reply || '', venueContextActive: Boolean(res?.venueContextActive) }
   }, [])
 
   const loadMenuDetail = useCallback(async (id) => {
