@@ -11,3 +11,5 @@ dist
 server.err
 server.out
 .claude/
+.agents/
+skills-lock.json
