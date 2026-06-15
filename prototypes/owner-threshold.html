@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HESTIA — The Threshold (prototype · ember-dark editorial)</title>
+<!--
+PROTOTYPE ONLY — NOT PRODUCTION UI.
+This file contains hardcoded fictional/demo venue signals, venue names, faculties, and operational observations.
+Do not treat any content here as real Venue Memory, Venue DNA, operational intelligence, event intelligence, urgency, or role-safe data.
+Do not integrate this directly into production. Any production Owner Entry work must use real venue data, provenance, confidence, role access, venue boundaries, and human approval guardrails.
+-->
+<!--
+  THROWAWAY PROTOTYPE — redesign per approved audit. Not wired.
+  HESTIA = the consciousness of a living hospitality business.
+  Register: ember-dark, warm, editorial. NO particles, NO connecting lines,
+  NO galaxy/neural/sci-fi. The six faculties (Memory, Events, Service,
+  Academy, Beverage, Operations) exist as named warm presences BEFORE the
+  owner arrives. On recognition they QUIET and DEFER as one awareness
+  gathers; the goddess is DISCOVERED in firelight (not drawn). It does not
+  open — it turns toward you. Placeholder emblem = real artwork later.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700;900&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        #0a0806;
+    --gold:      #C9A96E;
+    --gold-pale: #E8D5A8;
+    --gold-deep: #8B6F3E;
+    --gold-mute: #8B7355;
+    --text:      #F5F0E8;
+    --ease:      cubic-bezier(0.22, 0.08, 0.2, 1);   /* slow, confident, expensive */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: #060504; color: var(--text); font-family: 'DM Sans', system-ui, sans-serif; overflow: hidden; -webkit-font-smoothing: antialiased; }
+  .stage { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: default; }
+
+  /* ── L0 — warm depth (embers before dawn, not a void, not space) ── */
+  .env-base {
+    position: absolute; inset: -6%; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 49%, rgba(78,54,26,0.42) 0%, rgba(28,19,11,0.10) 44%, rgba(0,0,0,0) 66%),
+      radial-gradient(circle at 50% 52%, rgba(18,12,8,0.5) 0%, rgba(6,5,4,0.94) 80%),
+      #060504;
+    transition: filter 1200ms var(--ease);
+  }
+  .stage.hearth-lit .env-base { filter: brightness(1.14) saturate(1.06); }
+
+  /* ── Engraved laurel of the mark, dissolving into the dark (the world is of the logo's hand) ── */
+  .laurel { position: absolute; z-index: 1; pointer-events: none; opacity: 0.10; filter: blur(0.4px); transition: opacity 1600ms var(--ease); }
+  .stage.awake .laurel { opacity: 0.16; }
+  .laurel svg { width: 320px; height: 320px; }
+  .laurel.tl { top: -64px; left: -64px; transform: rotate(0deg); }
+  .laurel.br { bottom: -64px; right: -64px; transform: rotate(180deg); }
+  .laurel path, .laurel ellipse { stroke: var(--gold-deep); fill: none; stroke-width: 1; }
+  .laurel ellipse { fill: var(--gold-deep); stroke: none; opacity: 0.5; }
+
+  /* ── The faculties — living professional intelligences, not modules ── */
+  .faculties { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+  .faculty {
+    position: absolute; transform: translateY(-50%); max-width: 240px;
+    opacity: 0.55; transition: opacity 1700ms var(--ease);
+  }
+  .faculty.l { text-align: left; }
+  .faculty.r { text-align: right; }
+  .stage.awake .faculty { opacity: 0.16; }            /* the room quiets & defers as you enter */
+  .faculty .glow {
+    position: absolute; top: 50%; width: 170px; height: 170px; transform: translateY(-50%);
+    background: radial-gradient(circle at center, rgba(201,169,110,0.13) 0%, rgba(150,104,52,0.05) 40%, transparent 66%);
+    animation: facultyBreathe var(--b) ease-in-out var(--bd) infinite; will-change: opacity, transform;
+  }
+  .faculty.l .glow { left: -34px; }
+  .faculty.r .glow { right: -34px; }
+  .faculty .name {
+    position: relative; font-family: 'Fraunces', serif; font-weight: 600;
+    font-size: 1.02rem; color: rgba(245,240,232,0.85); white-space: nowrap;
+  }
+  .faculty .role {
+    position: relative; font-family: 'DM Sans'; font-weight: 500; font-size: 0.58rem;
+    letter-spacing: 0.16em; text-transform: lowercase; color: var(--gold-mute); margin-top: 3px;
+  }
+  .faculty .thought {
+    position: relative; font-family: 'Fraunces', serif; font-style: italic;
+    font-size: 0.84rem; line-height: 1.45; color: rgba(201,169,110,0.9); max-width: 230px;
+    margin-top: 8px; opacity: 0; transition: opacity 1100ms var(--ease);
+  }
+  .faculty.r .thought { margin-left: auto; }
+  .faculty .thought.show { opacity: 0.85; }
+  .stage.awake .thought { opacity: 0 !important; }                 /* the murmur stills */
+  .stage.awake .faculty .name { animation: lookUp 800ms var(--ease) var(--d, 0ms); } /* it looks up */
+  @keyframes facultyBreathe {
+    0%,100% { opacity: 0.55; transform: translateY(-50%) scale(0.97); }
+    50%     { opacity: 0.9;  transform: translateY(-50%) scale(1.05); }
+  }
+  @keyframes lookUp { 0% { filter: brightness(1); } 28% { filter: brightness(1.9); } 100% { filter: brightness(1); } }
+
+  /* ── The warm core — the awareness itself, candlelit ── */
+  .core {
+    position: absolute; left: 50%; top: 50%; z-index: 3; pointer-events: none;
+    width: 66vmin; height: 66vmin; transform: translate(-50%,-50%);
+    background: radial-gradient(circle at center, rgba(201,169,110,0.16) 0%, rgba(170,128,64,0.06) 32%, transparent 60%);
+    opacity: 0.3; animation: candle 6s ease-in-out infinite; transition: opacity 1200ms var(--ease);
+  }
+  .stage.sensing .core { opacity: 0.5; }
+  .stage.awake .core { opacity: 0.72; }
+  @keyframes candle {
+    0%,100% { transform: translate(-50%,-50%) scale(1);      opacity: 0.5; }
+    40%     { transform: translate(-50%,-50.3%) scale(1.025); opacity: 0.66; }
+    70%     { transform: translate(-50.2%,-49.9%) scale(0.99); opacity: 0.46; }
+  }
+
+  /* firelight that DISCOVERS the goddess (blooms onto her as awareness turns) */
+  .discover {
+    position: absolute; left: 50%; top: 50%; z-index: 3; pointer-events: none;
+    width: 60vmin; height: 60vmin; transform: translate(-50%,-50%) scale(0.86);
+    background: radial-gradient(circle at center, rgba(232,213,168,0.34) 0%, rgba(201,169,110,0.14) 34%, transparent 62%);
+    opacity: 0; transition: opacity 1700ms var(--ease), transform 1900ms var(--ease);
+  }
+  .stage.awake .discover { opacity: 0.85; transform: translate(-50%,-50%) scale(1); }
+
+  /* hearth flood when a new awareness kindles (Opening) */
+  .hearth {
+    position: absolute; top: 50%; left: 50%; z-index: 3; pointer-events: none;
+    width: 150vmax; height: 150vmax; transform: translate(-50%,-50%) scale(0.7);
+    background: radial-gradient(circle at center, rgba(232,213,168,0.48) 0%, rgba(201,169,110,0.3) 16%, rgba(150,104,52,0.12) 34%, transparent 60%);
+    opacity: 0; transition: opacity 800ms var(--ease), transform 1200ms var(--ease);
+  }
+  .stage.hearth-lit .hearth { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+
+  /* ── The emblem — the integrating self, DISCOVERED not drawn ── */
+  .emblem {
+    position: relative; z-index: 5; width: min(44vh, 76vw); aspect-ratio: 1;
+    opacity: 0.16; filter: brightness(0.5);
+    transition: opacity 1800ms var(--ease), filter 1800ms var(--ease), transform 700ms var(--ease), width 600ms var(--ease);
+  }
+  .stage.awake .emblem { opacity: 1; filter: brightness(1.05); }
+  .emblem svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .ring path, .ring circle { fill: none; stroke: url(#gild); stroke-width: 1.4; filter: drop-shadow(0 0 5px rgba(201,169,110,0.35)); }
+  .leaf { fill: var(--gold-pale); opacity: 0.82; }
+  .figure { opacity: 0.92; transform-origin: 200px 230px; }
+  .figure path, .figure circle, .figure line { stroke: url(#gild); fill: none; stroke-width: 1.5; }
+  .figure .robe { fill: rgba(201,169,110,0.12); }
+  .half { transition: transform 700ms var(--ease), opacity 700ms var(--ease); }
+  .stage.split .half-left  { transform: translateX(-46%); opacity: 0.10; }
+  .stage.split .half-right { transform: translateX(46%);  opacity: 0.10; }
+  .stage.split .figure { opacity: 0.30; transform: translate(34%,-2%) scale(0.96); transition: transform 800ms var(--ease), opacity 800ms var(--ease); }
+
+  /* ── Wordmark · subtitle · thresholds ── */
+  .wordmark {
+    position: relative; z-index: 5; font-family: 'Playfair Display', serif; font-weight: 700;
+    letter-spacing: 0.42em; font-size: clamp(1.6rem, 4vw, 2.6rem); color: var(--text);
+    margin-top: 26px; padding-left: 0.42em; text-shadow: 0 2px 30px rgba(201,169,110,0.22);
+    opacity: 0; transform: translateY(12px); transition: opacity 900ms var(--ease), transform 900ms var(--ease);
+  }
+  .stage.named .wordmark, .stage.received .wordmark, .stage.threshold .wordmark { opacity: 1; transform: translateY(0); }
+  .stage.split .wordmark, .stage.asking .wordmark { opacity: 0; transform: translateY(-8px); }
+  .rule { width: 0; height: 1px; background: var(--gold-mute); margin: 14px auto 0; opacity: 0; transition: width 800ms var(--ease) 160ms, opacity 800ms var(--ease) 160ms; }
+  .stage.named .rule, .stage.received .rule, .stage.threshold .rule { width: 64px; opacity: 0.55; }
+  .stage.split .rule, .stage.asking .rule { opacity: 0; }
+
+  .subtitle {
+    position: relative; z-index: 5; font-family: 'Playfair Display', serif; font-weight: 500; font-style: italic;
+    font-size: clamp(1.05rem, 2.4vw, 1.5rem); letter-spacing: 0.04em; color: var(--text); margin-top: 28px;
+    text-shadow: 0 2px 24px rgba(0,0,0,0.6); opacity: 0; transform: translateY(10px);
+    transition: opacity 1000ms var(--ease), transform 1000ms var(--ease);
+  }
+  .stage.received .subtitle, .stage.threshold .subtitle { opacity: 0.9; transform: translateY(0); }
+  .stage.split .subtitle, .stage.asking .subtitle, .stage.venues .subtitle { opacity: 0; }
+
+  .thresholds { position: relative; z-index: 5; display: flex; gap: clamp(30px,7vw,96px); margin-top: 40px; opacity: 0; pointer-events: none; }
+  .stage.threshold .thresholds { opacity: 1; pointer-events: auto; }
+  .stage.split .thresholds, .stage.asking .thresholds { opacity: 0; pointer-events: none; transition: opacity 260ms var(--ease); }
+  .path { background: none; border: none; color: inherit; cursor: pointer; padding: 24px 14px; min-width: 210px;
+    display: flex; flex-direction: column; align-items: center; gap: 11px; opacity: 0; transform: translateY(12px);
+    transition: opacity 800ms var(--ease), transform 800ms var(--ease); }
+  .stage.threshold .path { opacity: 1; transform: translateY(0); }
+  .stage.threshold .path:nth-child(2) { transition-delay: 120ms; }
+  .path .hairline { width: 230px; height: 1px; background: var(--gold-mute); opacity: 0.35; transition: width 360ms var(--ease), background 360ms var(--ease), opacity 360ms var(--ease); }
+  .path:hover .hairline { width: 270px; background: var(--gold); opacity: 0.85; box-shadow: 0 0 12px rgba(201,169,110,0.4); }
+  .path .eyebrow { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--text); font-weight: 500; }
+  .path .sub { font-family: 'Fraunces', serif; font-style: italic; font-size: 0.95rem; color: var(--gold-mute); }
+  .path.primary:hover .eyebrow { color: var(--gold-pale); }
+
+  .session { position: absolute; z-index: 5; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 0 8vw; opacity: 0; pointer-events: none; transition: opacity 700ms var(--ease); }
+  .stage.asking .session { opacity: 1; pointer-events: auto; }
+  .question { font-family: 'Playfair Display', serif; font-weight: 500; font-size: clamp(1.4rem,3.4vw,2.3rem); line-height: 1.3; max-width: 18ch; color: var(--text); text-shadow: 0 2px 40px rgba(0,0,0,0.7); transform: translateY(12px); transition: transform 700ms var(--ease) 140ms; }
+  .stage.asking .question { transform: translateY(0); }
+  .answer { width: min(560px,84vw); display: flex; gap: 10px; align-items: flex-end; opacity: 0; transition: opacity 700ms var(--ease) 360ms; }
+  .stage.asking .answer { opacity: 1; }
+  .answer textarea { flex: 1; resize: none; background: rgba(20,16,10,0.7); border: 1px solid #2A2A2A; border-radius: 6px; color: var(--text); font-family: 'DM Sans'; font-size: 0.95rem; padding: 12px 14px; outline: none; min-height: 58px; backdrop-filter: blur(4px); transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease); }
+  .answer textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,169,110,0.12); }
+  .answer textarea::placeholder { color: #5A5045; }
+  .answer button { align-self: stretch; padding: 0 22px; border-radius: 6px; background: rgba(201,169,110,0.12); color: var(--gold-pale); border: 1px solid rgba(201,169,110,0.35); font-family: 'DM Sans'; font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: background 150ms var(--ease); }
+  .answer button:hover { background: rgba(201,169,110,0.22); }
+  .session .note { font-size: 0.62rem; color: #6A5F50; letter-spacing: 0.04em; }
+
+  .register { position: absolute; z-index: 5; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; opacity: 0; pointer-events: none; transition: opacity 600ms var(--ease); }
+  .stage.venues .register { opacity: 1; pointer-events: auto; }
+  .stage.venues .emblem { width: min(18vh,28vw); transform: translateY(-5vh); opacity: 0.5; filter: brightness(1); }
+  .register h2 { font-family: 'DM Sans'; font-weight: 500; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.22em; color: var(--gold-mute); margin-bottom: 18px; }
+  .plate { cursor: pointer; padding: 16px 26px; min-width: min(420px,84vw); border-bottom: 1px solid rgba(120,95,55,0.18); text-align: left; transition: background 200ms var(--ease); }
+  .plate:hover { background: rgba(201,169,110,0.05); }
+  .plate .name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.25rem; color: var(--text); }
+  .plate .state { font-family: 'Fraunces', serif; font-style: italic; font-size: 0.9rem; color: var(--gold-mute); margin-top: 3px; }
+
+  .vignette { position: fixed; inset: 0; z-index: 7; pointer-events: none; background: radial-gradient(ellipse 82% 74% at 50% 49%, transparent 32%, rgba(0,0,0,0.46) 78%, rgba(0,0,0,0.78) 100%); }
+  .grain { position: fixed; inset: -50%; z-index: 8; pointer-events: none; width: 200%; height: 200%; opacity: 0.045; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); animation: grainShift 0.8s steps(3) infinite; }
+  @keyframes grainShift { 0%{transform:translate(0,0)} 33%{transform:translate(-3%,2%)} 66%{transform:translate(2%,-2%)} 100%{transform:translate(0,0)} }
+
+  .controls { position: fixed; bottom: 16px; right: 18px; z-index: 9; display: flex; gap: 14px; align-items: center; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.16em; color: #3A3A3A; }
+  .controls button { background: none; border: none; color: var(--gold-mute); cursor: pointer; font: inherit; letter-spacing: inherit; opacity: 0.6; transition: opacity 150ms; }
+  .controls button:hover { opacity: 1; color: var(--gold); }
+  .controls .tag { opacity: 0.5; }
+  .back { position: fixed; top: 22px; left: 24px; z-index: 9; background: none; border: none; color: var(--gold-mute); cursor: pointer; font-family: 'DM Sans'; font-size: 0.72rem; letter-spacing: 0.06em; opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease); }
+  .stage.venues .back, .stage.asking .back { opacity: 0.7; pointer-events: auto; }
+  .back:hover { color: var(--gold); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .faculty .glow, .core, .grain { animation: none !important; }
+    * { transition-duration: 260ms !important; }
+  }
+  @media (max-width: 720px) {
+    .faculty { max-width: 170px; }
+    .faculty .name { font-size: 0.92rem; }
+    .faculty .thought { font-size: 0.74rem; }
+    .faculty .glow { width: 120px; height: 120px; }
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <div class="env-base"></div>
+
+  <div class="laurel tl">
+    <svg viewBox="0 0 200 200" aria-hidden="true">
+      <path d="M30,170 C70,150 110,110 150,40"/>
+      <ellipse cx="58" cy="150" rx="9" ry="3.4" transform="rotate(-40 58 150)"/>
+      <ellipse cx="74" cy="135" rx="9" ry="3.4" transform="rotate(-46 74 135)"/>
+      <ellipse cx="92" cy="116" rx="9" ry="3.4" transform="rotate(-52 92 116)"/>
+      <ellipse cx="110" cy="94" rx="9" ry="3.4" transform="rotate(-58 110 94)"/>
+      <ellipse cx="126" cy="72" rx="8" ry="3.2" transform="rotate(-62 126 72)"/>
+      <ellipse cx="140" cy="52" rx="7" ry="3" transform="rotate(-66 140 52)"/>
+    </svg>
+  </div>
+  <div class="laurel br">
+    <svg viewBox="0 0 200 200" aria-hidden="true">
+      <path d="M30,170 C70,150 110,110 150,40"/>
+      <ellipse cx="58" cy="150" rx="9" ry="3.4" transform="rotate(-40 58 150)"/>
+      <ellipse cx="74" cy="135" rx="9" ry="3.4" transform="rotate(-46 74 135)"/>
+      <ellipse cx="92" cy="116" rx="9" ry="3.4" transform="rotate(-52 92 116)"/>
+      <ellipse cx="110" cy="94" rx="9" ry="3.4" transform="rotate(-58 110 94)"/>
+      <ellipse cx="126" cy="72" rx="8" ry="3.2" transform="rotate(-62 126 72)"/>
+      <ellipse cx="140" cy="52" rx="7" ry="3" transform="rotate(-66 140 52)"/>
+    </svg>
+  </div>
+
+  <!-- The faculties — professional intelligences, awake before the owner arrives.
+       Named where a persona exists (Omer, Zohar); dignified roles otherwise.
+       Each carries a line of its own current attention — overheard, not declaimed. -->
+  <div class="faculties">
+    <div class="faculty l" style="left:8vw; top:31%; --d:0ms;">
+      <div class="glow" style="--b:6.5s; --bd:-0.4s;"></div>
+      <div class="name">Omer</div><div class="role">beverage</div>
+      <div class="thought">&ldquo;Citrus is moving in the evenings &mdash; I&rsquo;d push it Thursday.&rdquo;</div>
+    </div>
+    <div class="faculty l" style="left:6vw; top:50%; --d:180ms;">
+      <div class="glow" style="--b:6.8s; --bd:-3.4s;"></div>
+      <div class="name">the keeper</div><div class="role">memory</div>
+      <div class="thought">&ldquo;A regular has gone quiet &mdash; three weeks now.&rdquo;</div>
+    </div>
+    <div class="faculty l" style="left:11vw; top:71%; --d:360ms;">
+      <div class="glow" style="--b:7.3s; --bd:-1.7s;"></div>
+      <div class="name">the floor</div><div class="role">service</div>
+      <div class="thought">&ldquo;Pacing slipped after nine on Saturday.&rdquo;</div>
+    </div>
+    <div class="faculty r" style="right:8vw; top:25%; --d:90ms;">
+      <div class="glow" style="--b:7.2s; --bd:-2.1s;"></div>
+      <div class="name">Zohar</div><div class="role">events</div>
+      <div class="thought">&ldquo;Two events this week. Friday is the one to watch.&rdquo;</div>
+    </div>
+    <div class="faculty r" style="right:6vw; top:50%; --d:270ms;">
+      <div class="glow" style="--b:6.3s; --bd:-4.6s;"></div>
+      <div class="name">the academy</div><div class="role">capability</div>
+      <div class="thought">&ldquo;The new bartenders aren&rsquo;t selling the premium list yet.&rdquo;</div>
+    </div>
+    <div class="faculty r" style="right:11vw; top:72%; --d:450ms;">
+      <div class="glow" style="--b:7.0s; --bd:-0.9s;"></div>
+      <div class="name">the watch</div><div class="role">operations</div>
+      <div class="thought">&ldquo;Friday&rsquo;s bar team is one short.&rdquo;</div>
+    </div>
+  </div>
+
+  <div class="core"></div>
+  <div class="discover"></div>
+  <div class="hearth"></div>
+
+  <button class="back" id="back">&larr; Step back</button>
+
+  <!-- EMBLEM — discovered in firelight (placeholder engraving) -->
+  <div class="emblem" id="emblem">
+    <svg viewBox="0 0 400 400" aria-label="HESTIA emblem (placeholder)">
+      <defs><linearGradient id="gild" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8D5A8"/><stop offset="0.5" stop-color="#C9A96E"/><stop offset="1" stop-color="#8B6F3E"/></linearGradient></defs>
+      <g class="half half-left">
+        <g class="ring"><path d="M200,40 A160,160 0 0 0 200,360"/><path d="M200,54 A146,146 0 0 0 200,346"/></g>
+        <g class="leaves">
+          <ellipse class="leaf" cx="52" cy="170" rx="8" ry="3.2" transform="rotate(-58 52 170)"/>
+          <ellipse class="leaf" cx="44" cy="200" rx="9" ry="3.4" transform="rotate(-78 44 200)"/>
+          <ellipse class="leaf" cx="52" cy="230" rx="8" ry="3.2" transform="rotate(-104 52 230)"/>
+          <ellipse class="leaf" cx="72" cy="262" rx="7.5" ry="3" transform="rotate(-128 72 262)"/>
+          <ellipse class="leaf" cx="74" cy="140" rx="7.5" ry="3" transform="rotate(-36 74 140)"/>
+        </g>
+      </g>
+      <g class="half half-right">
+        <g class="ring"><path d="M200,40 A160,160 0 0 1 200,360"/><path d="M200,54 A146,146 0 0 1 200,346"/></g>
+        <g class="leaves">
+          <ellipse class="leaf" cx="348" cy="170" rx="8" ry="3.2" transform="rotate(58 348 170)"/>
+          <ellipse class="leaf" cx="356" cy="200" rx="9" ry="3.4" transform="rotate(78 356 200)"/>
+          <ellipse class="leaf" cx="348" cy="230" rx="8" ry="3.2" transform="rotate(104 348 230)"/>
+          <ellipse class="leaf" cx="328" cy="262" rx="7.5" ry="3" transform="rotate(128 328 262)"/>
+          <ellipse class="leaf" cx="326" cy="140" rx="7.5" ry="3" transform="rotate(36 326 140)"/>
+        </g>
+      </g>
+      <g class="figure">
+        <circle cx="196" cy="120" r="13"/>
+        <path class="robe" d="M196,134 C176,140 170,160 168,196 C166,228 160,262 150,292 L246,292 C236,262 230,228 228,196 C226,162 220,142 200,135 Z"/>
+        <path d="M212,150 C236,140 250,120 256,104"/><path d="M246,98 l20,0 l-10,14 Z"/>
+        <line x1="256" y1="112" x2="256" y2="124"/><line x1="248" y1="124" x2="264" y2="124"/>
+        <path d="M182,152 C166,158 156,168 150,178"/><line x1="138" y1="180" x2="174" y2="180"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="wordmark">HESTIA<div class="rule"></div></div>
+  <div class="subtitle" id="subtitle">Every house begins with a fire.</div>
+
+  <div class="thresholds">
+    <button class="path" id="pVenues"><span class="eyebrow">Existing Venue</span><span class="sub">Return to a kept fire</span><span class="hairline"></span></button>
+    <button class="path primary" id="pNew"><span class="eyebrow">New Venue</span><span class="sub">Light a new hearth</span><span class="hairline"></span></button>
+  </div>
+
+  <div class="register">
+    <h2>The houses already awake</h2>
+    <div class="plate"><div class="name">Beit Ramona</div><div class="state">Quiet midweek; Saturday already heavy.</div></div>
+    <div class="plate"><div class="name">The Conservatory</div><div class="state">Two events this week; bar team thin on Friday.</div></div>
+    <div class="plate"><div class="name">Olea</div><div class="state">A regular has gone quiet — three weeks past his pattern.</div></div>
+  </div>
+
+  <div class="session">
+    <div class="question">Tell me about the place &mdash; what made you open it?</div>
+    <div class="answer"><textarea placeholder="Speak to HESTIA the way you'd tell a colleague&hellip;"></textarea><button>Begin</button></div>
+    <div class="note">The Venue Learning conversation begins here. (Prototype — not wired.)</div>
+  </div>
+</div>
+
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<div class="controls"><span class="tag">Prototype · ember-dark editorial</span><button id="replay">&#8635; Replay</button></div>
+
+<script>
+  const stage = document.getElementById('stage');
+  const subtitle = document.getElementById('subtitle');
+  const timers = [];
+  const clearTimers = () => { while (timers.length) clearTimeout(timers.pop()); };
+  const after = (ms, fn) => timers.push(setTimeout(fn, ms));
+
+  // The murmur: faculties surface one thought at a time, overheard before you enter.
+  const thoughts = Array.from(document.querySelectorAll('.thought'));
+  const order = [0, 3, 1, 4, 2, 5];   // organic, alternating sides — not top-to-bottom
+  let oi = 0, murmurTimer = null;
+  function showNextThought() {
+    thoughts.forEach(t => t.classList.remove('show'));
+    thoughts[order[oi % order.length]]?.classList.add('show');
+    oi++;
+  }
+  function startMurmur() { oi = 0; showNextThought(); murmurTimer = setInterval(showNextThought, 2900); }
+  function stopMurmur() { clearInterval(murmurTimer); murmurTimer = null; thoughts.forEach(t => t.classList.remove('show')); }
+
+  // Recognition sequence: awake → senses you → turns toward (discovers) → receives → offers threshold
+  function ignite(firstEver = true) {
+    clearTimers(); stopMurmur();
+    stage.className = 'stage';                                   // already awake: faculties at work, goddess in shadow
+    subtitle.textContent = firstEver ? 'Every house begins with a fire.' : 'Welcome back — your house has been awake.';
+    startMurmur();                                               // overhear the room thinking
+    requestAnimationFrame(() => {
+      after(1000, () => stage.classList.add('sensing'));         // it senses you
+      after(1400, () => { stage.classList.add('awake'); stopMurmur(); }); // it turns toward you; the room quiets
+      after(2900, () => stage.classList.add('named'));
+      after(3500, () => stage.classList.add('received'));        // it receives you (one line)
+      after(4300, () => stage.classList.add('threshold'));       // it offers the crossing
+    });
+  }
+  function openVenue() {
+    clearTimers();
+    stage.classList.remove('threshold');
+    after(300,  () => stage.classList.add('split'));             // the self parts
+    after(680,  () => stage.classList.add('hearth-lit'));        // a new awareness kindles
+    after(1140, () => stage.classList.add('asking'));
+  }
+  function showVenues() { stage.classList.remove('threshold'); stage.classList.add('venues'); }
+  function back() { stage.classList.remove('venues','asking','split','hearth-lit'); stage.classList.add('threshold'); }
+
+  document.getElementById('pNew').addEventListener('click', openVenue);
+  document.getElementById('pVenues').addEventListener('click', showVenues);
+  document.getElementById('back').addEventListener('click', back);
+  document.getElementById('replay').addEventListener('click', () => ignite(true));
+
+  ignite(true);
+</script>
+</body>
+</html>
