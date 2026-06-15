@@ -170,7 +170,7 @@ function UnderstandingPanel({ venueDNA, stage, objective, focusSuggestions, onPi
           {/* Summary */}
           {venueDNA.summary && (
             <div>
-              <div className="mb-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-[#6b705c]">In a sentence</div>
+              <div className="mb-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-[#6b705c]">Working understanding</div>
               <p className="text-[12.5px] leading-relaxed text-[#e8dcc0]/85">{venueDNA.summary}</p>
             </div>
           )}
@@ -190,6 +190,9 @@ function UnderstandingPanel({ venueDNA, stage, objective, focusSuggestions, onPi
 
           {/* Detected signals */}
           <div className="space-y-3">
+            <p className="rounded-lg border border-[#6b705c]/10 bg-[#101010]/35 px-3 py-2 text-[11px] leading-relaxed text-[#e8dcc0]/55">
+              Signals are candidates until confirmed or supported by evidence.
+            </p>
             {SIGNAL_GROUPS.map(g => (
               <SignalSection key={g.key} label={g.label} items={venueDNA[g.key]} />
             ))}
@@ -283,7 +286,7 @@ export default function VenueIntelligence({ venueIntelligence }) {
           <h1 className="mt-2 font-serif text-3xl font-black leading-tight text-[#f5f5f0]">The Venue Learning Session</h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#e8dcc0]/60">
             A working conversation that teaches HESTIA your venue — its character, its pressures, and where
-            intelligence will earn its place. Everything said here builds your Venue DNA.
+            intelligence will earn its place. Together, it can create Venue DNA candidates, open questions, and memory signals.
           </p>
         </div>
         {!isEmpty && (
