@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HESTIA Intelligence Flow External Source Lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f5f1e8;
+      --muted: rgba(245, 241, 232, 0.66);
+      --soft: rgba(245, 241, 232, 0.46);
+      --line: rgba(245, 241, 232, 0.12);
+      --line-strong: rgba(201, 169, 110, 0.32);
+      --gold: #c9a96e;
+      --gold-soft: rgba(201, 169, 110, 0.14);
+      --bg: #0b0b08;
+      --panel: #15130d;
+      --panel-2: #11110d;
+      --panel-3: #1b1810;
+      --sage: #8fb9aa;
+      --blue: #9bb7e8;
+      --coral: #d68b78;
+      --shadow: 0 28px 90px rgba(0, 0, 0, 0.34);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(201, 169, 110, 0.14), transparent 34rem),
+        linear-gradient(135deg, #0b0b08 0%, #11100b 52%, #090907 100%);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, textarea { font: inherit; }
+
+    .shell {
+      width: min(1680px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 24px 0 32px;
+    }
+
+    .warning {
+      border: 1px solid rgba(214, 139, 120, 0.42);
+      background: linear-gradient(135deg, rgba(214, 139, 120, 0.14), rgba(21, 19, 13, 0.94));
+      border-radius: 8px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .warning strong {
+      display: block;
+      color: #ffd5cb;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .warning p {
+      margin: 8px 0 0;
+      color: rgba(245, 241, 232, 0.78);
+      line-height: 1.55;
+    }
+
+    header {
+      margin-top: 18px;
+      border: 1px solid var(--line-strong);
+      background: rgba(21, 19, 13, 0.9);
+      border-radius: 8px;
+      padding: clamp(22px, 4vw, 44px);
+    }
+
+    .eyebrow {
+      color: var(--gold);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 12px 0 0;
+      max-width: 980px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(34px, 5vw, 72px);
+      font-weight: 500;
+      letter-spacing: 0;
+      line-height: 0.96;
+    }
+
+    .lede {
+      max-width: 860px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: clamp(15px, 1.4vw, 18px);
+      line-height: 1.65;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 0.86fr) minmax(420px, 1.24fr) minmax(300px, 0.9fr);
+      gap: 18px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      background: rgba(21, 19, 13, 0.86);
+      border-radius: 8px;
+      padding: 18px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
+    }
+
+    .panel h2 {
+      margin: 8px 0 0;
+      font-size: 20px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    .small-note {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    label {
+      display: block;
+      margin-top: 18px;
+      color: rgba(245, 241, 232, 0.82);
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 245px;
+      margin-top: 10px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(8, 8, 6, 0.88);
+      color: var(--ink);
+      padding: 14px;
+      line-height: 1.6;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: rgba(201, 169, 110, 0.66);
+      box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.12);
+    }
+
+    .samples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .sample-button,
+    .run-button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel-2);
+      color: rgba(245, 241, 232, 0.72);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: 0.11em;
+      line-height: 1.2;
+      padding: 10px 12px;
+      text-transform: uppercase;
+    }
+
+    .sample-button:hover,
+    .sample-button:focus-visible {
+      border-color: rgba(201, 169, 110, 0.54);
+      color: #f7dfaa;
+      outline: none;
+    }
+
+    .sample-button.active {
+      border-color: rgba(201, 169, 110, 0.72);
+      background: var(--gold-soft);
+      color: #f7dfaa;
+    }
+
+    .run-button {
+      width: 100%;
+      margin-top: 16px;
+      border-color: rgba(201, 169, 110, 0.62);
+      background: linear-gradient(135deg, rgba(201, 169, 110, 0.22), rgba(201, 169, 110, 0.1));
+      color: #f7dfaa;
+    }
+
+    .run-button:hover,
+    .run-button:focus-visible {
+      border-color: rgba(245, 222, 179, 0.78);
+      outline: none;
+    }
+
+    .truth-strip {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .truth-strip div {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(8, 8, 6, 0.48);
+      padding: 12px;
+    }
+
+    .truth-strip b {
+      display: block;
+      color: var(--ink);
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .truth-strip span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 14px;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      background: rgba(21, 19, 13, 0.88);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .step-head {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .step-number {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      background: var(--gold-soft);
+      color: #f5deb3;
+      font-weight: 750;
+    }
+
+    .step h3 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 680;
+    }
+
+    .step p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.48;
+    }
+
+    .items {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .item,
+    .specialist-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(10, 10, 7, 0.6);
+      padding: 14px;
+    }
+
+    .item-top,
+    .specialist-top {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .item h4,
+    .specialist-card h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 720;
+      line-height: 1.3;
+    }
+
+    .category {
+      margin-top: 4px;
+      color: var(--soft);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .status {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 9px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      line-height: 1;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status.raw_input { border-color: rgba(201, 169, 110, 0.36); background: rgba(201, 169, 110, 0.12); color: #f5deb3; }
+    .status.candidate { border-color: rgba(201, 169, 110, 0.38); background: rgba(201, 169, 110, 0.12); color: #f5deb3; }
+    .status.inference { border-color: rgba(143, 185, 170, 0.38); background: rgba(143, 185, 170, 0.12); color: #c5efe0; }
+    .status.open_question { border-color: rgba(155, 183, 232, 0.38); background: rgba(155, 183, 232, 0.12); color: #d6e5ff; }
+    .status.insufficient_signal { border-color: rgba(245, 241, 232, 0.16); background: rgba(245, 241, 232, 0.06); color: #bbb5a8; }
+    .status.preview_only { border-color: rgba(201, 169, 110, 0.38); background: rgba(201, 169, 110, 0.12); color: #f5deb3; }
+    .status.requires_human_approval { border-color: rgba(214, 139, 120, 0.44); background: rgba(214, 139, 120, 0.14); color: #ffd5cb; }
+
+    dl {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin: 14px 0 0;
+    }
+
+    dt {
+      color: rgba(201, 169, 110, 0.74);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    dd {
+      margin: 4px 0 0;
+      color: rgba(245, 241, 232, 0.76);
+      font-size: 13px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .specialists {
+      display: grid;
+      gap: 12px;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(21, 19, 13, 0.78);
+      padding: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    @media (max-width: 1180px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .specialists {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        width: min(100vw - 20px, 1680px);
+        padding-top: 10px;
+      }
+
+      header,
+      .panel,
+      .warning,
+      .step {
+        padding: 14px;
+      }
+
+      dl,
+      .specialists {
+        grid-template-columns: 1fr;
+      }
+
+      .item-top,
+      .specialist-top {
+        flex-direction: column;
+      }
+
+      .status {
+        white-space: normal;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="warning" aria-label="Prototype safety warning">
+      <strong>EXTERNAL SOURCE PROTOTYPE — NOT PRODUCTION UI.</strong>
+      <p>This page does not write to Venue Memory, does not confirm Venue DNA, does not send handoffs, does not create tasks, and does not represent real operational truth. It is a visual simulation of how HESTIA could classify and route external hospitality input.</p>
+    </section>
+
+    <header>
+      <div class="eyebrow">External source simulation</div>
+      <h1>HESTIA Intelligence Flow External Source Lab</h1>
+      <p class="lede">Paste or select an external hospitality source and see a working interpretation flow: raw source, extracted signals, claim classification, evidence state, Venue DNA candidates, open questions, specialist previews, and human approval boundaries.</p>
+    </header>
+
+    <main class="layout">
+      <section class="panel" aria-labelledby="input-title">
+        <div class="eyebrow">External Source Panel</div>
+        <h2 id="input-title">External Source Input</h2>
+        <p class="small-note">Simulation only — no data is written.</p>
+
+        <label for="source-input">Paste external hospitality source</label>
+        <textarea id="source-input" spellcheck="true"></textarea>
+
+        <div class="samples" aria-label="Sample external sources">
+          <button class="sample-button active" type="button" data-sample="founder">Founder / Owner Statement</button>
+          <button class="sample-button" type="button" data-sample="event">Event Manager Brief</button>
+          <button class="sample-button" type="button" data-sample="beverage">Beverage Concern</button>
+          <button class="sample-button" type="button" data-sample="service">Shift / Service Report</button>
+          <button class="sample-button" type="button" data-sample="academy">Academy / Training Observation</button>
+          <button class="sample-button" type="button" data-sample="reputation">Reputation / Market Signal</button>
+          <button class="sample-button" type="button" data-sample="twin">Digital Venue Twin Scenario</button>
+        </div>
+
+        <button class="run-button" type="button" id="run-button">Run HESTIA Interpretation</button>
+
+        <div class="truth-strip" aria-label="Prototype boundaries">
+          <div>
+            <b>Does not write to Venue Memory</b>
+            <span>No persistence, no localStorage, no backend call, no app import.</span>
+          </div>
+          <div>
+            <b>Candidate only</b>
+            <span>Venue DNA, operations, event, beverage, academy, and owner outputs remain previews.</span>
+          </div>
+          <div>
+            <b>Would require owner/admin confirmation</b>
+            <span>High-impact meaning cannot be accepted from this prototype.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="flow-title" aria-live="polite">
+        <div class="eyebrow">Live Interpretation Flow</div>
+        <h2 id="flow-title">Working understanding pipeline</h2>
+        <p class="small-note">Each step separates source, confidence, boundary, and human approval before any future implementation could act.</p>
+        <div class="timeline" id="timeline"></div>
+      </section>
+
+      <aside class="panel" aria-labelledby="specialist-title">
+        <div class="eyebrow">Specialist Impact Preview</div>
+        <h2 id="specialist-title">Connection points, not handoffs</h2>
+        <p class="small-note">Preview only. No recommendation, task, event handoff, or memory record is created.</p>
+        <div class="specialists" id="specialists"></div>
+      </aside>
+    </main>
+
+    <p class="footer-note">Prototype source only. Production work must pass HESTIA guardrails: provenance, confidence, role access, venue boundaries, human approval, and no fake intelligence.</p>
+  </div>
+
+  <script>
+    const STATUSES = {
+      rawInput: 'raw_input',
+      candidate: 'candidate',
+      inference: 'inference',
+      openQuestion: 'open_question',
+      insufficientSignal: 'insufficient_signal',
+      previewOnly: 'preview_only',
+      requiresHumanApproval: 'requires_human_approval',
+    };
+
+    const STATUS_LABELS = {
+      raw_input: 'Raw input',
+      candidate: 'Candidate only',
+      inference: 'Working understanding',
+      open_question: 'Open question',
+      insufficient_signal: 'Insufficient signal',
+      preview_only: 'Preview only',
+      requires_human_approval: 'Would require owner/admin confirmation',
+    };
+
+    const SAMPLES = {
+      founder: 'External source: owner interview notes. We want the venue to feel precise, warm, and never rushed. The promise is quiet confidence. Regular guests should be recognized with discretion, and every service choice should feel intentional rather than theatrical.',
+      event: 'External source: event manager brief. A corporate dinner for 54 guests requests a private room, premium but understated cocktails, and a tight arrival window. The manager is unsure whether the planned staffing can hold the first-drink pace.',
+      beverage: 'External source: beverage team note. The signature cocktail list expresses the venue well, but two drinks are slow to execute during peak service. Guests increasingly ask for lighter aperitif-style options before dinner.',
+      service: 'External source: shift report. Two tables mentioned a long gap between seating and first drink. The manager suspects the handoff from host to floor may be unclear, but there is not enough evidence to call this a pattern.',
+      academy: 'External source: training observation. New servers can describe menu items but hesitate when explaining wine pairings and premium cocktail positioning. Managers want coaching that matches the venue voice.',
+      reputation: 'External source: reputation and market note. Recent guest comments praise atmosphere and service tone, but several compare the bar program to nearby premium venues with more concise aperitif options. This may be positioning signal, not operational proof.',
+      twin: 'External source: digital venue twin scenario. If terrace demand rises during early evening, the current greeting-to-first-drink rhythm may strain service standards. This is a planning scenario only and would require evidence before any operational action.',
+    };
+
+    const SIGNAL_RULES = [
+      {
+        label: 'Founder intent and venue voice',
+        category: 'founder_intent',
+        keywords: ['promise', 'quiet confidence', 'regular', 'recognized', 'discretion', 'intentional', 'venue voice', 'precise'],
+        notes: 'Research-style owner intent candidate. Would require owner/admin confirmation before Venue DNA.',
+      },
+      {
+        label: 'Event execution pressure',
+        category: 'event_signal',
+        keywords: ['event', 'corporate', 'dinner', 'guests', 'private room', 'arrival', 'staffing', 'first-drink'],
+        notes: 'Zohar preview only. It does not send a handoff or change an event record.',
+      },
+      {
+        label: 'Beverage direction or menu concern',
+        category: 'beverage_signal',
+        keywords: ['beverage', 'cocktail', 'bar', 'aperitif', 'drinks', 'wine', 'pairing', 'menu'],
+        notes: 'Omer preview only. It does not change recipes, pricing, or menu strategy.',
+      },
+      {
+        label: 'Service pacing observation',
+        category: 'operational_observation_candidate',
+        keywords: ['shift report', 'gap', 'seating', 'first drink', 'handoff', 'host', 'floor', 'service standards'],
+        notes: 'Operational candidate only. One external source is not a pattern.',
+      },
+      {
+        label: 'Training or capability signal',
+        category: 'academy_signal',
+        keywords: ['training', 'servers', 'hesitate', 'coaching', 'explain', 'pairings', 'positioning'],
+        notes: 'Academy preview only. It does not label staff weakness.',
+      },
+      {
+        label: 'Reputation or market positioning signal',
+        category: 'reputation_market_signal',
+        keywords: ['guest comments', 'market', 'positioning', 'nearby', 'premium venues', 'praise', 'compare'],
+        notes: 'External reputation candidate only. It requires source review and role-safe handling.',
+      },
+      {
+        label: 'Digital venue twin planning scenario',
+        category: 'simulation_scenario',
+        keywords: ['digital venue twin', 'scenario', 'if', 'terrace', 'planning', 'would require evidence'],
+        notes: 'Scenario language only. It must not create fake business reality.',
+      },
+    ];
+
+    const SPECIALISTS = [
+      {
+        title: 'Omer / Beverage Intelligence',
+        category: 'beverage_intelligence',
+        categories: ['beverage_signal', 'reputation_market_signal'],
+      },
+      {
+        title: 'Zohar / Event Intelligence',
+        category: 'event_intelligence',
+        categories: ['event_signal', 'simulation_scenario'],
+      },
+      {
+        title: 'Academy',
+        category: 'academy_intelligence',
+        categories: ['academy_signal', 'founder_intent'],
+      },
+      {
+        title: 'Operational Intelligence',
+        category: 'operational_intelligence',
+        categories: ['operational_observation_candidate', 'event_signal', 'simulation_scenario'],
+      },
+      {
+        title: 'Owner Intelligence',
+        category: 'owner_intelligence',
+        categories: ['founder_intent', 'reputation_market_signal', 'simulation_scenario'],
+      },
+    ];
+
+    const sourceInput = document.querySelector('#source-input');
+    const timeline = document.querySelector('#timeline');
+    const specialists = document.querySelector('#specialists');
+    const runButton = document.querySelector('#run-button');
+    const sampleButtons = Array.from(document.querySelectorAll('[data-sample]'));
+
+    function normalize(value) {
+      return String(value || '').toLowerCase();
+    }
+
+    function matchKeywords(text, keywords) {
+      const lower = normalize(text);
+      return keywords.filter(keyword => lower.includes(keyword));
+    }
+
+    function confidenceFromMatches(matches, hasText) {
+      if (!hasText) return 'insufficient';
+      if (matches.length >= 3) return 'medium';
+      if (matches.length >= 1) return 'low';
+      return 'insufficient';
+    }
+
+    function item({
+      label,
+      category,
+      status = STATUSES.candidate,
+      confidence = 'low',
+      source = 'External source textarea',
+      evidence = 'Local deterministic keyword simulation only.',
+      boundary = 'External source simulation. No active venue is read or written.',
+      humanApprovalRequired = false,
+      notes = 'Candidate only.',
+    }) {
+      return { label, category, status, confidence, source, evidence, boundary, humanApprovalRequired, notes };
+    }
+
+    function extractSignals(text) {
+      return SIGNAL_RULES.map(rule => {
+        const matches = matchKeywords(text, rule.keywords);
+        if (!matches.length) return null;
+        return item({
+          label: rule.label,
+          category: rule.category,
+          status: STATUSES.candidate,
+          confidence: confidenceFromMatches(matches, true),
+          evidence: 'Matched external-source terms: ' + matches.join(', ') + '.',
+          humanApprovalRequired: ['founder_intent', 'event_signal', 'operational_observation_candidate', 'reputation_market_signal', 'simulation_scenario'].includes(rule.category),
+          notes: rule.notes,
+        });
+      }).filter(Boolean);
+    }
+
+    function classifyClaims(signals, hasText) {
+      if (!hasText || !signals.length) {
+        return [item({
+          label: 'No reliable claim classification yet',
+          category: 'unknown',
+          status: STATUSES.insufficientSignal,
+          confidence: 'insufficient',
+          evidence: hasText ? 'No supported signal was detected.' : 'No external source text was provided.',
+          notes: 'Insufficient signal.',
+        })];
+      }
+
+      return signals.map(signal => item({
+        label: signal.label + ' classified as ' + signal.category,
+        category: 'claim_classification',
+        status: signal.category === 'founder_intent' ? STATUSES.inference : STATUSES.candidate,
+        confidence: signal.confidence,
+        evidence: signal.evidence,
+        humanApprovalRequired: signal.humanApprovalRequired,
+        notes: 'Working understanding. This is not a confirmed fact.',
+      }));
+    }
+
+    function buildVenueDnaCandidates(signals) {
+      const identitySignals = signals.filter(signal => ['founder_intent', 'beverage_signal', 'reputation_market_signal'].includes(signal.category));
+      if (!identitySignals.length) {
+        return [item({
+          label: 'No Venue DNA candidate should be created yet',
+          category: 'venue_dna_candidate',
+          status: STATUSES.insufficientSignal,
+          confidence: 'insufficient',
+          evidence: 'No identity, service philosophy, atmosphere, or positioning signal was strong enough.',
+          notes: 'Does not write to Venue Memory.',
+        })];
+      }
+
+      return identitySignals.map(signal => item({
+        label: 'Possible Venue DNA candidate: ' + signal.label,
+        category: 'venue_dna_candidate',
+        status: STATUSES.candidate,
+        confidence: signal.confidence,
+        evidence: signal.evidence,
+        humanApprovalRequired: true,
+        notes: 'Candidate only. Would require owner/admin confirmation and stronger evidence.',
+      }));
+    }
+
+    function buildQuestions(signals) {
+      const questions = [
+        'Who supplied this external source, and which venue does it belong to?',
+        'Is this owner intent, an observation, a market signal, or a planning scenario?',
+        'What evidence would support this before it becomes memory?',
+        'Which role is allowed to see or act on this interpretation?',
+      ];
+
+      if (signals.some(signal => signal.category === 'event_signal')) {
+        questions.push('Does the event manager confirm this belongs in the event record?');
+      }
+      if (signals.some(signal => signal.category === 'simulation_scenario')) {
+        questions.push('What real evidence would turn this scenario into a supported operational candidate?');
+      }
+
+      return questions.map(question => item({
+        label: question,
+        category: 'open_question',
+        status: STATUSES.openQuestion,
+        confidence: 'low',
+        evidence: 'Question generated from interpretation gaps.',
+        humanApprovalRequired: true,
+        notes: 'Open question only.',
+      }));
+    }
+
+    function buildContradictions(signals) {
+      const hasIntent = signals.some(signal => signal.category === 'founder_intent');
+      const hasPressure = signals.some(signal => ['operational_observation_candidate', 'event_signal', 'reputation_market_signal', 'simulation_scenario'].includes(signal.category));
+
+      if (hasIntent && hasPressure) {
+        return [item({
+          label: 'Possible tension between intended identity and external signal',
+          category: 'identity_drift_candidate',
+          status: STATUSES.candidate,
+          confidence: 'low',
+          evidence: 'External source contains both identity language and pressure, reputation, event, or scenario language.',
+          humanApprovalRequired: true,
+          notes: 'Candidate only. Treat as a useful question, not a problem claim.',
+        })];
+      }
+
+      return [item({
+        label: 'No contradiction should be inferred from this source alone',
+        category: 'identity_drift_candidate',
+        status: STATUSES.insufficientSignal,
+        confidence: 'insufficient',
+        evidence: 'Single external source does not contain enough opposing evidence.',
+        notes: 'Insufficient signal.',
+      })];
+    }
+
+    function buildSpecialistPreviews(signals) {
+      return SPECIALISTS.map(specialist => {
+        const related = signals.filter(signal => specialist.categories.includes(signal.category));
+        const hasSignal = related.length > 0;
+        return {
+          specialist: specialist.title,
+          noticed: hasSignal ? related[0].label : 'No sufficient specialist signal yet',
+          whyItMatters: hasSignal
+            ? 'Could shape a future specialist brief after source-backed confirmation.'
+            : 'The external source should not be routed here without a stronger signal.',
+          ...item({
+            label: specialist.title,
+            category: specialist.category,
+            status: hasSignal ? STATUSES.previewOnly : STATUSES.insufficientSignal,
+            confidence: hasSignal ? related[0].confidence : 'insufficient',
+            evidence: hasSignal ? related[0].evidence : 'No relevant external-source signal detected.',
+            humanApprovalRequired: hasSignal,
+            notes: hasSignal ? 'Preview only. No handoff, task, recommendation, or memory write is created.' : 'Insufficient signal.',
+          }),
+        };
+      });
+    }
+
+    function buildFlow(text) {
+      const trimmed = String(text || '').trim();
+      const hasText = Boolean(trimmed);
+      const signals = extractSignals(trimmed);
+      const classifications = classifyClaims(signals, hasText);
+      const dnaCandidates = buildVenueDnaCandidates(signals);
+      const questions = buildQuestions(signals);
+      const contradictions = buildContradictions(signals);
+      const specialistPreviews = buildSpecialistPreviews(signals);
+      const needsApproval = signals.some(signal => signal.humanApprovalRequired);
+
+      return {
+        steps: [
+          {
+            title: 'Raw Source',
+            description: 'External text captured for this simulation only.',
+            items: [item({
+              label: hasText ? 'External source text' : 'No external source text yet',
+              category: 'raw_source',
+              status: STATUSES.rawInput,
+              confidence: hasText ? 'source_text_only' : 'insufficient',
+              evidence: hasText ? trimmed : 'Textarea is empty.',
+              notes: 'Raw input only. Does not write to Venue Memory.',
+            })],
+          },
+          {
+            title: 'Extracted Signals',
+            description: 'Signals are candidates until confirmed or supported by evidence.',
+            items: signals.length ? signals : [item({
+              label: 'No extracted signal',
+              category: 'unknown',
+              status: STATUSES.insufficientSignal,
+              confidence: 'insufficient',
+              evidence: 'No keyword signal detected.',
+              notes: 'Insufficient signal.',
+            })],
+          },
+          {
+            title: 'Claim Classification',
+            description: 'Separates owner intent, observations, scenarios, and specialist candidates.',
+            items: classifications,
+          },
+          {
+            title: 'Confidence / Evidence State',
+            description: 'Shows how limited this interpretation is before any future implementation could act.',
+            items: [item({
+              label: signals.length ? 'Evidence is limited to this external source' : 'Evidence is not strong enough',
+              category: 'evidence_state',
+              status: signals.length ? STATUSES.previewOnly : STATUSES.insufficientSignal,
+              confidence: signals.length >= 2 ? 'medium' : (signals.length ? 'low' : 'insufficient'),
+              evidence: 'This prototype does not inspect databases, venue records, event records, shift reports, guest systems, or source metadata.',
+              humanApprovalRequired: needsApproval,
+              notes: signals.length ? 'Preview only.' : 'Insufficient signal.',
+            })],
+          },
+          {
+            title: 'Venue DNA Candidates',
+            description: 'Candidate only. This prototype cannot confirm Venue DNA.',
+            items: dnaCandidates,
+          },
+          {
+            title: 'Open Questions',
+            description: 'Questions HESTIA should ask before treating the source as memory.',
+            items: questions,
+          },
+          {
+            title: 'Contradiction / Identity Drift Candidates',
+            description: 'Possible tension is framed as inquiry, not as truth.',
+            items: contradictions,
+          },
+          {
+            title: 'Specialist Impact Preview',
+            description: 'Preview only. No department handoffs are created.',
+            items: specialistPreviews,
+          },
+          {
+            title: 'Human Approval Required',
+            description: 'High-impact meaning remains under owner/admin or role-authorized control.',
+            items: [item({
+              label: needsApproval ? 'Would require owner/admin confirmation' : 'No high-impact interpretation should proceed',
+              category: 'human_approval',
+              status: needsApproval ? STATUSES.requiresHumanApproval : STATUSES.insufficientSignal,
+              confidence: needsApproval ? 'medium' : 'insufficient',
+              evidence: needsApproval ? 'At least one candidate touches identity, operations, events, market meaning, or planning scenario.' : 'No high-impact candidate was detected.',
+              humanApprovalRequired: needsApproval,
+              notes: 'No memory, Venue DNA, handoff, task, or action is created here.',
+            })],
+          },
+        ],
+        specialistPreviews,
+      };
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll(\"'\", '&#039;');
+    }
+
+    function renderStatus(status) {
+      return `<span class=\"status ${escapeHtml(status)}\">${escapeHtml(STATUS_LABELS[status] || status)}</span>`;
+    }
+
+    function renderDetails(record, includeWhy) {
+      return `
+        <dl>
+          ${includeWhy ? `<div><dt>What was noticed</dt><dd>${escapeHtml(record.noticed)}</dd></div>` : ''}
+          ${includeWhy ? `<div><dt>Why it matters</dt><dd>${escapeHtml(record.whyItMatters)}</dd></div>` : ''}
+          <div><dt>Source</dt><dd>${escapeHtml(record.source)}</dd></div>
+          <div><dt>Confidence</dt><dd>${escapeHtml(record.confidence)}</dd></div>
+          <div><dt>Evidence</dt><dd>${escapeHtml(record.evidence)}</dd></div>
+          <div><dt>Boundary</dt><dd>${escapeHtml(record.boundary)}</dd></div>
+          <div><dt>Approval</dt><dd>${record.humanApprovalRequired ? 'Would require owner/admin confirmation' : 'No approval action from this simulation'}</dd></div>
+          <div><dt>Notes</dt><dd>${escapeHtml(record.notes)}</dd></div>
+        </dl>
+      `;
+    }
+
+    function renderItem(record) {
+      return `
+        <article class=\"item\">
+          <div class=\"item-top\">
+            <div>
+              <h4>${escapeHtml(record.label)}</h4>
+              <div class=\"category\">${escapeHtml(record.category)}</div>
+            </div>
+            ${renderStatus(record.status)}
+          </div>
+          ${renderDetails(record, false)}
+        </article>
+      `;
+    }
+
+    function renderSpecialist(record) {
+      return `
+        <article class=\"specialist-card\">
+          <div class=\"specialist-top\">
+            <div>
+              <h3>${escapeHtml(record.specialist)}</h3>
+              <div class=\"category\">${escapeHtml(record.category)}</div>
+            </div>
+            ${renderStatus(record.status)}
+          </div>
+          ${renderDetails(record, true)}
+        </article>
+      `;
+    }
+
+    function render() {
+      const flow = buildFlow(sourceInput.value);
+      timeline.innerHTML = flow.steps.map((step, index) => `
+        <section class=\"step\">
+          <div class=\"step-head\">
+            <div class=\"step-number\" aria-hidden=\"true\">${index + 1}</div>
+            <div>
+              <h3>${escapeHtml(step.title)}</h3>
+              <p>${escapeHtml(step.description)}</p>
+            </div>
+          </div>
+          <div class=\"items\">${step.items.map(renderItem).join('')}</div>
+        </section>
+      `).join('');
+
+      specialists.innerHTML = flow.specialistPreviews.map(renderSpecialist).join('');
+    }
+
+    sampleButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        sampleButtons.forEach(item => item.classList.remove('active'));
+        button.classList.add('active');
+        sourceInput.value = SAMPLES[button.dataset.sample] || '';
+        render();
+      });
+    });
+
+    runButton.addEventListener('click', render);
+    sourceInput.addEventListener('input', () => {
+      sampleButtons.forEach(item => item.classList.remove('active'));
+    });
+
+    sourceInput.value = SAMPLES.founder;
+    render();
+  </script>
+</body>
+</html>
