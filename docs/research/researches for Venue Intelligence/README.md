@@ -6,7 +6,7 @@ The canonical doctrine lives at:
 
 docs/architecture/HESTIA_INTELLIGENCE_DOCTRINE_V1.md
 
-These files support research into Venue Intelligence, Venue Memory, Venue DNA, Founder Intent, Guest Intelligence, Service Intelligence, Organizational Memory, Decision Intelligence, Reputation Intelligence, Market Positioning, Digital Venue Twin research, and Venue Simulation.
+These files support research into Venue Intelligence, Venue Memory, Venue DNA, Founder Intent, Guest Intelligence, Service Intelligence, Organizational Memory, Decision Intelligence, Reputation Intelligence, Market Positioning, Digital Venue Twin research, Venue Simulation, Strategic White Space, Category Creation, and Venue Intelligence Graph research.
 
 Research language in this folder may be exploratory. It should not be treated as production instruction, product-facing UI language, or implementation authority without additional review.
 
@@ -32,6 +32,9 @@ Use this archive as evidence and context. Do not use it to bypass the HESTIA Ski
 | Organizational / Venue Memory | `ORGANIZATIONAL MEMORY _ VENUE MEMORY RESEARCH.md` | Active organizational memory and venue memory research reference. |
 | Organizational / Venue Memory supplement | `ORGANIZATIONAL_MEMORY_VENUE_MEMORY_RESEARCH_SUPPLEMENT.md` | Supplemental organizational memory notes preserved under a clean filename. |
 | Venue Intelligence | `THE VENUE INTELLIGENCE RESEARCH.md` | Broad venue understanding research across Venue DNA, founder context, guest context, service, F&B, events, and memory. |
+| Strategic White Space / Category Creation | `HESTIA STRATEGIC WHITE SPACE _ CATEGORY CREATION RESEARCH.md` | Market and category-creation research only; not guaranteed business strategy or production instruction. |
+| Organizational Venue Memory addendum | `ORGANIZATIONAL VENUE MEMORY RESEARCH.md` | Additional organizational memory research support; not authority for automatic Venue Memory mutation or confirmed Venue DNA. |
+| Venue Intelligence Graph / Hospitality Knowledge Graph | `VENUE INTELLIGENCE GRAPH _ HOSPITALITY KNOWLEDGE GRAPH RESEARCH.md` | Research and internal architecture exploration for graph-style intelligence; not a current production graph or fake relationship engine. |
 | Digital Venue Twin / Venue Simulation | `DIGITAL VENUE TWIN _ VENUE SIMULATION RESEARCH.md` | Research on venue simulation language, scenario modeling, operational twins, and guardrails for evidence-based, venue-scoped simulation. |
 | Venue Decision Intelligence | `HESTIA_VENUE_DECISION_INTELLIGENCE_FRAMEWORK.md` and `VENUE DECISION INTELLIGENCE RESEARCH.md` | Research on decision types, time horizons, evidence, and hospitality judgment patterns. |
 | Reputation Intelligence / Market Positioning | `REPUTATION INTELLIGENCE _ MARKET POSITIONING RESEARCH.md` | Research on reputation signals, public perception, market positioning, competitive context, and guardrails for source-backed reputation intelligence. |
@@ -40,3 +43,4 @@ Use this archive as evidence and context. Do not use it to bypass the HESTIA Ski
 | Archive drafts | `_archive/` | Preserved research drafts only. Archived drafts are not canonical and should not be used as product doctrine. |
 
 Archived drafts are retained for source history. They are not canonical product doctrine. The canonical HESTIA Intelligence Doctrine remains `docs/architecture/HESTIA_INTELLIGENCE_DOCTRINE_V1.md`.
+
