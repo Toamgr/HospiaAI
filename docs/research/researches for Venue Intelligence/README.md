@@ -6,7 +6,7 @@ The canonical doctrine lives at:
 
 docs/architecture/HESTIA_INTELLIGENCE_DOCTRINE_V1.md
 
-These files support research into Venue Intelligence, Venue Memory, Venue DNA, Founder Intent, Guest Intelligence, Service Intelligence, Organizational Memory, Decision Intelligence, Reputation Intelligence, and Market Positioning.
+These files support research into Venue Intelligence, Venue Memory, Venue DNA, Founder Intent, Guest Intelligence, Service Intelligence, Organizational Memory, Decision Intelligence, Reputation Intelligence, Market Positioning, Digital Venue Twin research, and Venue Simulation.
 
 Research language in this folder may be exploratory. It should not be treated as production instruction, product-facing UI language, or implementation authority without additional review.
 
@@ -32,6 +32,7 @@ Use this archive as evidence and context. Do not use it to bypass the HESTIA Ski
 | Organizational / Venue Memory | `ORGANIZATIONAL MEMORY _ VENUE MEMORY RESEARCH.md` | Active organizational memory and venue memory research reference. |
 | Organizational / Venue Memory supplement | `ORGANIZATIONAL_MEMORY_VENUE_MEMORY_RESEARCH_SUPPLEMENT.md` | Supplemental organizational memory notes preserved under a clean filename. |
 | Venue Intelligence | `THE VENUE INTELLIGENCE RESEARCH.md` | Broad venue understanding research across Venue DNA, founder context, guest context, service, F&B, events, and memory. |
+| Digital Venue Twin / Venue Simulation | `DIGITAL VENUE TWIN _ VENUE SIMULATION RESEARCH.md` | Research on venue simulation language, scenario modeling, operational twins, and guardrails for evidence-based, venue-scoped simulation. |
 | Venue Decision Intelligence | `HESTIA_VENUE_DECISION_INTELLIGENCE_FRAMEWORK.md` and `VENUE DECISION INTELLIGENCE RESEARCH.md` | Research on decision types, time horizons, evidence, and hospitality judgment patterns. |
 | Reputation Intelligence / Market Positioning | `REPUTATION INTELLIGENCE _ MARKET POSITIONING RESEARCH.md` | Research on reputation signals, public perception, market positioning, competitive context, and guardrails for source-backed reputation intelligence. |
 | F&B / Beverage Intelligence | `F&B INTELLIGENCE BEVERAGE + MENU STRATEGY RESEARCH.md` | Research on beverage, menu strategy, F&B intelligence, and commercial guardrails. |
