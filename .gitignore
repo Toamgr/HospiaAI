@@ -13,3 +13,6 @@ server.out
 .claude/
 .agents/
 skills-lock.json
+.local-artifacts/
+data/
+docs/research/researches for Venue Intelligence/data/

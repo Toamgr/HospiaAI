@@ -1,4 +1,4 @@
-# Venue Intelligence Research Archive
+﻿# Venue Intelligence Research Archive
 
 This folder is a research archive for HESTIA Venue Intelligence. It is not the canonical HESTIA product doctrine.
 
@@ -40,7 +40,9 @@ Use this archive as evidence and context. Do not use it to bypass the HESTIA Ski
 | Reputation Intelligence / Market Positioning | `REPUTATION INTELLIGENCE _ MARKET POSITIONING RESEARCH.md` | Research on reputation signals, public perception, market positioning, competitive context, and guardrails for source-backed reputation intelligence. |
 | F&B / Beverage Intelligence | `F&B INTELLIGENCE BEVERAGE + MENU STRATEGY RESEARCH.md` | Research on beverage, menu strategy, F&B intelligence, and commercial guardrails. |
 | Employee / Staff Development Intelligence | `EMPLOYEE INTELLIGENCE STAFF DEVELOPMENT RESEARCH.md` and `HESTIA_EMPLOYEE_INTELLIGENCE_STAFF_DEVELOPMENT_RESEARCH.md` | Research on employee learning, staff development, coaching, capability memory, and ethical staff intelligence boundaries. |
+| Hospitality Economics Intelligence addendum | `HESTIA HOSPITALITY ECONOMICS INTELLIGENCE RESEARCH.md` | Hospitality economics research only; not verified HESTIA financial intelligence or authority to invent costs, demand, margin, profitability, pricing, revenue, suppliers, or benchmarks. |
+| Multi-Venue Hospitality Group Intelligence addendum | `HESTIA MULTI-VENUE HOSPITALITY GROUP INTELLIGENCE RESEARCH.md` | Group/platform research only; requires tenant isolation, venue boundaries, group-level permissions, safe aggregation, role access, confidence labels, and human approval. |
+| Uncertainty Reduction Engine addendum | `HESTIA UNCERTAINTY REDUCTION ENGINE RESEARCH.md` | Epistemic confidence, provenance, and uncertainty-reduction research only; not an implemented production engine and not authority to treat candidates as confirmed truth. |
 | Archive drafts | `_archive/` | Preserved research drafts only. Archived drafts are not canonical and should not be used as product doctrine. |
 
 Archived drafts are retained for source history. They are not canonical product doctrine. The canonical HESTIA Intelligence Doctrine remains `docs/architecture/HESTIA_INTELLIGENCE_DOCTRINE_V1.md`.
-
