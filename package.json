@@ -14,7 +14,8 @@
     "test:menu-intelligence": "node scripts/test-menu-intelligence.js",
     "test:fnb-director-brief": "node scripts/test-fnb-director-brief.js",
     "test:venue-dna-completeness": "node scripts/test-venue-dna-completeness.js",
-    "test:venue-dna-completeness-route": "node scripts/test-venue-dna-completeness-route.js"
+    "test:venue-dna-completeness-route": "node scripts/test-venue-dna-completeness-route.js",
+    "test:owner-ai-home-completeness-ui": "node scripts/test-owner-ai-home-completeness-ui.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",
