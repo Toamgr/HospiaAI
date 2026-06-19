@@ -18,7 +18,8 @@
     "test:owner-ai-home-completeness-ui": "node scripts/test-owner-ai-home-completeness-ui.js",
     "test:investor-demo-readiness": "node scripts/test-investor-demo-readiness.js",
     "inspect:venue-dna-state": "node scripts/inspect-current-venue-dna-state.js",
-    "test:first-run-venue-zero-state": "node scripts/test-first-run-venue-zero-state.js"
+    "test:first-run-venue-zero-state": "node scripts/test-first-run-venue-zero-state.js",
+    "test:venue-intelligence-message-audit": "node scripts/test-venue-intelligence-message-route-audit.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",
