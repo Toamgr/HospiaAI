@@ -1,4 +1,4 @@
-import { API_BASE } from '../../config/systemConfig'
+import { API_BASE } from '../../config/systemConfig.js'
 
 let _authToken = null
 
