@@ -100,6 +100,7 @@
       learningProgress: 'Learning Progress',
       executiveOverview: 'Executive Overview',
       operationalPulse: 'Operational Pulse',
+      ownerHome: 'Owner AI Home',
       budgetApprovals: 'Budget Approvals',
       ownerOperationalRequests: 'Operational Requests',
       weeklySummary: 'Weekly Summary',

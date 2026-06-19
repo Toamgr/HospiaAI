@@ -15,7 +15,8 @@
     "test:fnb-director-brief": "node scripts/test-fnb-director-brief.js",
     "test:venue-dna-completeness": "node scripts/test-venue-dna-completeness.js",
     "test:venue-dna-completeness-route": "node scripts/test-venue-dna-completeness-route.js",
-    "test:owner-ai-home-completeness-ui": "node scripts/test-owner-ai-home-completeness-ui.js"
+    "test:owner-ai-home-completeness-ui": "node scripts/test-owner-ai-home-completeness-ui.js",
+    "test:investor-demo-readiness": "node scripts/test-investor-demo-readiness.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",
