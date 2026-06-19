@@ -32,6 +32,7 @@ import ProfitLeaks from './features/owner/ProfitLeaks'
 import OwnerReport from './features/owner/OwnerReport'
 import BusinessMemoryPage from './features/owner/BusinessMemoryPage'
 import StrategicRecommendations from './features/owner/StrategicRecommendations'
+import OwnerAIHome from './features/owner-intelligence/OwnerAIHome'
 import EmployeeNavRail from './features/employee/EmployeeNavRail'
 import EmployeeHome from './features/employee/EmployeeHome'
 import DailyWork from './features/employee/DailyWork'
@@ -475,6 +476,7 @@ function PageRenderer({ t, page, goToPage, pageContext, session, reports, operat
     approvedCocktails: <ApprovedCocktailsTraining t={t} currentUser={currentUser} approvedCocktails={approvedCocktails} cocktailPractice={cocktailPractice} onMarkPracticed={onMarkCocktailPracticed} />,
     ...(isEnabled('ownerExecutiveOverview') && { executiveOverview: <ExecutiveOverview t={t} goToPage={goToPage} reportArchive={reportArchive} eventPlans={eventPlans} /> }),
     operationalPulse: <OperationalPulse actionItems={actionItems} serviceIncidents={serviceIncidents} shiftNotes={shiftNotes} reportArchive={reportArchive} pulseData={pulseData} isLoadingPulse={isLoadingPulse} trends={trends} insight={insight} isLoadingInsight={isLoadingInsight} insightError={insightError} insightCooldownSeconds={insightCooldownSeconds} onRequestInsight={onRequestInsight} />,
+    ownerHome: <OwnerAIHome currentUser={currentUser} />,
     ...(isEnabled('ownerBudgetApprovals') && { budgetApprovals: <BudgetApprovals t={t} budgetRequests={budgetRequests} onRespond={onBudgetResponse} /> }),
     ...(isEnabled('ownerOperationalRequests') && { ownerOperationalRequests: <OwnerOperationalRequests t={t} employeeRequests={employeeRequests} onReview={onOwnerReviewEmployeeRequest} /> }),
     ...(isEnabled('ownerWeeklySummary') && { weeklySummary: <WeeklySummary t={t} currentUser={currentUser} reportArchive={reportArchive} serviceIncidents={serviceIncidents} budgetRequests={budgetRequests} eventPlans={eventPlans} actionItems={actionItems} shiftBrain={shiftBrain} /> }),

@@ -3,6 +3,7 @@ export const NAV_GROUPS = {
     roles: ['owner', 'admin'],
     pages: [
       'operationalPulse',
+      'ownerHome',
       'settings'
     ]
   },
@@ -391,6 +392,15 @@ export const PAGE_META = {
     code: 'OP',
     section: 'Intelligence',
     description: 'Live operational load, shift review archive, and carry-forward patterns'
+  },
+  // Phase 9B-1 — static read-only Owner AI Home shell. Listed AFTER operationalPulse
+  // so OperationalPulse remains the owner default landing. Not wired to DNA writes.
+  ownerHome: {
+    area: 'command',
+    roles: ['owner', 'admin'],
+    code: 'AI',
+    section: 'Intelligence',
+    description: 'Calm AI-first owner home — read-only Venue DNA foundation (Build Mode shell)'
   },
   budgetApprovals: {
     area: 'command',

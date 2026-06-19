@@ -14,6 +14,7 @@
 export const PAGE_ROUTES = {
   // ── Owner command ──────────────────────────────────────────────────────────
   operationalPulse:           '/owner',
+  ownerHome:                  '/owner/home',          // Phase 9B-1 static read-only shell (not default landing)
   commandCenter:              '/owner/command',       // feature-flagged off
   executiveOverview:          '/owner/executive',     // hidden
   budgetApprovals:            '/owner/approvals',
