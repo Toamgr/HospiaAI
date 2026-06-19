@@ -1,7 +1,27 @@
 import { FEW_SHOT_EXAMPLES, BEVERAGE_DIRECTOR_SYSTEM_PROMPT, BEVERAGE_DIRECTOR_FEW_SHOT_EXAMPLES, EXPECTED_FIELDS } from '../prompts/geminiCocktailPrompts.js'
 import { buildKnowledgeContext } from '../domain/hospitality/bar/cocktailKnowledgeBase/index.js'
 import { getPricingContextSummary } from '../domain/hospitality/bar/cocktailLabPricingAdapter.js'
+import { buildVenueBeverageContext, formatVenueBeveragePromptBlock } from './venueBridge/beverageContextService.js'
+import { isVenueBeverageContextEnabled } from '../config/featureFlags.js'
 import { apiPost } from './api/client.js' // CI MODULE ADDITION - auth fix
+
+// Read-only, feature-flagged Venue Beverage Context for the bar/restaurant
+// Cocktail Lab first-pass prompt. When the flag is OFF, or no venue data is
+// supplied, this returns '' and the prompt is byte-for-byte unchanged.
+function buildVenueContextBlock({ venueDNA = null, venueProfile = null, venueBeverageContext = null } = {}) {
+  if (!isVenueBeverageContextEnabled()) return ''
+  const wrapper = venueBeverageContext
+    || ((venueDNA || venueProfile) ? buildVenueBeverageContext({ venueDNA, venueProfile }) : null)
+  if (!wrapper) return ''
+  return formatVenueBeveragePromptBlock(wrapper)
+}
+
+// Dev/test-only logging guard — never logs in a production build.
+function isDevLogging() {
+  try { if (import.meta.env && import.meta.env.DEV) return true } catch { /* ignore */ }
+  try { if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') return true } catch { /* ignore */ }
+  return false
+}
 
 function stripMarkdownFences(text = '') {
   return text
@@ -685,7 +705,7 @@ function inferPricingIngredientHints(prompt = '', form = {}) {
   return hints
 }
 
-function buildCocktailPrompt({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, variation = '', previousProposal = null }) {
+export function buildCocktailPrompt({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, variation = '', previousProposal = null, venueDNA = null, venueProfile = null, venueBeverageContext = null }) {
   const approvedList = summarizeCocktails(approvedCocktails);
   const draftList = summarizeCocktails(cocktailDrafts);
   const menuEngineering = analyzeMenuEngineering(approvedCocktails)
@@ -695,6 +715,7 @@ function buildCocktailPrompt({ agentPrompt, form, approvedCocktails, cocktailDra
   const pricingContext = hasPricingSignals(agentPrompt, form)
     ? getPricingContextSummary(inferPricingIngredientHints(agentPrompt, form))
     : ''
+  const venueContextBlock = buildVenueContextBlock({ venueDNA, venueProfile, venueBeverageContext })
   const previousSummary = previousProposal ? `Previous proposal summary for follow-up editing:
 - Name: ${normalizeValue(previousProposal.name)}
 - Role: ${normalizeValue(previousProposal.menuRole)}
@@ -707,7 +728,7 @@ function buildCocktailPrompt({ agentPrompt, form, approvedCocktails, cocktailDra
 - Why it was chosen: ${normalizeValue(previousProposal.whyThisDeservesMenuSpace)}
 - Execution logic: ${normalizeValue(previousProposal.operationalReasoning)}` : ''
 
-  return `Manager prompt:
+  const prompt = `Manager prompt:
 ${agentPrompt.trim()}
 
 Instruction hierarchy:
@@ -768,7 +789,7 @@ Menu balance analysis:
 - Menu warnings: ${menuAnalysis?.warnings?.join('; ') || 'None'}
 - Overrepresented warning: ${overrepresented}
 
-${knowledgeContext ? `${knowledgeContext}\n\n` : ''}${pricingContext ? `${pricingContext}\n\n` : ''}${previousSummary ? `${previousSummary}\n\n` : ''}Variation request: ${variation || 'None'}
+${venueContextBlock ? `${venueContextBlock}\n\n` : ''}${knowledgeContext ? `${knowledgeContext}\n\n` : ''}${pricingContext ? `${pricingContext}\n\n` : ''}${previousSummary ? `${previousSummary}\n\n` : ''}Variation request: ${variation || 'None'}
 
 Director conversation mode:
 - If this is a follow-up to a previous proposal, first respond in directorConversationReply with a short consultant critique of the previous version and exactly what you are changing.
@@ -840,6 +861,16 @@ Return only strict JSON with the exact keys listed below. No markdown, no backti
   "substitutions": [],
   "whyThisDeservesMenuSpace": ""
 }`;
+
+  // Dev/test-only prompt-size measurement. Never runs in a production build, and
+  // only logs when the venue block is actually injected (flag on + venue data).
+  if (venueContextBlock && isDevLogging()) {
+    const total = prompt.length
+    const base = total - venueContextBlock.length
+    console.log(`[venue-beverage-context] flag ON — first-pass prompt ~${total} chars (base ~${base}, venue block +${venueContextBlock.length})`)
+  }
+
+  return prompt;
 }
 
 function summarizePreviousProposal(previousProposal = {}) {
@@ -1135,11 +1166,13 @@ export async function consultGeminiCocktailDirection({ agentPrompt, form, approv
   return normalizeConsultationDecision(parsed)
 }
 
-export async function generateGeminiCocktailProposal({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, variation = '', previousProposal = null }) {
+export async function generateGeminiCocktailProposal({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, variation = '', previousProposal = null, venueDNA = null, venueProfile = null, venueBeverageContext = null }) {
   const isCompactRevision = Boolean(previousProposal && (variation || agentPrompt));
+  // Venue Beverage Context is wired into the first-pass build only (bar/restaurant
+  // priority). The compact revision path is intentionally left unchanged for now.
   const prompt = isCompactRevision
     ? buildCompactRevisionPrompt({ agentPrompt, form, menuAnalysis, variation, previousProposal })
-    : buildCocktailPrompt({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, variation, previousProposal });
+    : buildCocktailPrompt({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, variation, previousProposal, venueDNA, venueProfile, venueBeverageContext });
 
   // CI MODULE ADDITION - auth fix: apiPost sends Authorization header automatically
   const data = await apiPost('/api/gemini', { prompt })

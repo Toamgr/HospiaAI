@@ -14,6 +14,11 @@ import { buildOperationalSignals, deriveDnaEnrichment, applyConfidenceDeltas } f
 import {
   selectOmerContext, selectAcademyContext, selectOwnerIntelligence, assembleUnifiedContext
 } from "./src/services/venueBridge/intelligenceContextService.js";
+import { FB_DECISIONS_DDL, safeRecordFbDecision, getFbDecisionById, listFbDecisionsForVenue } from "./src/services/venueBridge/decisionLedgerService.js";
+import { buildFbDecisionExplanation } from "./src/services/venueBridge/decisionExplanationService.js";
+import { resolveCiTasteTarget, formatTasteTargetPromptBlock } from "./src/services/venueBridge/beverageContextService.js";
+import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } from "./src/config/featureFlags.js";
+import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
 
 dotenv.config();
 
@@ -1167,6 +1172,19 @@ try { db.exec("ALTER TABLE event_plans ADD COLUMN status TEXT"); } catch { /* al
 try { db.exec("ALTER TABLE event_plans ADD COLUMN approved_by TEXT"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE event_plans ADD COLUMN approved_at TEXT"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE event_cocktail_menus ADD COLUMN programme_brief_json TEXT"); } catch { /* already exists */ }
+
+// F&B Decision Ledger (Phase 2 — write-only-first foundation). Additive, venue-scoped,
+// idempotent table init. DDL is the single source of truth in decisionLedgerService.js
+// (shared with the in-memory test). No live route writes to it yet (Phase 3 wires writes).
+db.exec(FB_DECISIONS_DDL);
+
+// Venue Intelligence Candidates (Phase 6A — isolated F&B feedback candidate foundation).
+// Additive, venue-scoped, idempotent. ISOLATED from canonical Venue DNA: candidates are
+// reviewable proposals, NEVER confirmed Venue DNA. Never touches venue_intelligence.
+db.exec(VENUE_INTELLIGENCE_CANDIDATES_DDL);
+// Phase 7A — human review note column (idempotent migration for pre-existing DBs;
+// the DDL above already includes it for fresh DBs). Additive, non-destructive.
+try { db.exec("ALTER TABLE venue_intelligence_candidates ADD COLUMN review_note TEXT"); } catch { /* already exists */ }
 
 // shift_reports extended fields
 for (const [col, def] of [
@@ -4584,6 +4602,45 @@ app.post('/api/ci/dna', requireAuth(...CI_ROLES), (req, res) => {
   }
 });
 
+// ── F&B Decision Ledger — compact capture helpers (Phase 3) ────────────────────
+// Pure, defensive helpers that keep ledger snapshots small. They never throw on
+// odd input (the ledger write is additionally wrapped in safeRecordFbDecision).
+function fbCompactValue(v, depth = 0) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'string') return v.length > 200 ? v.slice(0, 200) + '…' : v;
+  if (typeof v === 'number' || typeof v === 'boolean') return v;
+  if (Array.isArray(v)) return v.slice(0, 12).map(x => fbCompactValue(x, depth + 1));
+  if (typeof v === 'object') {
+    if (depth >= 2) return Object.keys(v).slice(0, 12);
+    const out = {};
+    for (const k of Object.keys(v).slice(0, 20)) out[k] = fbCompactValue(v[k], depth + 1);
+    return out;
+  }
+  return null;
+}
+function fbCompactBarDna(dna) {
+  if (!dna || typeof dna !== 'object') return null;
+  const pick = ['venue_type', 'atmosphere', 'cuisine_style', 'audience_type', 'staff_skill', 'price_range', 'service_pressure', 'is_kosher', 'hero_ingredient'];
+  const out = {};
+  for (const k of pick) if (dna[k] !== null && dna[k] !== undefined && dna[k] !== '') out[k] = dna[k];
+  return Object.keys(out).length ? out : null;
+}
+function fbSummarizeCiResult(result) {
+  if (!result || typeof result !== 'object') return null;
+  const out = {};
+  if (Array.isArray(result.cocktails)) {
+    out.count = result.cocktails.length;
+    out.names = result.cocktails.map(c => (c && (c.name || c.cocktailName)) || null).filter(Boolean).slice(0, 12);
+  }
+  if (typeof result.menu_name === 'string') out.menu_name = result.menu_name;
+  if (Array.isArray(result.menu_sections)) out.sections = result.menu_sections.slice(0, 12);
+  if (Object.keys(out).length === 0) out.keys = Object.keys(result).slice(0, 12);
+  return out;
+}
+function fbLedgerOnError(route, venueId) {
+  return (err) => { try { debugLog({ event: 'fb_ledger_write_failed', route, venue_id: venueId, error: err && err.message }); } catch { /* never break the caller */ } };
+}
+
 // ── CI AI GENERATION ──────────────────────────────────────────────────────────
 
 app.post('/api/ci/generate', requireAuth(...CI_ROLES), async (req, res) => {
@@ -4596,12 +4653,62 @@ app.post('/api/ci/generate', requireAuth(...CI_ROLES), async (req, res) => {
     const existingNames = db.prepare('SELECT name FROM cocktails WHERE is_active=1 ORDER BY name').all().map(r => r.name);
 
     const omer   = getOmerVenueContext(req.venueId);
-    const prompt = buildGenerationPrompt(flow_type, params, dna, tasteDna, existingNames, omer.text || '');
+
+    // Phase 5: flag-gated decimal taste convergence. When ENABLE_VENUE_BEVERAGE_CONTEXT
+    // is ON and a real target_taste_profile_range resolves, append a compact taste-target
+    // block to the venue-context string. Flag OFF → venueContextText === (omer.text || '')
+    // → byte-identical prompt. buildGenerationPrompt is unchanged. No decimal OUTPUT is
+    // requested from Gemini; this only injects target context. Never fabricates a range.
+    let venueContextText = omer.text || '';
+    let tasteTarget = null;
+    if (isVenueBeverageContextEnabled()) {
+      try {
+        const venueState = getVenueIntelligence(req.venueId);
+        const venueProfile = { venue_type: dna?.venue_type || null, price_tier: dna?.price_range || null };
+        tasteTarget = resolveCiTasteTarget({ venueDNA: venueState?.venueDNA || null, venueProfile });
+        if (tasteTarget) {
+          const tasteBlock = formatTasteTargetPromptBlock(tasteTarget.range, { direction: tasteTarget.direction });
+          if (tasteBlock) venueContextText += (venueContextText ? '\n\n' : '') + tasteBlock;
+        }
+      } catch (e) { tasteTarget = null; debugLog({ event: 'ci_taste_target_failed', venue_id: req.venueId, error: e && e.message }); }
+    }
+
+    const prompt = buildGenerationPrompt(flow_type, params, dna, tasteDna, existingNames, venueContextText);
     const raw    = await askGemini(prompt, { jsonMode: true });
 
     let result;
     try { result = JSON.parse(raw); }
     catch { return res.status(500).json({ error: 'AI response could not be parsed.', raw }); }
+
+    // Phase 3: non-blocking decision-ledger write. Records WHY generation happened.
+    // safeRecordFbDecision never throws — generation behavior/response are unaffected.
+    safeRecordFbDecision(db, req.venueId, {
+      decision_type: 'cocktail_menu_generated',
+      source_engine: 'ci_omer',
+      decision_title: `CI generation: ${flow_type}`,
+      decision_payload: { flow_type, params: fbCompactValue(params) },
+      venue_dna_snapshot: fbCompactBarDna(dna),
+      menu_snapshot: fbSummarizeCiResult(result),
+      evidence: [
+        { source: 'venue_dna' },
+        { source: 'taste_dna' },
+        { source: 'omer_brief', ref: omer.active ? 'active' : 'inactive' },
+      ],
+      provenance: { origin: 'specialist_decision', route: 'ci_generate' },
+      confidence: (omer && typeof omer.confidence === 'number') ? { omer: omer.confidence } : null,
+      // Phase 5: store the deterministic target range only when one was actually resolved.
+      // No decimal RESULT is produced or stored. Flag-off → tasteTarget is null → these
+      // fields are null/absent → ledger row is byte-identical to Phase 4.
+      taste_profile_target: tasteTarget ? tasteTarget.range : null,
+      missing_fields: (isVenueBeverageContextEnabled() && !tasteTarget) ? ['no venue taste target resolved'] : null,
+      explanation_basis: {
+        omer_active: !!(omer && omer.active),
+        omer_confidence: (omer && typeof omer.confidence === 'number') ? omer.confidence : null,
+        flow_type,
+        ...(tasteTarget ? { taste_target_dimensions: tasteTarget.dimensions } : {}),
+      },
+      future_validation_targets: null,
+    }, fbLedgerOnError('ci_generate', req.venueId));
 
     res.json({ ok: true, flow_type, result, venue_context_active: omer.active });
   } catch (err) {
@@ -4645,6 +4752,32 @@ app.post('/api/ci/rejections', requireAuth(...CI_ROLES), (req, res) => {
   );
 
   rebuildTasteDna(req.venueId);
+
+  // Phase 3: non-blocking decision-ledger write. Reached only for real rejections
+  // (the just_experimenting early-return above never gets here → no ledger row).
+  const rejectionDecision = {
+    decision_type: 'cocktail_rejected',
+    source_engine: 'ci_omer',
+    subject_ref: { cocktail_name: b.cocktail_name },
+    decision_title: `Rejected: ${b.cocktail_name}`,
+    decision_payload: { reasons: Array.isArray(b.reasons) ? b.reasons.slice(0, 12) : null, base_spirit: b.base_spirit || null },
+    recipe_snapshot: (b.cocktail_profile && typeof b.cocktail_profile === 'object') ? fbCompactValue(b.cocktail_profile) : null,
+    evidence: [{ source: 'rejection_history' }],
+    provenance: { origin: 'specialist_decision', action: 'human_reject', route: 'ci_rejections' },
+  };
+  const ledger = safeRecordFbDecision(db, req.venueId, rejectionDecision, fbLedgerOnError('ci_rejections', req.venueId));
+
+  // Phase 6B: flag-gated, non-blocking F&B → Venue Intelligence candidate write.
+  // Candidate-only (never Venue DNA). Requires a real ledger decision id for dedupe.
+  // Flag OFF → nothing runs; the rejection response below is unchanged either way.
+  if (isFnbVenueFeedbackCandidatesEnabled() && ledger && ledger.ok && ledger.decisionId) {
+    safeRecordVenueIntelligenceCandidates(
+      db, req.venueId,
+      { ...rejectionDecision, id: ledger.decisionId },
+      (err) => { try { debugLog({ event: 'fnb_venue_candidate_write_failed', venue_id: req.venueId, error: err && err.message }); } catch { /* never break the caller */ } }
+    );
+  }
+
   res.status(201).json({ ok: true, saved: true });
 });
 
@@ -4652,6 +4785,50 @@ app.post('/api/ci/rejections', requireAuth(...CI_ROLES), (req, res) => {
 
 app.get('/api/ci/taste-dna', requireAuth(...CI_ROLES, 'events_manager'), (req, res) => {
   res.json({ taste_dna: getCITasteDna(req.venueId) });
+});
+
+// ── CI DECISIONS — read-only F&B Decision Ledger (Phase 4) ─────────────────────
+// Deterministic, read-only, venue-scoped, role-gated. No AI, no mutation.
+
+// Compact list of recorded decisions for the venue (no large JSON snapshots).
+app.get('/api/ci/decisions', requireAuth(...CI_ROLES), (req, res) => {
+  try {
+    const decisionType = typeof req.query.decision_type === 'string' ? req.query.decision_type : null;
+    const limit = req.query.limit != null ? Number(req.query.limit) : undefined;
+    const rows = listFbDecisionsForVenue(db, req.venueId, { limit });
+    const filtered = decisionType ? rows.filter(r => r.decision_type === decisionType) : rows;
+    // Compact projection only — never expose large JSON snapshots in the list.
+    const decisions = filtered.map(r => ({
+      id: r.id,
+      decision_type: r.decision_type,
+      source_engine: r.source_engine,
+      decision_title: r.decision_title,
+      decision_summary: r.decision_summary,
+      related_cocktail_id: r.related_cocktail_id,
+      related_menu_id: r.related_menu_id,
+      status: r.status,
+      human_review_status: r.human_review_status,
+      created_at: r.created_at,
+      has_explanation_basis: !!(r.explanation_basis && Object.keys(r.explanation_basis).length),
+      has_confidence: !!(r.confidence && Object.keys(r.confidence).length),
+    }));
+    res.json({ ok: true, decisions });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not list decisions.' });
+  }
+});
+
+// On-demand "why?" explanation for one decision. 404 if not found / cross-venue.
+app.get('/api/ci/decisions/:decisionId/explanation', requireAuth(...CI_ROLES), (req, res) => {
+  try {
+    const decision = getFbDecisionById(db, req.venueId, req.params.decisionId);
+    if (!decision) {
+      return res.status(404).json({ ok: false, can_explain: false, error: 'No decision found for this venue.' });
+    }
+    res.json(buildFbDecisionExplanation(decision));
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not build the explanation.' });
+  }
 });
 
 // ── CI COCKTAILS (ci_generated slice of cocktails table) ──────────────────────
@@ -4698,6 +4875,30 @@ app.post('/api/ci/cocktails', requireAuth(...CI_ROLES), (req, res) => {
   `).run(req.venueId, newId, b.name, now.slice(0, 10), getCurrentSeason(), 'active', now, now);
 
   const saved = db.prepare('SELECT * FROM cocktails WHERE id=?').get(newId);
+
+  // Phase 3: non-blocking decision-ledger write. Records the selection/save.
+  const hasEstimates = b.estimated_cost_ils != null || b.suggested_price_ils != null || b.estimated_gp_percent != null;
+  safeRecordFbDecision(db, req.venueId, {
+    decision_type: 'cocktail_selected',
+    source_engine: 'ci_omer',
+    related_cocktail_id: newId,
+    related_menu_id: b.menu_id || null,
+    decision_title: `Saved cocktail: ${b.name}`,
+    recipe_snapshot: {
+      name: b.name,
+      base_spirit: b.base_spirit || null,
+      method: b.method || null,
+      glass: b.glass || null,
+      garnish: b.garnish || null,
+      ingredients: Array.isArray(b.ingredients) ? b.ingredients.slice(0, 12) : null,
+    },
+    decision_payload: hasEstimates
+      ? { costing_basis: 'estimate', estimated_cost_ils: b.estimated_cost_ils ?? null, suggested_price_ils: b.suggested_price_ils ?? null, estimated_gp_percent: b.estimated_gp_percent ?? null }
+      : null,
+    evidence: hasEstimates ? [{ source: 'costing', ref: 'estimate' }] : null,
+    provenance: { origin: 'specialist_decision', action: 'human_save', route: 'ci_cocktails' },
+  }, fbLedgerOnError('ci_cocktails', req.venueId));
+
   res.status(201).json({
     ok: true,
     cocktail: { ...saved, tags: JSON.parse(saved.tags_json || '[]'), ingredients: JSON.parse(saved.ingredients_text_json || '[]') },
@@ -5652,6 +5853,67 @@ app.post('/api/venue-intelligence/reset', requireAuth('owner'), (req, res) => {
     res.json({ state: getVenueIntelligence(venueId) });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Could not reset the session.' });
+  }
+});
+
+// ── Venue Intelligence Candidates — review/approval (Phase 7A) ─────────────────
+// Read-only list/detail + a review PATCH. SIGNAL-ONLY: a candidate is NEVER Venue
+// DNA. Review NEVER mutates Venue DNA, NEVER calls mergeVenueDna, NEVER writes
+// venue_intelligence/venue_briefs/venue_dna_enrichment, and has NO candidate→DNA path.
+// Read: CI_ROLES (they create the F&B decisions these derive from). Review: owner/admin only.
+
+// GET — compact list of candidates for the venue (filters: candidate_type, human_review_status, limit).
+app.get('/api/venue-intelligence/candidates', requireAuth(...CI_ROLES), (req, res) => {
+  try {
+    const filters = {};
+    if (typeof req.query.candidate_type === 'string') filters.candidate_type = req.query.candidate_type;
+    if (typeof req.query.human_review_status === 'string') filters.human_review_status = req.query.human_review_status;
+    if (req.query.limit != null) filters.limit = Number(req.query.limit);
+    const rows = listVenueIntelligenceCandidatesForVenue(db, req.venueId, filters);
+    // Compact projection — no large JSON snapshots in the list.
+    const candidates = rows.map(r => ({
+      id: r.id,
+      candidate_type: r.candidate_type,
+      source_domain: r.source_domain,
+      source_decision_id: r.source_decision_id,
+      candidate_summary: r.candidate_summary,
+      status: r.status,
+      human_review_status: r.human_review_status,
+      reviewed_by: r.reviewed_by,
+      reviewed_at: r.reviewed_at,
+      confidence_level: (r.confidence && r.confidence.level) || null,
+      created_at: r.created_at,
+    }));
+    res.json({ ok: true, candidates, note: 'Candidates are reviewable learning signals only — never confirmed Venue DNA.' });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Could not list candidates.' });
+  }
+});
+
+// GET — one venue-scoped candidate (full, parsed). 404 if not found / cross-venue.
+app.get('/api/venue-intelligence/candidates/:candidateId', requireAuth(...CI_ROLES), (req, res) => {
+  try {
+    const candidate = getVenueIntelligenceCandidateById(db, req.venueId, req.params.candidateId);
+    if (!candidate) return res.status(404).json({ ok: false, error: 'No candidate found for this venue.' });
+    res.json({ ok: true, candidate, note: 'Candidate is a reviewable learning signal only — not confirmed Venue DNA.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not read the candidate.' });
+  }
+});
+
+// PATCH — human review (owner/admin only). Signal-only: never mutates Venue DNA.
+app.patch('/api/venue-intelligence/candidates/:candidateId/review', requireAuth('owner', 'admin'), (req, res) => {
+  try {
+    const updated = markVenueIntelligenceCandidateReviewed(db, req.venueId, req.params.candidateId, {
+      human_review_status: req.body && req.body.human_review_status,
+      reviewed_by: (req.user && (req.user.full_name || req.user.id)) || null,
+      review_note: req.body && req.body.review_note,
+    });
+    if (!updated) return res.status(404).json({ ok: false, error: 'No candidate found for this venue.' });
+    res.json({ ok: true, candidate: updated, note: 'Reviewed as a learning signal only — Venue DNA was not changed.' });
+  } catch (err) {
+    // Invalid review status / bad input → 400 (validation throw from the service).
+    res.status(400).json({ error: err.message || 'Could not review the candidate.' });
   }
 });
 

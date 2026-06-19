@@ -7,7 +7,10 @@
     "server:dev": "nodemon --watch server.js server.js",
     "start": "concurrently \"npm run server:dev\" \"npm run dev\"",
     "start:prod": "concurrently \"npm run server\" \"npm run dev\"",
-    "hestia:check": "node scripts/hestia-check.js"
+    "hestia:check": "node scripts/hestia-check.js",
+    "test:beverage": "node scripts/test-beverage-intelligence-foundation.js",
+    "test:fb-ledger": "node scripts/test-fb-decision-ledger.js",
+    "test:fnb-feedback": "node scripts/test-fnb-venue-feedback.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",
