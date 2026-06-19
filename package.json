@@ -13,7 +13,8 @@
     "test:fnb-feedback": "node scripts/test-fnb-venue-feedback.js",
     "test:menu-intelligence": "node scripts/test-menu-intelligence.js",
     "test:fnb-director-brief": "node scripts/test-fnb-director-brief.js",
-    "test:venue-dna-completeness": "node scripts/test-venue-dna-completeness.js"
+    "test:venue-dna-completeness": "node scripts/test-venue-dna-completeness.js",
+    "test:venue-dna-completeness-route": "node scripts/test-venue-dna-completeness-route.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",

@@ -21,6 +21,7 @@ import { buildMenuIntelligenceSnapshot } from "./src/services/venueBridge/menuIn
 import { buildFnbDirectorBrief } from "./src/services/venueBridge/fnbDirectorBriefService.js";
 import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } from "./src/config/featureFlags.js";
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
+import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 
 dotenv.config();
 
@@ -5826,6 +5827,27 @@ app.get('/api/venue-intelligence', requireAuth('owner'), (req, res) => {
   } catch (err) {
     debugLog({ event: 'venue_intelligence_get_threw', error: err.message });
     res.status(500).json({ error: err.message || 'Could not load the venue learning session.' });
+  }
+});
+
+// GET — read-only deterministic Venue DNA completeness model (Phase 9C-3).
+// Reuses the existing safe Venue DNA read, runs the PURE evaluator, performs no
+// writes, calls no AI, and never mutates Venue DNA. 9D confirmations/contradictions
+// do not exist yet, so they default to empty — the evaluator reports honestly from
+// stored DNA fields alone. Missing/first-visit DNA degrades safely to not_started.
+app.get('/api/venue-intelligence/completeness', requireAuth('owner'), (req, res) => {
+  try {
+    const state = getVenueIntelligence(req.venueId);
+    const venueDna = state && state.venueDNA && typeof state.venueDNA === 'object' ? state.venueDNA : {};
+    const completeness = buildVenueDnaCompleteness(venueDna, {
+      confirmations: {},
+      contradictions: {},
+      openCriticalQuestions: [],
+    });
+    res.json({ ok: true, completeness });
+  } catch (err) {
+    debugLog({ event: 'venue_intelligence_completeness_threw', error: err.message });
+    res.status(500).json({ ok: false, error: err.message || 'Could not evaluate Venue DNA completeness.' });
   }
 });
 
