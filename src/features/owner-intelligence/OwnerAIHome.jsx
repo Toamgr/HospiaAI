@@ -56,20 +56,36 @@ function groupForStatus(dim) {
   return 'learning' // partial, unclear, contradicted, or tracked-but-empty
 }
 
-// Calm intelligence presence — a refined mark, not an animated neon orb.
+// Ceremonial intelligence presence — an engraved double-ring sigil on ivory, in
+// the classical Hestia register. Calm and restrained: no glow, no sci-fi excess.
 function Orb() {
   return (
     <div className="flex items-center justify-center">
       <div
-        className="flex h-20 w-20 items-center justify-center rounded-full"
+        className="relative flex h-24 w-24 items-center justify-center rounded-full"
         style={{
-          background: 'radial-gradient(circle at 50% 38%, rgba(107,39,55,0.10), rgba(184,134,11,0.06) 70%, transparent)',
+          background: 'radial-gradient(circle at 50% 36%, rgba(107,39,55,0.10), rgba(184,134,11,0.05) 68%, transparent)',
           border: `1px solid ${C.borderEmp}`,
-          boxShadow: '0 4px 16px rgba(26,22,18,0.08)',
+          boxShadow: '0 6px 22px rgba(26,22,18,0.10), inset 0 1px 0 rgba(255,255,255,0.65)',
         }}
       >
+        {/* engraved outer hairline ring — restrained gold */}
+        <div className="absolute inset-[5px] rounded-full" style={{ border: `1px solid ${C.amber}`, opacity: 0.32 }} aria-hidden="true" />
+        {/* engraved inner hairline ring — charcoal linework */}
+        <div className="absolute inset-[11px] rounded-full" style={{ border: `1px solid ${C.borderEmp}` }} aria-hidden="true" />
         <span className="font-serif text-3xl" style={{ color: C.burgundy }}>◈</span>
       </div>
+    </div>
+  )
+}
+
+// A classical engraved divider — a hairline rule with a centered mark.
+function EngravedRule() {
+  return (
+    <div className="mx-auto mt-6 flex max-w-[18rem] items-center gap-3" aria-hidden="true">
+      <span className="h-px flex-1" style={{ background: `linear-gradient(to right, transparent, ${C.borderEmp})` }} />
+      <span className="text-[10px]" style={{ color: C.amber }}>✦</span>
+      <span className="h-px flex-1" style={{ background: `linear-gradient(to left, transparent, ${C.borderEmp})` }} />
     </div>
   )
 }
@@ -137,7 +153,11 @@ export default function OwnerAIHome({ currentUser } = {}) {
     // Phase 9C-4: read-only — GET completeness only. No sendMessage, no writes.
     apiGet('/api/venue-intelligence/completeness')
       .then(res => { if (!cancelled) setCompleteness(res?.completeness || null) })
-      .catch(() => { if (!cancelled) setError('HESTIA could not read the foundation model right now. The page is still readable; nothing was changed.') })
+      .catch(err => {
+        // Dev-only: name the endpoint so a stale backend (missing route) is obvious.
+        if (import.meta?.env?.DEV) console.error('[OwnerAIHome] GET /api/venue-intelligence/completeness failed:', err)
+        if (!cancelled) setError('HESTIA could not read the Venue DNA foundation right now. Nothing was changed.')
+      })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [])
@@ -183,10 +203,12 @@ export default function OwnerAIHome({ currentUser } = {}) {
           <p className="mt-3 font-serif text-xl italic" style={{ color: C.text2 }}>
             Venue Intelligence, on demand
           </p>
-          <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed" style={{ color: C.text2 }}>
+          <EngravedRule />
+          <p className="mx-auto mt-6 max-w-xl text-sm leading-relaxed" style={{ color: C.text2 }}>
             This is where HESTIA learns your venue and, in time, helps you run it. For now it is a
             read-only build surface: it shows the deterministic Venue DNA foundation — what HESTIA
-            knows, what it’s still learning, and what will need your confirmation.
+            knows, what it’s still learning, and what will need your confirmation. Signals are not
+            confirmed Venue DNA.
           </p>
         </div>
 
@@ -231,9 +253,16 @@ export default function OwnerAIHome({ currentUser } = {}) {
               </div>
             </Panel>
           ) : error ? (
-            <Panel>
+            <Panel className="text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
+                style={{ border: `1px solid ${C.borderEmp}`, color: C.amber }} aria-hidden="true">
+                <span className="font-serif text-lg">◈</span>
+              </div>
               <Eyebrow>Venue DNA foundation</Eyebrow>
-              <p className="mt-3 text-sm leading-relaxed" style={{ color: C.text2 }}>{error}</p>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed" style={{ color: C.text2 }}>{error}</p>
+              <p className="mx-auto mt-2 max-w-md text-[11px] leading-relaxed" style={{ color: C.text3 }}>
+                This surface is read-only. No Venue DNA was written or altered.
+              </p>
             </Panel>
           ) : (
             <>

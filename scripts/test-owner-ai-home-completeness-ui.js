@@ -81,7 +81,7 @@ for (const kpi of ['revenue', 'margin', 'sales', 'ROI', 'guest satisfaction', 'o
 
 // Loading / error / empty honest states present.
 ok(/Reading Venue DNA foundation/i.test(src), 'honest loading state present')
-ok(/could not read the foundation model/i.test(src), 'honest error state present')
+ok(/could not read the Venue DNA foundation/i.test(src), 'honest error state present')
 ok(/has not built enough Venue DNA/i.test(src), 'honest empty/not-started state present')
 
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
