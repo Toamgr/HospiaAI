@@ -18,6 +18,7 @@ import { FB_DECISIONS_DDL, safeRecordFbDecision, getFbDecisionById, listFbDecisi
 import { buildFbDecisionExplanation } from "./src/services/venueBridge/decisionExplanationService.js";
 import { resolveCiTasteTarget, formatTasteTargetPromptBlock } from "./src/services/venueBridge/beverageContextService.js";
 import { buildMenuIntelligenceSnapshot } from "./src/services/venueBridge/menuIntelligenceService.js";
+import { buildFnbDirectorBrief } from "./src/services/venueBridge/fnbDirectorBriefService.js";
 import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } from "./src/config/featureFlags.js";
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
 
@@ -4844,6 +4845,24 @@ app.get('/api/ci/menu-intelligence', requireAuth(...CI_ROLES), (req, res) => {
     res.json({ ok: true, snapshot });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Could not build the menu intelligence snapshot.' });
+  }
+});
+
+// ── CI F&B DIRECTOR BRIEF — read-only composed brief (Phase 8G) ────────────────
+// Deterministic, read-only, venue-scoped, role-gated. Composes existing safe reads
+// (menu intelligence snapshot + decision ledger + venue intelligence candidates)
+// into one compact operational brief. No AI, no writes, no Venue DNA mutation, no
+// candidate-to-DNA escalation. Read-only siblings (/api/ci/decisions,
+// /api/ci/menu-intelligence) are always-on; this follows the same convention.
+app.get('/api/ci/fnb-director-brief', requireAuth(...CI_ROLES), (req, res) => {
+  try {
+    const options = {};
+    if (req.query.limit != null) options.limit = Number(req.query.limit);
+    if (typeof req.query.since === 'string') options.since = req.query.since;
+    const brief = buildFnbDirectorBrief(db, req.venueId, options);
+    res.json({ ok: true, brief });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not build the F&B director brief.' });
   }
 });
 

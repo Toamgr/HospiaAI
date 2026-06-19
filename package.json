@@ -11,7 +11,8 @@
     "test:beverage": "node scripts/test-beverage-intelligence-foundation.js",
     "test:fb-ledger": "node scripts/test-fb-decision-ledger.js",
     "test:fnb-feedback": "node scripts/test-fnb-venue-feedback.js",
-    "test:menu-intelligence": "node scripts/test-menu-intelligence.js"
+    "test:menu-intelligence": "node scripts/test-menu-intelligence.js",
+    "test:fnb-director-brief": "node scripts/test-fnb-director-brief.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",
