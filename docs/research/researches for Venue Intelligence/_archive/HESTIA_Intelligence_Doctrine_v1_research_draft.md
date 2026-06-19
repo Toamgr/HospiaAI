@@ -3,7 +3,9 @@
 > Automation and AI-agent ideas in this document are research direction only. They are not current production behavior, require real evidence, and must not create fake operational truth or bypass human approval for high-impact decisions.
 > Founder Digital Twin language in this archive is research/internal model language. It is not necessarily product-facing UI language, and any use must remain subject to HESTIA human-control, provenance, confidence, role-access, and venue-boundary guardrails.
 
-# HESTIA Intelligence Doctrine v1
+# HESTIA Intelligence Doctrine v1 — Archived Research Draft (NON-CANONICAL)
+
+> The canonical doctrine is [docs/architecture/HESTIA_INTELLIGENCE_DOCTRINE_V1.md](../../../architecture/HESTIA_INTELLIGENCE_DOCTRINE_V1.md). This document is supporting research only — see the banner above.
 
 ### 1. Core Product Thesis
 
