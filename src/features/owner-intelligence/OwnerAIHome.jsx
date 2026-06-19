@@ -1,18 +1,22 @@
-// Owner AI Home — Phase 9C-4: read-only Venue DNA completeness surface.
+// Owner AI Home — Phase 9D-0: chat-first surface with honest first-run zero-state.
 //
-// The calm, intelligence-first owner surface defined in
-// docs/architecture/OWNER_AI_HOME_AND_VENUE_DNA_BUILD_MODE_PHASE_9A_SPEC.md.
-// It renders on UI-skill Palette B (Editorial Light) and now presents the
-// DETERMINISTIC Venue DNA foundation-readiness model, read-only.
+// The owner does not see a readiness dashboard. They see a calm conversational
+// home. The deterministic completeness model works BEHIND THE SCENES to shape
+// HESTIA's opening message and a collapsed "Backstage intelligence" section.
 //
-// PHASE GUARDRAILS — do not violate in this file:
+// FIRST-RUN TRUTH (Phase 9D-0):
+//   • A true new owner (empty venue_dna_json) sees not_started → "HESTIA is ready
+//     to learn this venue.", zero coverage, no known dimensions, Full Mode locked.
+//   • A venue that already has signals is labelled honestly ("early Venue DNA
+//     signals", "building") and NEVER implies confirmed/final Venue DNA.
+//   • No foundation_score / percentage on the main surface — backstage only, and
+//     labelled as coverage from EXISTING signals (a new venue does not start there).
+//
+// GUARDRAILS:
 //   • READ-ONLY. The only network call is GET /api/venue-intelligence/completeness.
-//   • Do NOT call sendMessage, /message, /reset, candidate APIs, or any POST/PATCH/DELETE.
-//   • No Venue DNA mutation. No Full Intelligence Mode. No AI/model calls.
-//   • The conversation input is inert — it has no submit handler that writes.
-//   • Coverage is deterministic Venue DNA completeness — NEVER "AI confidence".
-// The real Build Mode conversation activates in a later phase (9E), only after the
-// confirmation checkpoints (9D) connect. unlock_readiness is always false here.
+//   • Chat is NOT activated here (Build Mode input is inert) — no /message, /reset,
+//     mergeVenueDna, AI, or any POST/PATCH/DELETE.
+//   • Full Intelligence Mode stays locked. No fake KPIs, no fake progress.
 
 import { useEffect, useState } from 'react'
 import { apiGet } from '../../services/api/client'
@@ -31,33 +35,55 @@ const C = {
   text3:     '#9A9088',
 }
 
-// Owner-facing foundation status copy. Never framed as AI confidence or a score
-// of the business — this is structured Venue DNA coverage only.
-const FOUNDATION_STATUS_COPY = {
-  not_started:              { title: 'HESTIA is ready to learn this venue.', body: 'Nothing has been established yet. Venue DNA Build Mode will gather the venue’s identity, intent, and the night you build around.' },
-  early_learning:           { title: 'HESTIA has early signals.', body: 'A few signals are forming, but not enough to establish the foundation. HESTIA keeps listening before it concludes anything.' },
-  building:                 { title: 'HESTIA is building the venue foundation.', body: 'Core areas are taking shape. Several foundation-critical areas still need to be understood and confirmed.' },
-  needs_owner_confirmation: { title: 'Owner confirmation is needed.', body: 'HESTIA understands the foundation but will not treat identity-level claims as settled until you confirm them.' },
-  foundation_ready:         { title: 'Venue foundation is ready for the next phase.', body: 'The foundation-critical areas are established and confirmed. Full Intelligence Mode remains a separate, later step.' },
+// HESTIA's opening invitation + an honest one-line state ribbon, both shaped by the
+// deterministic completeness state. Never a persisted/fabricated conversation turn,
+// and never a score or percentage.
+const STATE_COPY = {
+  not_started: {
+    ribbon: 'HESTIA is ready to learn this venue.',
+    opening:
+      "Before I can advise, I need to understand the venue. Tell me what this place is, who it’s for, and what kind of hospitality you want people to feel here.",
+  },
+  early_learning: {
+    ribbon: 'This venue already has early Venue DNA signals — nothing is confirmed yet.',
+    opening:
+      "I have early signals about this venue. I still need to understand the owner intent, the guest promise, and what this place must never become.",
+  },
+  building: {
+    ribbon: 'HESTIA is building the venue foundation — these signals are not confirmed Venue DNA.',
+    opening:
+      "I have early signals about this venue. I still need to understand the owner intent, the guest promise, and what this place must never become.",
+  },
+  needs_owner_confirmation: {
+    ribbon: 'Owner confirmation is needed before this becomes Venue DNA.',
+    opening:
+      "I have enough signals to form an early picture, but I need your confirmation before treating any of it as Venue DNA.",
+  },
+  foundation_ready: {
+    ribbon: 'The foundation is in place. Full Intelligence Mode stays locked until activation is built.',
+    opening:
+      "I understand the foundation of this venue. When activation is ready, ask me anything about it — and tell me the moment something changes.",
+  },
 }
 
-// Calm, owner-facing labels for the dimension groupings. No harsh "missing".
-const GROUPS = [
-  { key: 'known',        label: 'Known so far',           hint: 'Understood from what you’ve shared.' },
-  { key: 'needsConfirm', label: 'Awaiting your confirmation', hint: 'Understood, but HESTIA won’t settle these without you.' },
-  { key: 'learning',     label: 'Still learning',         hint: 'Forming — not enough evidence yet.' },
-  { key: 'notTracked',   label: 'Not explored yet',       hint: 'HESTIA hasn’t gathered this yet.' },
+// Owner-voiced prompts HESTIA will explore. Suggestions only — inert until Build
+// Mode is implemented; they never fabricate a reply.
+const SUGGESTED_PROMPTS = [
+  'What kind of guests are we built for?',
+  'What should this venue never become?',
+  'What feeling should guests leave with?',
+  'What makes our hospitality different?',
 ]
 
-function groupForStatus(dim) {
-  if (dim.status === 'answered' || dim.status === 'confirmed') return 'known'
-  if (dim.status === 'needs_confirmation') return 'needsConfirm'
-  if (dim.status === 'missing' && dim.tracked_today === 'no') return 'notTracked'
-  return 'learning' // partial, unclear, contradicted, or tracked-but-empty
+const STATUS_LABEL = {
+  not_started: 'Not started',
+  early_learning: 'Early learning',
+  building: 'Building',
+  needs_owner_confirmation: 'Needs owner confirmation',
+  foundation_ready: 'Foundation ready',
 }
 
-// Ceremonial intelligence presence — an engraved double-ring sigil on ivory, in
-// the classical Hestia register. Calm and restrained: no glow, no sci-fi excess.
+// Ceremonial intelligence presence — an engraved double-ring sigil on ivory.
 function Orb() {
   return (
     <div className="flex items-center justify-center">
@@ -69,9 +95,7 @@ function Orb() {
           boxShadow: '0 6px 22px rgba(26,22,18,0.10), inset 0 1px 0 rgba(255,255,255,0.65)',
         }}
       >
-        {/* engraved outer hairline ring — restrained gold */}
         <div className="absolute inset-[5px] rounded-full" style={{ border: `1px solid ${C.amber}`, opacity: 0.32 }} aria-hidden="true" />
-        {/* engraved inner hairline ring — charcoal linework */}
         <div className="absolute inset-[11px] rounded-full" style={{ border: `1px solid ${C.borderEmp}` }} aria-hidden="true" />
         <span className="font-serif text-3xl" style={{ color: C.burgundy }}>◈</span>
       </div>
@@ -90,11 +114,11 @@ function EngravedRule() {
   )
 }
 
-function Panel({ children, className = '' }) {
+function Sigil() {
   return (
-    <div className={`rounded-2xl p-6 ${className}`}
-      style={{ background: C.card, border: `1px solid ${C.borderSub}`, boxShadow: '0 1px 4px rgba(26,22,18,0.06)' }}>
-      {children}
+    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+      style={{ border: `1px solid ${C.borderEmp}`, background: C.inset, color: C.burgundy }}>
+      <span className="font-serif text-[13px]">◈</span>
     </div>
   )
 }
@@ -107,41 +131,8 @@ function Eyebrow({ children }) {
   )
 }
 
-// A quiet, honest coverage bar — labeled as completeness, never confidence.
-function CoverageBar({ score }) {
-  const pct = Math.max(0, Math.min(100, Number(score) || 0))
-  return (
-    <div>
-      <div className="flex items-baseline justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: C.text3 }}>Foundation coverage</span>
-        <span className="font-serif text-2xl font-bold" style={{ color: C.burgundy }}>{pct}%</span>
-      </div>
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: C.inset }}>
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: C.burgundy }} />
-      </div>
-      <p className="mt-2 text-[11px] leading-relaxed" style={{ color: C.text3 }}>
-        Coverage reflects structured Venue DNA completeness, not performance or confidence.
-      </p>
-    </div>
-  )
-}
-
-function DimensionChip({ dim }) {
-  const dashed = dim.status === 'missing'
-  return (
-    <span className="rounded-full px-2.5 py-1 text-[11px]"
-      style={{
-        border: dashed ? `1px dashed ${C.borderEmp}` : `1px solid ${C.borderSub}`,
-        background: dashed ? 'transparent' : C.inset,
-        color: dashed ? C.text3 : C.text2,
-      }}>
-      {dim.label}
-    </span>
-  )
-}
-
 export default function OwnerAIHome({ currentUser } = {}) {
-  // Read-only deterministic completeness model. The ONLY call this surface makes.
+  // Read-only deterministic completeness — drives the opening message + backstage.
   const [completeness, setCompleteness] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -150,11 +141,9 @@ export default function OwnerAIHome({ currentUser } = {}) {
     let cancelled = false
     setLoading(true)
     setError(null)
-    // Phase 9C-4: read-only — GET completeness only. No sendMessage, no writes.
     apiGet('/api/venue-intelligence/completeness')
       .then(res => { if (!cancelled) setCompleteness(res?.completeness || null) })
       .catch(err => {
-        // Dev-only: name the endpoint so a stale backend (missing route) is obvious.
         if (import.meta?.env?.DEV) console.error('[OwnerAIHome] GET /api/venue-intelligence/completeness failed:', err)
         if (!cancelled) setError('HESTIA could not read the Venue DNA foundation right now. Nothing was changed.')
       })
@@ -163,26 +152,23 @@ export default function OwnerAIHome({ currentUser } = {}) {
   }, [])
 
   const status = completeness?.foundation_status || 'not_started'
-  const statusCopy = FOUNDATION_STATUS_COPY[status] || FOUNDATION_STATUS_COPY.not_started
-  const dimensions = Array.isArray(completeness?.dimensions) ? completeness.dimensions : []
-  const notStarted = status === 'not_started' || completeness?.not_enough_data
+  const copy = STATE_COPY[status] || STATE_COPY.not_started
   const nextQuestion = completeness?.recommended_next_question
-  const unlocked = completeness?.unlock_readiness === true // always false in 9C
-
-  // Group dimensions calmly by what they need from here.
-  const grouped = { known: [], needsConfirm: [], learning: [], notTracked: [] }
-  for (const dim of dimensions) grouped[groupForStatus(dim)].push(dim)
+  const score = completeness?.foundation_score
+  const missingRequired = Array.isArray(completeness?.missing_required_dimensions)
+    ? completeness.missing_required_dimensions
+    : []
 
   return (
     <div
       className="min-h-[calc(100vh-9rem)] -m-5 rounded-3xl px-5 py-10 sm:-m-7 sm:px-8 lg:-m-10 lg:px-12 xl:-m-14 2xl:-m-20"
       style={{ background: C.ground, color: C.text }}
     >
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-2xl">
 
         {/* Minimal top area */}
-        <div className="mb-10 flex items-center justify-between gap-4">
-          <Eyebrow>Owner Intelligence</Eyebrow>
+        <div className="mb-8 flex items-center justify-between gap-4">
+          <Eyebrow>HESTIA · Venue Intelligence</Eyebrow>
           <div className="flex items-center gap-3">
             {currentUser?.full_name && (
               <span className="text-[11px]" style={{ color: C.text3 }}>{currentUser.full_name}</span>
@@ -194,34 +180,50 @@ export default function OwnerAIHome({ currentUser } = {}) {
           </div>
         </div>
 
-        {/* Center hero */}
-        <div className="mb-10 text-center">
+        {/* ── Conversational home — ceremonial, centered ── */}
+        <div className="text-center">
           <Orb />
-          <h1 className="mt-6 font-serif text-5xl font-bold leading-tight" style={{ color: C.text }}>
-            Owner AI Home
+          <h1 className="mt-6 font-serif text-4xl font-bold leading-tight sm:text-5xl" style={{ color: C.text }}>
+            Talk to HESTIA about your venue
           </h1>
-          <p className="mt-3 font-serif text-xl italic" style={{ color: C.text2 }}>
-            Venue Intelligence, on demand
-          </p>
+
+          {/* Honest state ribbon — distinguishes true-zero / early / confirmation-needed.
+              No percentage here; loads quietly. */}
+          {!loading && !error && (
+            <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed" style={{ color: C.text2 }}>
+              {copy.ribbon}
+            </p>
+          )}
+
           <EngravedRule />
-          <p className="mx-auto mt-6 max-w-xl text-sm leading-relaxed" style={{ color: C.text2 }}>
-            This is where HESTIA learns your venue and, in time, helps you run it. For now it is a
-            read-only build surface: it shows the deterministic Venue DNA foundation — what HESTIA
-            knows, what it’s still learning, and what will need your confirmation. Signals are not
-            confirmed Venue DNA.
-          </p>
+
+          {/* HESTIA's opening invitation (not a persisted turn) */}
+          <div className="mx-auto mt-8 max-w-xl">
+            <div className="flex items-start gap-2.5 text-left">
+              <Sigil />
+              <div className="rounded-2xl px-4 py-3 text-sm leading-relaxed"
+                style={{ background: C.card, color: C.text, border: `1px solid ${C.borderSub}`, borderTopLeftRadius: 6 }}>
+                {loading ? 'Reading Venue DNA foundation…' : error ? error : copy.opening}
+                {!loading && !error && nextQuestion && (
+                  <span className="mt-2 block font-serif text-[13px] italic" style={{ color: C.text2 }}>
+                    To begin: “{nextQuestion}”
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Primary input shell — inert. No submit, no POST. */}
-        <div className="mb-8">
+        {/* ── Primary input — INERT. Build Mode is not activated yet. ── */}
+        <div className="mt-7">
           <div className="flex items-end gap-2 rounded-2xl p-2"
-            style={{ background: C.card, border: `1px solid ${C.borderSub}`, boxShadow: '0 1px 4px rgba(26,22,18,0.06)' }}>
+            style={{ background: C.card, border: `1px solid ${C.borderSub}`, boxShadow: '0 2px 10px rgba(26,22,18,0.07)' }}>
             <textarea
               rows={2}
               disabled
               aria-disabled="true"
-              placeholder="Venue DNA Build Mode is being prepared. This input is intentionally inactive until confirmation checkpoints are connected."
-              className="flex-1 resize-none rounded-xl bg-transparent px-3 py-2 text-sm outline-none"
+              placeholder="Venue DNA Build Mode is being connected. For now, HESTIA is showing the first question it will ask — this input is intentionally inactive."
+              className="flex-1 resize-none rounded-xl bg-transparent px-3 py-2 text-sm outline-none disabled:opacity-70"
               style={{ color: C.text }}
             />
             <button
@@ -229,133 +231,100 @@ export default function OwnerAIHome({ currentUser } = {}) {
               disabled
               aria-disabled="true"
               title="Venue DNA Build Mode activates in a later phase"
-              className="cursor-default rounded-xl px-5 py-2 text-sm font-semibold"
+              className="cursor-default self-end rounded-xl px-5 py-2 text-sm font-semibold disabled:opacity-50"
               style={{ border: `1px solid ${C.borderEmp}`, color: C.text3, background: C.inset }}
             >
               Soon
             </button>
           </div>
-          <p className="mt-2 text-center text-[11px]" style={{ color: C.text3 }}>
+
+          {/* Suggested owner prompts — what HESTIA will explore (inert previews). */}
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {SUGGESTED_PROMPTS.map(p => (
+              <span
+                key={p}
+                className="rounded-full px-3 py-1.5 text-[11px]"
+                style={{ border: `1px solid ${C.borderSub}`, background: C.inset, color: C.text3 }}
+              >
+                {p}
+              </span>
+            ))}
+          </div>
+          <p className="mt-3 text-center text-[11px]" style={{ color: C.text3 }}>
             HESTIA separates signals from confirmed Venue DNA. Nothing here mutates the venue profile.
           </p>
         </div>
 
-        {/* Completeness-driven content */}
-        <div className="space-y-4">
-          {loading ? (
-            <Panel>
-              <Eyebrow>Venue DNA foundation</Eyebrow>
-              <p className="mt-3 text-sm" style={{ color: C.text2 }}>Reading Venue DNA foundation…</p>
-              <div className="mt-4 space-y-3">
-                {[0, 1, 2].map(i => (
-                  <div key={i} className="h-5 animate-pulse rounded" style={{ background: C.inset, width: `${70 - i * 12}%` }} />
-                ))}
-              </div>
-            </Panel>
-          ) : error ? (
-            <Panel className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
-                style={{ border: `1px solid ${C.borderEmp}`, color: C.amber }} aria-hidden="true">
-                <span className="font-serif text-lg">◈</span>
-              </div>
-              <Eyebrow>Venue DNA foundation</Eyebrow>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed" style={{ color: C.text2 }}>{error}</p>
-              <p className="mx-auto mt-2 max-w-md text-[11px] leading-relaxed" style={{ color: C.text3 }}>
-                This surface is read-only. No Venue DNA was written or altered.
+        {/* ── Backstage intelligence — collapsed by default, never the product ── */}
+        <details className="mt-10">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3 py-2"
+            style={{ border: `1px solid ${C.borderSub}`, background: C.card }}>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: C.text3 }}>
+              Backstage intelligence
+            </span>
+            <span className="text-[11px]" style={{ color: C.text3 }}>Venue foundation details</span>
+          </summary>
+
+          <div className="mt-3 rounded-2xl p-5" style={{ background: C.card, border: `1px solid ${C.borderSub}` }}>
+            {loading ? (
+              <p className="text-[12px]" style={{ color: C.text3 }}>Reading Venue DNA foundation…</p>
+            ) : error ? (
+              <p className="text-[12px] leading-relaxed" style={{ color: C.text2 }}>{error}</p>
+            ) : !completeness ? (
+              <p className="text-[12px] leading-relaxed" style={{ color: C.text2 }}>
+                HESTIA has not built enough Venue DNA yet. The conversation above is how it begins.
               </p>
-            </Panel>
-          ) : (
-            <>
-              {/* 1 + 2. Foundation status + coverage — one clear card */}
-              <Panel>
-                <Eyebrow>Foundation status</Eyebrow>
-                <h2 className="mt-3 font-serif text-2xl font-bold leading-snug" style={{ color: C.text }}>
-                  {statusCopy.title}
-                </h2>
-                <p className="mt-2 text-sm leading-relaxed" style={{ color: C.text2 }}>
-                  {statusCopy.body}
-                </p>
-                <div className="mt-5 border-t pt-5" style={{ borderColor: C.borderSub }}>
-                  <CoverageBar score={completeness?.foundation_score} />
-                </div>
-              </Panel>
-
-              {/* 4. What HESTIA will explore next */}
-              {nextQuestion && (
-                <Panel>
-                  <Eyebrow>What HESTIA will explore next</Eyebrow>
-                  <p className="mt-3 font-serif text-lg italic leading-snug" style={{ color: C.text }}>
-                    “{nextQuestion}”
-                  </p>
-                  <p className="mt-3 text-[12px] leading-relaxed" style={{ color: C.text3 }}>
-                    This is the next question HESTIA will ask once Venue DNA Build Mode is activated. It
-                    is shown here for transparency — it is not interactive yet.
-                  </p>
-                </Panel>
-              )}
-
-              {/* 3. What HESTIA knows so far — compact, collapsible to reduce dashboard feel */}
-              <Panel>
-                {notStarted ? (
-                  <>
-                    <Eyebrow>What HESTIA knows so far</Eyebrow>
-                    <p className="mt-3 text-sm leading-relaxed" style={{ color: C.text2 }}>
-                      HESTIA has not built enough Venue DNA yet. As Build Mode runs, the venue’s identity,
-                      intent, and the guests you build the night around will appear here.
-                    </p>
-                  </>
-                ) : (
-                  <details>
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-                      <Eyebrow>What HESTIA knows so far</Eyebrow>
-                      <span className="text-[11px]" style={{ color: C.text3 }}>
-                        {grouped.known.length} known · {grouped.needsConfirm.length} to confirm · {grouped.learning.length} forming
-                      </span>
-                    </summary>
-                    <div className="mt-5 space-y-5">
-                      {GROUPS.map(group => {
-                        const items = grouped[group.key]
-                        if (!items.length) return null
-                        return (
-                          <div key={group.key}>
-                            <div className="mb-0.5 text-[9px] font-semibold uppercase tracking-[0.16em]" style={{ color: C.text3 }}>
-                              {group.label}
-                            </div>
-                            <div className="mb-2 text-[11px]" style={{ color: C.text3 }}>{group.hint}</div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {items.map(dim => <DimensionChip key={dim.key} dim={dim} />)}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </details>
-                )}
-              </Panel>
-
-              {/* 5. Why Full Intelligence Mode is locked */}
-              <Panel>
+            ) : (
+              <div className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
-                  <Eyebrow>Full Intelligence Mode</Eyebrow>
-                  <span className="rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
-                    style={{ border: `1px solid ${C.borderEmp}`, color: C.text3, background: C.inset }}>
-                    {unlocked ? 'Unlocked' : 'Locked'}
-                  </span>
+                  <span className="text-[11px] uppercase tracking-[0.12em]" style={{ color: C.text3 }}>Foundation status</span>
+                  <span className="text-[12px] font-semibold" style={{ color: C.text }}>{STATUS_LABEL[status] || status}</span>
                 </div>
-                <p className="mt-3 text-sm leading-relaxed" style={{ color: C.text2 }}>
-                  Full Intelligence Mode remains locked until the venue foundation is complete and
-                  identity-level claims are confirmed. This is by design: HESTIA does not act on an
-                  unfinished venue identity.
+
+                {Number.isFinite(Number(score)) && (
+                  <div>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[11px]" style={{ color: C.text3 }}>Foundation coverage from existing Venue DNA signals</span>
+                      <span className="text-[12px] font-semibold" style={{ color: C.text2 }}>{Math.max(0, Math.min(100, Number(score)))}%</span>
+                    </div>
+                    <p className="mt-1 text-[10px] leading-relaxed" style={{ color: C.text3 }}>
+                      Deterministic Venue DNA completeness — not performance, not AI confidence. A new venue starts at 0.
+                    </p>
+                  </div>
+                )}
+
+                {nextQuestion && (
+                  <div>
+                    <div className="text-[11px]" style={{ color: C.text3 }}>HESTIA’s next question</div>
+                    <p className="mt-1 font-serif text-[13px] italic" style={{ color: C.text }}>“{nextQuestion}”</p>
+                  </div>
+                )}
+
+                {missingRequired.length > 0 && (
+                  <div>
+                    <div className="text-[11px]" style={{ color: C.text3 }}>Still to understand</div>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {missingRequired.map(k => (
+                        <span key={k} className="rounded-full px-2.5 py-1 text-[11px]"
+                          style={{ border: `1px dashed ${C.borderEmp}`, color: C.text3 }}>
+                          {k.replace(/_/g, ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="border-t pt-3 text-[11px] leading-relaxed" style={{ borderColor: C.borderSub, color: C.text3 }}>
+                  Full Intelligence Mode remains locked until HESTIA understands and the owner confirms the venue foundation.
                 </p>
-              </Panel>
-            </>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        </details>
 
         {/* Footer guardrail */}
-        <p className="mt-10 text-center text-[11px]" style={{ color: C.text3 }}>
-          Read-only surface. Coverage is deterministic Venue DNA completeness — not AI confidence — and
-          no Venue DNA changes are made from this page.
+        <p className="mt-8 text-center text-[11px]" style={{ color: C.text3 }}>
+          Read-only surface. Nothing is confirmed as Venue DNA, and no Venue DNA is changed from this page.
         </p>
       </div>
     </div>

@@ -101,6 +101,17 @@ eq(VENUE_DNA_COMPLETENESS_DIMENSIONS.find(d => d.key === 'owner_intent').tracked
   ok(Array.isArray(r.forbidden_inferences_avoided) && r.forbidden_inferences_avoided.length > 0, 'forbidden_inferences_avoided populated for empty DNA')
 }
 
+// First-run truth (Phase 9D-0): a bare {} (new owner / malformed-recovery) is zero.
+{
+  const r = buildVenueDnaCompleteness({})
+  eq(r.foundation_status, 'not_started', '[9D-0] bare {} → not_started (true new owner)')
+  eq(r.foundation_score, 0, '[9D-0] bare {} → foundation_score 0 (no fake progress)')
+  eq(r.unlock_readiness, false, '[9D-0] bare {} → Full Mode locked')
+  eq(r.required_dimensions_answered.length, 0, '[9D-0] bare {} → no known/answered dimensions')
+  ok(r.dimensions.every(d => d.signal_count === 0), '[9D-0] bare {} → every dimension has zero signals')
+  eq(r.missing_required_dimensions.length, 6, '[9D-0] bare {} → all six required dimensions missing')
+}
+
 // 4. Thin single signal → early_learning, not ready.
 {
   const d = emptyDna()
