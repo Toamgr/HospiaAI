@@ -17,6 +17,7 @@ import {
 import { FB_DECISIONS_DDL, safeRecordFbDecision, getFbDecisionById, listFbDecisionsForVenue } from "./src/services/venueBridge/decisionLedgerService.js";
 import { buildFbDecisionExplanation } from "./src/services/venueBridge/decisionExplanationService.js";
 import { resolveCiTasteTarget, formatTasteTargetPromptBlock } from "./src/services/venueBridge/beverageContextService.js";
+import { buildMenuIntelligenceSnapshot } from "./src/services/venueBridge/menuIntelligenceService.js";
 import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } from "./src/config/featureFlags.js";
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
 
@@ -4828,6 +4829,21 @@ app.get('/api/ci/decisions/:decisionId/explanation', requireAuth(...CI_ROLES), (
     res.json(buildFbDecisionExplanation(decision));
   } catch (err) {
     res.status(500).json({ error: err.message || 'Could not build the explanation.' });
+  }
+});
+
+// ── CI MENU INTELLIGENCE — read-only F&B Menu Intelligence Snapshot (Phase 8F) ──
+// Deterministic, read-only, venue-scoped, role-gated. Reasons about the venue's
+// current cocktail menu as a PORTFOLIO (spirit/category coverage, taste/operational/
+// pricing presence, evidence-based risks, what a human should review next). No AI,
+// no writes, no Venue DNA mutation, no DNA write path. Read-only siblings of
+// /api/ci/decisions are always-on; this follows the same convention.
+app.get('/api/ci/menu-intelligence', requireAuth(...CI_ROLES), (req, res) => {
+  try {
+    const snapshot = buildMenuIntelligenceSnapshot(db, req.venueId);
+    res.json({ ok: true, snapshot });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not build the menu intelligence snapshot.' });
   }
 });
 

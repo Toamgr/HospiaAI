@@ -571,3 +571,14 @@ Added:
 Verification: `test:fnb-feedback` 107/107; `test:fb-ledger` 128/128; `test:beverage` 120/120; `npm run build` PASS; `npm run hestia:check` Build PASSED; `node --check server.js` OK. Guards: review touches **only** `venue_intelligence_candidates`; **no `mergeVenueDna`**, no `venue_dna_json`/`venue_intelligence`/`venue_briefs`/`venue_dna_enrichment` writes; `accepted` = signal only (candidate `status` unchanged); Cocktail Lab, Event Builder, prompts, UI, POS untouched; no third engine.
 
 **Next step (deferred, high-sensitivity):** Phase 7B — candidate→Venue DNA **promotion**, owner-gated, routed through `mergeVenueDna` discipline, with a defined candidate_type→DNA mapping, evidence thresholds, confidence cap, full audit, and reversibility (per Phase 7 plan §8). Requires its own go-ahead and a dedicated guardrail review.
+
+## Phase 8F — Completion Note (2026-06-19)
+
+**Phase 8F (F&B Menu Intelligence Snapshot — read-only portfolio view) is complete and green.** HESTIA can now reason about a venue's current cocktail menu as a **portfolio** (spirit/category coverage, classics-vs-signatures, low/zero-proof, taste/operational/pricing presence, evidence-based risks, and what a human should review next), honestly reporting missing data. Foundation: [FNB_MENU_INTELLIGENCE_SNAPSHOT_FOUNDATION.md](../architecture/FNB_MENU_INTELLIGENCE_SNAPSHOT_FOUNDATION.md).
+
+Added:
+- Service `src/services/venueBridge/menuIntelligenceService.js` — pure, DI-`db`, read-only. Venue-scoped via menu membership (`cocktails.menu_id → cocktail_menus.venue_id`; cocktails carry no `venue_id`). Reads only `cocktail_menus` + `cocktails`; writes nothing.
+- Route `GET /api/ci/menu-intelligence` (`requireAuth(...CI_ROLES)`, venue-scoped via `req.venueId`, read-only). **No feature flag** — mirrors the always-on read-only `/api/ci/decisions` convention.
+- Tests: `test:menu-intelligence` → **69** (empty-state safety, venue scoping + cross-venue isolation, inactive-item exclusion, deterministic spirit coverage, missing taste/operational/pricing reported not fabricated, no POS/guest/inventory inference, evidence-based risks, no-writes, and static no-AI/no-`mergeVenueDna`/no-DNA-write guards on service + route).
+
+Verification: `test:menu-intelligence` 69/69; `test:fnb-feedback` 107/107; `test:fb-ledger` 128/128; `test:beverage` 120/120; `npm run build` PASS; `npm run hestia:check` Build PASSED; `node --check` OK on service, test, and `server.js`. Guards: snapshot performs **no** `INSERT`/`UPDATE`/`DELETE`; **no `mergeVenueDna`**, no `venue_intelligence`/`venue_briefs`/`venue_dna_enrichment`/`venue_intelligence_candidates` writes; no AI/network; no candidate→DNA path; Cocktail Lab, Event Builder, prompts, and the 25-field contract untouched; no third engine.
