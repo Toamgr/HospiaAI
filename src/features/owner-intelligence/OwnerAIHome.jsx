@@ -65,12 +65,13 @@ const STATE_COPY = {
 }
 
 // Owner-voiced prompts. Clicking one populates the input (the owner still presses
-// Send) — never an auto-sent or fabricated turn.
+// Send) — never an auto-sent or fabricated turn. The first asks HESTIA for the
+// working draft once enough signals have been shared.
 const SUGGESTED_PROMPTS = [
-  'What kind of guests are we built for?',
+  'Show me the current Venue DNA draft',
   'What should this venue never become?',
   'What feeling should guests leave with?',
-  'What makes our hospitality different?',
+  'What kind of guests are we built for?',
 ]
 
 const STATUS_LABEL = {
@@ -369,9 +370,10 @@ export default function OwnerAIHome({ currentUser, venueIntelligence } = {}) {
 
           {/* Guardrail note — the product truth, stated plainly. */}
           <p className="mt-3 text-center text-[11px] leading-relaxed" style={{ color: C.text3 }}>
-            Conversation builds working Venue DNA signals. Signals are not confirmed Venue DNA — owner
-            confirmation will be required before identity-level claims become confirmed. Full Intelligence
-            Mode remains locked. Shift+Enter for a new line · Enter to send.
+            Conversation builds working Venue DNA signals. Once enough is shared, ask “show me the current
+            Venue DNA draft” for a first version. Signals are not confirmed Venue DNA — owner confirmation
+            will be required before identity-level claims become confirmed. Full Intelligence Mode remains
+            locked. Shift+Enter for a new line · Enter to send.
           </p>
         </div>
 
