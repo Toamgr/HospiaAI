@@ -92,9 +92,9 @@ The product is named **HESTIA** in all user-facing copy, UI, docs, and AI prompt
 
 ### App.jsx
 
-`src/App.jsx` is **composition and orchestration only** — 352 lines, zero direct `useState`, zero `useEffect`. It wires hooks, owns two cross-domain orchestration functions (`login`, `archiveEndOfDayReport`), renders the shell, and calls `PageRenderer`.
+`src/App.jsx` is **composition and orchestration only** — ~377 lines, zero direct `useState`, zero `useEffect`. It wires hooks, owns two cross-domain orchestration functions (`login`, `archiveEndOfDayReport`), renders the shell, and renders `PageRenderer` (imported from `src/PageRenderer.jsx`).
 
-Do not add state, persistence effects, or feature UI to App.jsx. Any new state belongs in a hook. Any new feature UI belongs in `src/features/`.
+Do not add state, persistence effects, or feature UI to App.jsx. Any new state belongs in a hook. Any new feature UI belongs in `src/features/` (registered in `src/PageRenderer.jsx`).
 
 ### Hooks own state
 
@@ -106,7 +106,20 @@ All feature components live in `src/features/`. They receive props from PageRend
 
 ### PageRenderer contract
 
-PageRenderer receives grouped domain prop objects: `session`, `reports`, `operations`, `cocktails`, `academy`, `notifications`. Do not revert this to a flat prop list.
+`PageRenderer` lives in **`src/PageRenderer.jsx`** (extracted from App.jsx in the Phase 1 nav re-skin, 2026-06-21; the extraction was a pure move with no behavior change). It owns the page-key → feature-component map. New feature pages are registered here, not in App.jsx.
+
+PageRenderer receives grouped domain prop objects: `session`, `reports`, `operations`, `cocktails`, `academy`, `notifications` (plus `events`, `cocktailIntelligence`, `venueIntelligence`). Do not revert this to a flat prop list.
+
+### Phase 1 — Role-based navigation posture (2026-06-21)
+
+The Phase 1 nav re-skin (commit `d1527b8`) made the owner experience chat-first, per `docs/plans/HESTIA_AI_BAR_INTELLIGENCE_ROADMAP_2026-06-21.md` and `docs/audits/HESTIA_AI_BAR_INTELLIGENCE_ROADMAP_CODEBASE_AUDIT_2026-06-21.md`. Current confirmed behavior:
+
+- **Owner default landing = `ownerHome` (HESTIA AI / `OwnerAIHome`).** Owner Reports (`operationalPulse`), Decision Center, and Venue DNA are depth layers, not the home.
+- **Admin default landing = `operationalPulse`** (preserved via `ROLE_LANDING_PREFERENCE` in `roleConfig.js`; admin is a superuser/operations role, not the owner product persona).
+- **Manager can reach the Pre-Shift Brief** (the `operations` nav group now includes `manager`).
+- **Extra roles are preserved as secondary modules — not deleted, not folded into the 4-role MVP narrative.** `fb_director`, `events_manager`, and `chef` keep their flows (Events CRM, Chef menus, CI dashboard); they were only removed from the *owner's* primary nav, and remain owned by their real roles.
+
+Effective navigation access is gated by `NAV_GROUPS[area].roles` + `PAGE_META[page].roles` in `src/config/navigationConfig.js`. `MODULE_ACCESS_RULES` in `roleConfig.js` is descriptive only (kept in sync for documentation; not the runtime gate).
 
 ### Shift Brain V1
 
