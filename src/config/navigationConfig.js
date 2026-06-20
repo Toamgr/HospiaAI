@@ -1,14 +1,22 @@
 export const NAV_GROUPS = {
   command: {
     roles: ['owner', 'admin'],
+    // Phase 1 (nav re-skin): ownerHome (HESTIA AI) is FIRST so it is the owner's
+    // default landing (default = first allowed page). OperationalPulse remains a
+    // reachable owner report/depth surface, no longer the home. See
+    // docs/plans/HESTIA_AI_BAR_INTELLIGENCE_ROADMAP_2026-06-21.md §3 and
+    // docs/audits/HESTIA_AI_BAR_INTELLIGENCE_ROADMAP_CODEBASE_AUDIT_2026-06-21.md.
     pages: [
-      'operationalPulse',
       'ownerHome',
+      'operationalPulse',
       'settings'
     ]
   },
+  // Phase 1: Manager workspace area. 'manager' added so the existing Pre-Shift
+  // Briefing (PAGE_META already authorizes manager) is reachable via nav; owner
+  // removed (owner operates through HESTIA AI, not operational tabs).
   operations: {
-    roles: ['owner', 'admin'],
+    roles: ['manager', 'admin'],
     pages: [
       'preShiftBriefing',
       'actionBoard',
@@ -20,7 +28,7 @@ export const NAV_GROUPS = {
   },
   // Trimmed nav for manager — Daily Close + Sales Tracker
   dailyOps: {
-    roles: ['manager', 'bar_manager', 'owner', 'admin'],
+    roles: ['manager', 'bar_manager', 'admin'],
     pages: ['endOfDay', 'ciDashboard']
   },
   employeeWorkflow: {
@@ -44,8 +52,14 @@ export const NAV_GROUPS = {
     roles: ['employee', 'fb_director', 'admin'],
     pages: ['courses', 'lessonPlayer', 'knowledgeLibrary', 'wineKnowledge', 'approvedCocktails', 'cocktailLibrary']
   },
+  // Phase 1 (nav re-skin): 'owner' removed from the groups below so the owner's
+  // primary nav slims to HESTIA AI + Owner Reports (command) and Venue DNA
+  // (venueIntelligence). Modules are NOT deleted — they remain owned by their
+  // real roles (bar_manager, fb_director, events_manager, chef, etc.) and stay
+  // reachable for those roles. Re-add 'owner' to any group's roles to restore an
+  // owner nav tab. See the 2026-06-21 roadmap + audit referenced above.
   barManagement: {
-    roles: ['bar_manager', 'owner', 'fb_director', 'admin'],
+    roles: ['bar_manager', 'fb_director', 'admin'],
     pages: ['cocktailLab', 'foodCostTables', 'approvedCocktailsBar', 'cocktailLibrary', 'inventoryOverview', 'barReports', 'bottlePrices']
   },
   ownerIntelligence: {
@@ -58,7 +72,7 @@ export const NAV_GROUPS = {
   },
   // CI MODULE ADDITION
   cocktailIntelligence: {
-    roles: ['owner', 'bar_manager', 'fb_director', 'admin'],
+    roles: ['bar_manager', 'fb_director', 'admin'],
     pages: ['ciDashboard']
   },
   // Venue Intelligence — owner/admin only Venue Learning Engine + Bridge inspector
@@ -66,25 +80,26 @@ export const NAV_GROUPS = {
     roles: ['owner', 'admin'],
     pages: ['venueLearning', 'venueBridgeInspector']
   },
-  // Events module — events_manager, owner, admin (full CRM + finance + calendar)
+  // Events module — events_manager, admin (full CRM + finance + calendar).
+  // Phase 1: 'owner' removed from primary nav; events_manager flow unchanged.
   eventsArea: {
-    roles: ['events_manager', 'owner', 'admin'],
+    roles: ['events_manager', 'admin'],
     pages: ['eventCRM', 'eventOrchestrator']
   },
-  // Calendar-only view — manager sees business summary; events_manager/owner/admin
+  // Calendar-only view — manager sees business summary; events_manager/admin
   // also land here so the calendar appears in their Events nav section.
   eventsCalendarArea: {
-    roles: ['events_manager', 'manager', 'owner', 'admin'],
+    roles: ['events_manager', 'manager', 'admin'],
     pages: ['eventCalendar']
   },
-  // Staff tab — fb_director, bar_manager, owner, admin
+  // Staff tab — fb_director, bar_manager, admin
   staffArea: {
-    roles: ['fb_director', 'bar_manager', 'owner', 'admin'],
+    roles: ['fb_director', 'bar_manager', 'admin'],
     pages: ['staffTab', 'staffProgression']
   },
   // Shift organizer — bar_manager
   shiftOrganizer: {
-    roles: ['bar_manager', 'owner', 'admin'],
+    roles: ['bar_manager', 'admin'],
     pages: ['shiftOrganizerPage']
   },
   // Chef module
@@ -92,15 +107,15 @@ export const NAV_GROUPS = {
     roles: ['chef', 'admin'],
     pages: ['chefDashboard']
   },
-  // Chef menu approval — fb_director + owner
+  // Chef menu approval — fb_director (owner approval flow deferred to a later phase)
   chefApproval: {
-    roles: ['fb_director', 'owner', 'admin'],
+    roles: ['fb_director', 'admin'],
     pages: ['chefDashboard']
   },
 
   // Cocktails Magazine + Business Menus — open to all staff
   cocktailsMagazineArea: {
-    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'chef', 'owner', 'admin'],
+    roles: ['employee', 'manager', 'bar_manager', 'fb_director', 'chef', 'admin'],
     pages: ['cocktailsMagazine']
   }
 }

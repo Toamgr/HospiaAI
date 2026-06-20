@@ -11,14 +11,19 @@ export const ROLE_NAMES = {
   admin: 'Admin'
 }
 
+// NOTE: This map is descriptive only — it is NOT the runtime access gate. Effective
+// navigation access is derived from NAV_GROUPS[area].roles + PAGE_META[page].roles
+// (see allowedPagesForArea / canAccessPage below). It is kept in sync with NAV_GROUPS
+// for documentation. Phase 1 (nav re-skin) slimmed the owner to the roadmap surfaces:
+// HESTIA AI + Owner Reports (command) and Venue DNA (venueIntelligence).
 export const MODULE_ACCESS_RULES = {
   employee: ['employeeWorkflow', 'academy', 'employeeShifts', 'cocktailsMagazineArea'],
-  manager: ['dailyOps', 'cocktailIntelligence', 'cocktailsMagazineArea'],
+  manager: ['operations', 'dailyOps', 'cocktailIntelligence', 'cocktailsMagazineArea'],
   bar_manager: ['barManagement', 'cocktailIntelligence', 'shiftOrganizer', 'staffArea', 'cocktailsMagazineArea'],
   fb_director: ['barManagement', 'cocktailIntelligence', 'staffArea', 'cocktailsMagazineArea'],
   events_manager: ['eventsCalendarArea', 'eventsArea'],
   chef: ['chefArea', 'cocktailsMagazineArea'],
-  owner: ['command', 'planning', 'ownerIntelligence', 'system', 'cocktailIntelligence', 'venueIntelligence', 'staffArea', 'chefApproval', 'cocktailsMagazineArea'],
+  owner: ['command', 'venueIntelligence'],
   admin: Object.keys(NAV_GROUPS)
 }
 
@@ -65,8 +70,21 @@ export function firstAllowedArea(userOrRole) {
   return Object.entries(NAV_GROUPS).find(([area]) => allowedPagesForArea(userOrRole, area).length)?.[0] || 'academy'
 }
 
+// Per-role landing preference. Phase 1 (nav re-skin) makes ownerHome (HESTIA AI) the
+// owner's landing via nav ordering. Admin is a superuser/operations role, not the
+// owner product persona, so it keeps the operational dashboard (operationalPulse) as
+// its landing rather than inheriting the owner's chat home as a side effect. The
+// preference only applies when the preferred page is actually allowed in the resolved
+// area (so it affects the command area only and never overrides explicit navigation).
+const ROLE_LANDING_PREFERENCE = {
+  admin: 'operationalPulse',
+}
+
 export function firstAllowedPage(userOrRole, area = firstAllowedArea(userOrRole)) {
-  return allowedPagesForArea(userOrRole, area)[0] || 'courses'
+  const pages = allowedPagesForArea(userOrRole, area)
+  const preferred = ROLE_LANDING_PREFERENCE[getRole(userOrRole)]
+  if (preferred && pages.includes(preferred)) return preferred
+  return pages[0] || 'courses'
 }
 
 export function isAllowed(userOrRole, area, page) {

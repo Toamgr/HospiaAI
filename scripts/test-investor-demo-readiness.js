@@ -1,10 +1,19 @@
 #!/usr/bin/env node
 /**
- * Investor demo readiness — static safety guards (Phase 9C-5).
+ * Investor demo readiness — static safety guards (Phase 9C-5; check [6] updated in
+ * the Phase 1 nav re-skin, 2026-06-21).
  * No DB, no render, no network, no AI. Reads source files and asserts the honest,
  * read-only demo path holds: Owner AI Home stays read-only, Full Intelligence Mode
- * stays locked, the owner default landing is NOT switched to Owner AI Home, and the
- * completeness endpoint still exists.
+ * stays locked, and the completeness endpoint still exists.
+ *
+ * INTENTIONAL CHANGE (2026-06-21): the owner default landing is now Owner AI Home
+ * (HESTIA AI), not the OperationalPulse dashboard. This follows the current product
+ * source of truth and supersedes the earlier investor-demo posture:
+ *   - docs/plans/HESTIA_AI_BAR_INTELLIGENCE_ROADMAP_2026-06-21.md (§3 First-Run Owner Flow)
+ *   - docs/audits/HESTIA_AI_BAR_INTELLIGENCE_ROADMAP_CODEBASE_AUDIT_2026-06-21.md
+ * Check [6] now guards the NEW posture (chat-first owner) and prevents regression
+ * back to a dashboard-first owner landing. OperationalPulse must remain reachable
+ * as an owner report/depth surface, but is no longer the home.
  *
  * Exits 0 on pass, 1 on failure.
  * Run: node scripts/test-investor-demo-readiness.js
@@ -67,19 +76,22 @@ for (const token of ['firstAllowedPage', 'firstAllowedArea', 'PAGE_ROUTES', 'def
   ok(!homeCode.includes(token), `[5] OwnerAIHome does not touch routing (${token})`)
 }
 
-// 6. Route/nav config does not switch the owner default landing to ownerHome.
-//    The command group must list operationalPulse BEFORE ownerHome (default = first allowed page).
+// 6. Nav config makes Owner AI Home (HESTIA AI) the owner default landing.
+//    The command group must list ownerHome BEFORE operationalPulse (default = first
+//    allowed page). OperationalPulse must still be present (reachable as a report).
+//    This guards the NEW chat-first posture and prevents regression to dashboard-first.
 const cmdMatch = navSrc.match(/command:\s*\{[\s\S]*?pages:\s*\[([\s\S]*?)\]/)
-ok(cmdMatch && cmdMatch[1].indexOf('operationalPulse') !== -1 &&
-   cmdMatch[1].indexOf('operationalPulse') < cmdMatch[1].indexOf('ownerHome'),
-  '[6] owner command nav lists operationalPulse before ownerHome (default landing unchanged)')
+ok(cmdMatch && cmdMatch[1].indexOf('ownerHome') !== -1 &&
+   cmdMatch[1].indexOf('operationalPulse') !== -1 &&
+   cmdMatch[1].indexOf('ownerHome') < cmdMatch[1].indexOf('operationalPulse'),
+  '[6] owner command nav lists ownerHome before operationalPulse (HESTIA AI is the owner default landing; OperationalPulse remains reachable as a report)')
 ok(/operationalPulse:\s*'\/owner'/.test(routesSrc),
-  '[6b] operationalPulse remains mapped to /owner')
+  '[6b] operationalPulse remains mapped to /owner (reachable report surface)')
 ok(/ownerHome:\s*'\/owner\/home'/.test(routesSrc),
-  '[6c] ownerHome remains mapped to /owner/home (not /owner)')
-// roleConfig still derives the default landing from the first allowed page (no ownerHome override).
+  '[6c] ownerHome remains mapped to /owner/home')
+// Default landing still derives from the first allowed page (nav order), not a hard override.
 ok(/firstAllowedPage/.test(roleSrc) && !/default[A-Za-z]*\s*[:=]\s*['"]ownerHome['"]/.test(roleSrc),
-  '[6d] no hard default override to ownerHome in roleConfig')
+  '[6d] default landing derives from first allowed page (no hard override in roleConfig)')
 
 // 7. server.js still exposes the completeness endpoint (GET-only).
 ok(/app\.get\(\s*['"]\/api\/venue-intelligence\/completeness['"]/.test(serverSrc),
