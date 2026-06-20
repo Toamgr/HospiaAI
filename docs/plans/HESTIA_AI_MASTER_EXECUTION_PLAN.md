@@ -4,6 +4,8 @@
 > Type: master planning document — **no code, no tables, no prompts, no UI, no live wiring changed.**
 > Grounded in direct inspection of `server.js`, `src/services/venueBridge/*`, `src/features/venue-intelligence/*`, `src/features/cocktail-intelligence/*`, `src/features/bar/*`, `src/domain/hospitality/bar/*`, `src/config/featureFlags.js`, `package.json`, and `docs/research/researches for Venue Intelligence/*`.
 > Companions: [North Star & F&B Recommendation](../architecture/HESTIA_AI_NORTH_STAR_AND_FNB_INTELLIGENCE_RECOMMENDATION.md), [Current-State Audit](../audits/BEVERAGE_INTELLIGENCE_CURRENT_STATE_AUDIT.md), [Foundation Layer](../architecture/BEVERAGE_INTELLIGENCE_FOUNDATION_LAYER.md), [Regression Audit](../audits/BEVERAGE_CONTEXT_REGRESSION_AUDIT.md), [Intelligence Doctrine V1](../architecture/HESTIA_INTELLIGENCE_DOCTRINE_V1.md).
+>
+> **Current product source of truth (2026-06-21):** [HESTIA AI Bar Intelligence Roadmap](HESTIA_AI_BAR_INTELLIGENCE_ROADMAP_2026-06-21.md) — the updated product roadmap for AI Bar Intelligence MVP, HESTIA AI owner experience, role-based navigation, Active Bar Programme, Prep Library, Recipe Book, Training Gantt, Academy Intelligence, Manual Tabit Upload, Venue Memory, and Evidence Lifecycle guardrails. Supersedes the phasing in this document for product/roadmap direction.
 
 ---
 
