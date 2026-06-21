@@ -7,6 +7,8 @@
 
 > Caution for the Gem: `HESTIA_MASTER_STATE.md` is dated 2026-06-09 and **predates** the Owner AI Home, Venue DNA taxonomy/completeness, and AI Bar Intelligence work. This pack reconciles the two. When in doubt, treat the newer roadmap/execution-plan items as the live frontier and the master state as the stable base.
 
+> **Current-state correction / reconciliation note (2026-06-21, docs-only):** Two prior claims in this pack were corrected against the current code reality. (1) **AI provider claim corrected** — earlier wording said "Gemini (primary) + OpenAI (visual only)"; in fact **OpenAI `gpt-4o-mini` is currently primary for the flagship flows**, Gemini remains only in specific server-side functions, and some function names (e.g. `askGemini`) are legacy/misleading and call OpenAI. Provider naming in code is not yet an architecture source of truth. (2) **`VITE_GEMINI_API_KEY` risk reframed** — frontend exposure appears remediated at the code level (no source file reads it; `.env.example` mandates the server-side `GEMINI_API_KEY`); the only remaining action is an operator check of the local gitignored `.env`. **No runtime/app code was changed** to make this correction — it is a docs-only truth correction. All other findings in this pack (Venue DNA writer discipline, candidate-system isolation, 9E-3 spec-only, 9D not built, Full Intelligence Mode locked, no POS/Tabit, HOSPIA legacy naming, localStorage auth/token risks, `node:sqlite` no-`db.transaction()` footgun) remain unchanged and accurate.
+
 ---
 
 ## 1. What HESTIA Is
@@ -47,7 +49,7 @@ Roadmap-level rules that compound these: *the chat is the owner's home, reports 
 
 **Production-ready base (stable):** server-side JWT auth (bcrypt, sessions, idle timeout); Event CRM (8-tab EventDetail, auto-tasks, RSVP, seating); Zohar event brief engine (deterministic, 17 subtypes, 90 tests, signals carry source/evidence/confidence/classification); Event Calendar + daily briefing + ICS export; Cocktail Intelligence (~120 routes: DNA, menus, sales, lifecycle, narratives, visual menu builder); Event Cocktail Menu Builder; Chef module (AI menu + two-stage approval); Shift Management (pre-shift/handover/EOD); Shift Brain V1 (deterministic); Shift Organizer (AI scheduling); Academy (130+ lessons, 6 academies); Wine Atlas; notifications (backend, role-targeted); user management; guest RSVP portal.
 
-**Architecture:** `App.jsx` is composition-only (zero `useState`/`useEffect`); 10 domain hooks own state; features own UI; services own intelligence; `PageRenderer` takes grouped domain prop objects. `server.js` is a single large file (route split deferred to a later hardening phase). Two AI providers: Gemini (primary) + OpenAI (visual menu + images).
+**Architecture:** `App.jsx` is composition-only (zero `useState`/`useEffect`); 10 domain hooks own state; features own UI; services own intelligence; `PageRenderer` takes grouped domain prop objects. `server.js` is a single large file (route split deferred to a later hardening phase). AI providers (current code reality — see the reconciliation note at the top of this pack): **OpenAI `gpt-4o-mini` is currently primary for the flagship flows** (cocktail generation, Venue Intelligence chat, general chat). Gemini is still present but only in specific server-side functions. Note that some function names (e.g. `askGemini`) are **legacy/misleading and actually call OpenAI**, so provider naming in code must not be treated as an architecture source of truth until reconciled. (Code names unchanged in this pack.)
 
 **Multi-venue (Phase 8, 2026-06-14):** venue-scoped. A venue is the memory unit; a user is the operator. Venue context per request via `X-HESTIA-Venue` → resolved in `requireAuth` to `req.venueId`. **Never use a default venue id in handlers.** Runtime note: `node:sqlite` has **no** `db.transaction()` — multi-statement writes need manual care.
 
@@ -84,7 +86,7 @@ Roadmap-level rules that compound these: *the chat is the owner's home, reports 
 - No costing/menu pricing from unverified data; `barCalculationUtils` returns `null` on missing inputs (never invents).
 - All venue reads/writes are venue-scoped via `req.venueId`; never cross-venue.
 - Technical identifiers still named "HOSPIA" (`hospia.*` localStorage keys, `X-HOSPIA-Role` header, `data/hospia.sqlite`) must not be renamed without a coordinated migration.
-- `VITE_GEMINI_API_KEY` is a known pre-production security issue (bundled into the frontend) — must be made server-side only before production.
+- `VITE_GEMINI_API_KEY` frontend exposure appears **remediated at the code level**: source files do not currently read `VITE_GEMINI_API_KEY`, and `.env.example` uses the server-side `GEMINI_API_KEY` with an explicit warning not to use the `VITE_` prefix. **Remaining operator action:** verify the local (gitignored) `.env` does not still contain `VITE_GEMINI_API_KEY`. Do not treat this as an unresolved live-code issue unless a local `.env` proves otherwise.
 
 ## 8. What Has Been Pushed Recently (git, newest first)
 
