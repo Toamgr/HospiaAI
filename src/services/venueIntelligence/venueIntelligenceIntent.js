@@ -9,23 +9,32 @@
 // draft/exploration — they must not rewrite the current venue's Venue DNA unless
 // the owner explicitly says to update THIS venue.
 //
+// CONVERSATION-LEVEL CONTINUITY (this is the key property)
+// Exploration safety is NOT only per-message. The FIRST turn of a concept brief
+// carries the explicit cues ("new place", "inspired by"), but continuation turns
+// drop them ("focus on innovation", "8 cocktails, 5 methods", "cold infusions,
+// sous vide …"). Those continuations must stay protected. The classifier therefore
+// reads recent conversation context: if the session is in an active exploration
+// thread and the current message continues that brief (menu / cocktail / method /
+// audience / flavor / service / design / operational constraints), it stays in
+// exploration mode and does NOT merge into canonical DNA — unless the owner
+// explicitly says to apply it to the current venue.
+//
 // WHAT THIS IS / IS NOT
 // - Pure and deterministic: no I/O, no AI, no DB. Easy to unit-test.
 // - It does NOT assign Venue DNA statuses, does NOT confirm anything, and does
 //   NOT promote candidates. It only answers one question: "may this turn's
 //   signals be merged into the current venue's canonical Venue DNA?"
-// - It is intentionally conservative: when a message clearly reads as new-concept
-//   exploration and does not explicitly tie itself to the current venue, the safe
+// - It is intentionally conservative: when a turn reads as exploration (directly or
+//   as a continuation) and is not explicitly tied to the current venue, the safe
 //   default is to NOT merge into canonical DNA.
-//
-// LIMITATION (documented on purpose): classification is per-message. A follow-up
-// turn that drops the exploration cues is treated as current-venue discovery.
-// Persisting an exploration "mode" across turns would require session storage and
-// is intentionally out of scope for this narrow fix.
+// - It does NOT block ordinary current-venue discovery: a turn with no exploration
+//   cue, in a non-exploration session, merges exactly as before.
 
 export const VENUE_INTELLIGENCE_INTENT_MODES = Object.freeze({
   CURRENT_VENUE: 'current_venue_discovery',
   EXPLORATION: 'concept_exploration',
+  EXPLORATION_CONTINUATION: 'concept_exploration_continuation',
 });
 
 // New-concept / inspiration / benchmark / hypothetical cues (English + Hebrew).
@@ -45,16 +54,20 @@ const EXPLORATION_SIGNALS = [
 
 // Explicit "this is the current venue / update my DNA" overrides. If present, an
 // exploration-flavoured message is still allowed to update canonical DNA because
-// the owner explicitly tied it to their venue.
+// the owner explicitly tied it to their venue. Also EXITS exploration mode for the
+// rest of the session (until a new exploration cue appears).
 const CURRENT_VENUE_OVERRIDES = [
   // English
   'my venue', 'our venue', 'my bar', 'our bar', 'this venue', 'this bar',
   'this is my', 'update my', 'update the venue', 'update our', 'add to my',
-  'my current', 'for my place', 'to my dna', 'update my dna', 'update our dna',
+  'my current', 'current venue', 'for my place', 'to my dna', 'into the venue dna',
+  'into venue dna', 'save this into', 'save to venue dna', 'apply this to',
+  'apply to the current', 'update the current', 'update my dna', 'update our dna',
   'my place', 'our place',
   // Hebrew
   'המקום שלי', 'הבר שלי', 'המקום שלנו', 'הבר שלנו', 'עדכן את', 'עדכן ל',
-  'הוסף ל', 'זה המקום שלי', 'ל-dna שלי', 'ל-dna של המקום', 'המקום הקיים',
+  'תעדכן את', 'הוסף ל', 'זה המקום שלי', 'ל-dna שלי', 'ל-dna של המקום',
+  'המקום הקיים', 'המקום הנוכחי', 'שמור ל', 'תשמור ל', 'תחיל על',
 ];
 
 // Artifact/deliverable nouns the owner can explicitly ask HESTIA to produce.
@@ -76,6 +89,38 @@ const BUILD_VERBS = [
   'בנה', 'תבנה', 'צור', 'תייצר', 'תן לי', 'עזור לי לבנות', 'תכין', 'הכן',
 ];
 
+// Topical cues that mark a message as CONTINUING a concept brief — menu / cocktail /
+// method / audience / flavor / service / design / operational details. Used only to
+// decide whether a turn inside an active exploration session is a continuation.
+// Ordinary current-venue operational talk that lacks these cues is NOT protected and
+// still merges (e.g. "my staff keep forgetting the closing checklist").
+const CONTINUATION_CUES = [
+  // English — beverage / menu / method
+  'cocktail', 'cocktails', 'menu', 'drink', 'drinks', 'method', 'methods', 'technique',
+  'techniques', 'infusion', 'infusions', 'sous vide', 'sous-vide', 'nitrogen', 'foam',
+  'foams', 'cloud', 'clouds', 'temperature', 'smoke', 'smoking', 'clarif', 'spheric',
+  'carbonat', 'fat wash', 'fat-wash', 'distill', 'garnish', 'glassware', 'ingredient',
+  'presentation',
+  // English — flavor profiles
+  'flavor', 'flavour', 'savory', 'savoury', 'spicy', 'sweet', 'bitter', 'sour', 'umami',
+  // English — audience / experience / design
+  'guest', 'guests', 'audience', 'crowd', 'enthusiast', 'service', 'design', 'atmosphere',
+  'ambiance', 'ambience', 'vibe', 'innovation', 'innovative', 'complex', 'experience',
+  'profile', 'profiles',
+  // Hebrew
+  'קוקטייל', 'קוקטיילים', 'תפריט', 'משקה', 'שיטה', 'שיטות', 'טכניק', 'חליטה', 'חליטות',
+  'קצף', 'ענן', 'טמפרטורה', 'עשן', 'טעם', 'טעמים', 'מתוק', 'חמוץ', 'מר', 'חריף', 'מלוח',
+  'אורח', 'אורחים', 'קהל', 'שירות', 'עיצוב', 'אווירה', 'חדשנות', 'חוויה', 'פרופיל',
+];
+
+// Preparation-method vocabulary, surfaced as metadata when present.
+const METHOD_CUES = [
+  'cold infusion', 'infusion', 'sous vide', 'sous-vide', 'nitrogen', 'foam', 'cloud',
+  'temperature', 'smoke', 'smoking', 'clarification', 'clarif', 'spherification',
+  'spheric', 'carbonation', 'carbonat', 'fat wash', 'fat-wash', 'distillation', 'centrifuge',
+  'חליטה', 'קצף', 'ענן', 'טמפרטורה', 'עשן',
+];
+
 function normalize(input) {
   return String(input == null ? '' : input).toLowerCase();
 }
@@ -90,24 +135,76 @@ function countMatches(haystack, needles) {
   return n;
 }
 
+// Parse an explicitly requested cocktail count (1–20) when the owner names one,
+// e.g. "8 cocktails", "8 קוקטיילים", "make me 6 drinks". Returns null when absent.
+function parseRequestedCocktailCount(text) {
+  const patterns = [
+    /(\d{1,2})\s*(?:original\s+|new\s+)?(?:cocktail|drinks?|קוקטייל)/,
+    /(?:cocktail|drinks?|קוקטייל)\w*\D{0,6}(\d{1,2})/,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) {
+      const n = Number(m[1]);
+      if (Number.isFinite(n) && n >= 1 && n <= 20) return n;
+    }
+  }
+  return null;
+}
+
+// Determine whether the recent conversation is in an active concept-exploration
+// thread. Most-recent explicit mode signal wins: scanning the recent OWNER messages
+// newest-first, the first one that names the current venue ends exploration; the
+// first one with an exploration cue means exploration is active.
+const EXPLORATION_WINDOW = 8; // recent owner messages to consider
+function detectSessionExplorationMode(recentMessages) {
+  if (!Array.isArray(recentMessages)) return false;
+  const ownerMsgs = recentMessages
+    .filter((m) => m && m.role === 'user' && typeof m.content === 'string')
+    .slice(-EXPLORATION_WINDOW);
+  for (let i = ownerMsgs.length - 1; i >= 0; i--) {
+    const t = normalize(ownerMsgs[i].content);
+    if (containsAny(t, CURRENT_VENUE_OVERRIDES)) return false;
+    if (containsAny(t, EXPLORATION_SIGNALS)) return true;
+  }
+  return false;
+}
+
 /**
- * Classify a single owner message.
+ * Classify a single owner message, optionally using recent conversation context to
+ * keep a concept-exploration thread protected across continuation turns.
  *
  * @param {string} message - the owner's latest message text.
+ * @param {{ recentMessages?: Array<{role:string, content:string}> }} [options]
+ *        recentMessages: prior turns (chronological, oldest→newest), e.g. state.messages.
  * @returns {{
  *   mode: string,                 // one of VENUE_INTELLIGENCE_INTENT_MODES
- *   isExploration: boolean,       // reads as a new/inspirational/hypothetical concept
+ *   isExploration: boolean,       // current message has direct new/inspiration cues
+ *   isExplorationContinuation: boolean, // protected as a continuation of an active brief
+ *   sessionInExploration: boolean,// recent context is an active exploration thread
  *   isExplicitBrief: boolean,     // owner explicitly asked for produced artifacts
  *   wantsCurrentVenueUpdate: boolean, // owner explicitly tied it to the current venue
  *   mergeIntoCanonicalDna: boolean,   // SAFE GATE: may this turn write canonical DNA?
- *   reason: string                // short, human-readable explanation
+ *   requestedCocktailCount: number|null,
+ *   methods: string[],
+ *   reason: string
  * }}
  */
-export function classifyVenueIntelligenceIntent(message) {
+export function classifyVenueIntelligenceIntent(message, options = {}) {
   const text = normalize(message);
+  const recentMessages = options && Array.isArray(options.recentMessages) ? options.recentMessages : null;
 
   const isExploration = containsAny(text, EXPLORATION_SIGNALS);
   const wantsCurrentVenueUpdate = containsAny(text, CURRENT_VENUE_OVERRIDES);
+  const sessionInExploration = detectSessionExplorationMode(recentMessages);
+  const hasContinuationCue = containsAny(text, CONTINUATION_CUES);
+
+  // A continuation: the session is already exploring a concept, this turn continues
+  // that brief (menu/cocktail/method/audience/flavor/service/design/operational), and
+  // the owner did not explicitly redirect it to the current venue.
+  const isExplorationContinuation = Boolean(
+    sessionInExploration && hasContinuationCue && !isExploration && !wantsCurrentVenueUpdate
+  );
 
   // "Explicit brief" = the owner is clearly asking HESTIA to PRODUCE deliverables.
   // Require either two distinct artifact nouns, or a build-verb paired with an
@@ -123,32 +220,53 @@ export function classifyVenueIntelligenceIntent(message) {
     (hasBuildVerb && artifactNounHits >= 1)
   );
 
-  // SAFE GATE. Default is to merge (ordinary current-venue discovery). The only
-  // case we withhold the canonical write is genuine concept exploration that the
-  // owner did NOT explicitly tie to their current venue.
-  const mergeIntoCanonicalDna = !(isExploration && !wantsCurrentVenueUpdate);
+  // SAFE GATE. Withhold the canonical write whenever the turn is exploration —
+  // directly OR as a continuation of an active exploration thread — and the owner
+  // did NOT explicitly tie it to the current venue. Everything else merges as before.
+  const effectiveExploration = (isExploration || isExplorationContinuation) && !wantsCurrentVenueUpdate;
+  const mergeIntoCanonicalDna = !effectiveExploration;
 
-  const mode = mergeIntoCanonicalDna
-    ? VENUE_INTELLIGENCE_INTENT_MODES.CURRENT_VENUE
-    : VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION;
+  let mode;
+  if (!mergeIntoCanonicalDna) {
+    mode = isExploration
+      ? VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION
+      : VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION_CONTINUATION;
+  } else {
+    mode = VENUE_INTELLIGENCE_INTENT_MODES.CURRENT_VENUE;
+  }
 
   let reason;
-  if (!mergeIntoCanonicalDna) {
+  if (mode === VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION) {
     reason = 'concept exploration / inspiration — not merged into the current venue DNA';
-  } else if (isExploration && wantsCurrentVenueUpdate) {
-    reason = 'exploration explicitly tied to the current venue — merge allowed';
+  } else if (mode === VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION_CONTINUATION) {
+    reason = 'continuation of an active concept exploration — not merged into the current venue DNA';
+  } else if ((isExploration || sessionInExploration) && wantsCurrentVenueUpdate) {
+    reason = 'exploration explicitly applied to the current venue — merge allowed';
   } else {
     reason = 'current-venue discovery — merge allowed';
   }
 
+  const methods = METHOD_CUES.filter((m) => text.includes(m));
+  const requestedCocktailCount = parseRequestedCocktailCount(text);
+
   return {
     mode,
     isExploration,
+    isExplorationContinuation,
+    sessionInExploration,
     isExplicitBrief,
     wantsCurrentVenueUpdate,
     mergeIntoCanonicalDna,
+    requestedCocktailCount,
+    methods,
     reason,
   };
+}
+
+// Convenience predicate: does this turn (in context) require canonical Venue DNA to
+// be protected from mutation? True for direct exploration and protected continuations.
+export function shouldProtectCanonicalVenueDna(message, recentMessages) {
+  return !classifyVenueIntelligenceIntent(message, { recentMessages }).mergeIntoCanonicalDna;
 }
 
 export default classifyVenueIntelligenceIntent;

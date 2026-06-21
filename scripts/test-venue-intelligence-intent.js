@@ -105,9 +105,10 @@ const handler = nextRel === -1 ? src.slice(startIdx) : src.slice(startIdx, start
 // The single sanctioned writer is still called (invariant other tests rely on).
 ok(/mergeVenueDna\(state\.venueDNA, ai\.venueDNA\)/.test(handler),
   '[B3] handler still computes mergeVenueDna(state.venueDNA, ai.venueDNA)')
-// The canonical write is gated by the intent guard.
-ok(/intent\s*=\s*classifyVenueIntelligenceIntent\(message\)/.test(handler),
-  '[B4] handler classifies the owner message intent')
+// The canonical write is gated by the intent guard, with conversation context so a
+// concept-exploration thread stays protected across continuation turns.
+ok(/intent\s*=\s*classifyVenueIntelligenceIntent\(message,\s*\{\s*recentMessages:\s*state\.messages\s*\}\)/.test(handler),
+  '[B4] handler classifies the owner message intent with recent conversation context')
 ok(/intent\.mergeIntoCanonicalDna\s*\?/.test(handler),
   '[B5] the persisted venueDNA is gated by intent.mergeIntoCanonicalDna')
 
@@ -195,6 +196,95 @@ ok(/Paradiso or SIPS/i.test(prompt), '[B8c] names Paradiso/SIPS as inspiration-o
 
 // Pre-existing draft-label invariant retained.
 ok(/not yet confirmed/i.test(prompt), '[B9] "not yet confirmed" labelling retained')
+
+// ── PART C — conversation-level exploration continuity ───────────────────────
+// The founder's exact multi-turn sequence: the concept turn carries cues; the
+// continuation turns drop them but must STAY protected (no canonical DNA merge).
+
+const T1 = 'אני רוצה לבנות מקום חדש בהשראת התחושה של Paradiso Barcelona ו-SIPS Barcelona, אבל לא להעתיק אותם. תעזור לי לבנות Venue DNA ראשוני, בריף קונספט, קווי שירות, סגנון תפריט קוקטיילים, וסיכונים תפעוליים.'
+const T2 = 'i want to focus on innovation and complex cocktails- not just classic cocktails. our guests will be cocktail enthusiastics'
+const T3 = '8 cocktails, at least 5 different new methods. 1 savory, 1 spicy, 1 sweet, 1 bitter, 1 sour, 1 umami'
+const T4 = 'cold infusions, SOUS VID, nitrogen, foams, clouds, temperature games'
+
+// Build the running history the handler would pass (prior turns only), turn by turn.
+const history = []
+function turn(text) {
+  const intent = classifyVenueIntelligenceIntent(text, { recentMessages: history })
+  history.push({ role: 'user', content: text })
+  history.push({ role: 'model', content: 'ok' })
+  return intent
+}
+
+const c1 = turn(T1)
+ok(c1.mode === VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION, '[C1] T1 = concept_exploration')
+ok(c1.mergeIntoCanonicalDna === false, '[C1b] T1 does NOT merge canonical DNA')
+
+const c2 = turn(T2)
+ok(c2.mode === VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION_CONTINUATION, '[C2] T2 = concept_exploration_continuation')
+ok(c2.sessionInExploration === true, '[C2b] T2 sees the active exploration thread')
+ok(c2.mergeIntoCanonicalDna === false, '[C2c] T2 does NOT merge canonical DNA (continuation protected)')
+
+const c3 = turn(T3)
+ok(c3.mode === VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION_CONTINUATION, '[C3] T3 = concept_exploration_continuation')
+ok(c3.mergeIntoCanonicalDna === false, '[C3b] T3 does NOT merge canonical DNA')
+ok(c3.requestedCocktailCount === 8, '[C3c] T3 tracks requestedCocktailCount = 8')
+
+const c4 = turn(T4)
+ok(c4.mode === VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION_CONTINUATION, '[C4] T4 = concept_exploration_continuation')
+ok(c4.mergeIntoCanonicalDna === false, '[C4b] T4 does NOT merge canonical DNA')
+ok(Array.isArray(c4.methods) && c4.methods.length >= 3, '[C4c] T4 detects preparation methods')
+
+// All four turns protected → canonical DNA stays untouched across the whole brief.
+ok([c1, c2, c3, c4].every(c => c.mergeIntoCanonicalDna === false),
+  '[C5] every turn of the concept brief is protected (no canonical DNA mutation)')
+
+// Ordinary current-venue discovery, with NO active exploration thread, still merges.
+const discovery = [
+  'We never say no to a guest directly, we always offer an alternative.',
+  'My team struggles to stay consistent on busy Friday nights.',
+  'Our cocktail list leans on fresh citrus and low-ABV aperitivo serves.',
+]
+for (const msg of discovery) {
+  const r = classifyVenueIntelligenceIntent(msg, { recentMessages: [] })
+  ok(r.mergeIntoCanonicalDna === true && r.mode === VENUE_INTELLIGENCE_INTENT_MODES.CURRENT_VENUE,
+    `[C6] discovery still merges (no exploration thread): "${msg.slice(0, 30)}…"`)
+}
+
+// A current-venue topic AFTER an exploration thread (no continuation cue) still merges —
+// continuity must not block genuine current-venue discovery.
+const afterExploration = [{ role: 'user', content: T1 }, { role: 'model', content: 'ok' }]
+const opsTurn = classifyVenueIntelligenceIntent('my staff keep forgetting the closing inventory checklist', { recentMessages: afterExploration })
+ok(opsTurn.mergeIntoCanonicalDna === true, '[C7] non-topical current-venue ops talk after exploration still merges')
+
+// Explicit current-venue override applies the exploration to the venue (merge allowed)
+// and exits exploration mode for subsequent turns.
+const overrideEn = classifyVenueIntelligenceIntent('apply this concept to my current venue and update the venue DNA', { recentMessages: afterExploration })
+ok(overrideEn.wantsCurrentVenueUpdate === true, '[C8] explicit English override detected')
+ok(overrideEn.mergeIntoCanonicalDna === true, '[C8b] override allows the merge')
+
+const overrideHe = classifyVenueIntelligenceIntent('תעדכן את ה-DNA של המקום הנוכחי עם הקונספט הזה', { recentMessages: afterExploration })
+ok(overrideHe.wantsCurrentVenueUpdate === true, '[C9] explicit Hebrew override detected')
+ok(overrideHe.mergeIntoCanonicalDna === true, '[C9b] Hebrew override allows the merge')
+
+// After an explicit override, a following continuation-style turn merges (mode exited).
+const afterOverride = [
+  { role: 'user', content: T1 }, { role: 'model', content: 'ok' },
+  { role: 'user', content: 'apply this to my current venue' }, { role: 'model', content: 'ok' },
+]
+const postOverride = classifyVenueIntelligenceIntent('lets add more cocktails to the menu', { recentMessages: afterOverride })
+ok(postOverride.mergeIntoCanonicalDna === true, '[C10] override ends exploration mode; later turns merge')
+
+// Hebrew continuation cue inside an active exploration is still protected.
+const heHistory = [{ role: 'user', content: T1 }, { role: 'model', content: 'ok' }]
+const heCont = classifyVenueIntelligenceIntent('בוא נוסיף קוקטיילים עם טעמים חדשים ושיטות הכנה מתקדמות', { recentMessages: heHistory })
+ok(heCont.mergeIntoCanonicalDna === false && heCont.mode === VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION_CONTINUATION,
+  '[C11] Hebrew continuation inside exploration stays protected')
+
+// New mode constant + backward-compatible single-arg call (no context → no continuation).
+ok(VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION_CONTINUATION === 'concept_exploration_continuation',
+  '[C12] EXPLORATION_CONTINUATION mode constant exists')
+ok(classifyVenueIntelligenceIntent(T2).mergeIntoCanonicalDna === true,
+  '[C13] single-arg (no context) T2 merges — backward compatible, no silent over-block')
 
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)

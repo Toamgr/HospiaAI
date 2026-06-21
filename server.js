@@ -5982,8 +5982,10 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
     const historyForModel = [...state.messages, userTurn];
 
     // Classify the owner's intent up front: it both (a) reinforces the explicit-brief
-    // output contract for this turn and (b) gates the canonical Venue DNA write.
-    const intent = classifyVenueIntelligenceIntent(message);
+    // output contract for this turn and (b) gates the canonical Venue DNA write. The
+    // prior conversation is passed so a concept-exploration thread stays protected
+    // across continuation turns that drop the explicit "new place / inspired by" cue.
+    const intent = classifyVenueIntelligenceIntent(message, { recentMessages: state.messages });
     // Deterministic reinforcement: on an explicit deliverable request, drop the
     // competing 9-section template and append a forceful directive so a small model
     // produces the full artifact set (incl. ≥6 numbered cocktail concepts) instead of
