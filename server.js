@@ -5677,7 +5677,8 @@ If the owner asks any status/output question — e.g. "when will I get the DNA b
 
 WORKING VENUE DNA DRAFT
 DRAFT THRESHOLD — when the conversation already contains information across at least: venue identity, target guests, atmosphere / emotional experience, service philosophy, F&B / cocktail identity, and at least one operational pain or training challenge — then OFFER or PRODUCE a Working Venue DNA Draft. Do not wait for every dimension. Do not keep interviewing endlessly once the threshold is met. If the owner explicitly asks for the draft/summary/DNA, produce it even if a couple of optional areas are still thin.
-When you produce a draft, put the full structured text INSIDE the "reply" field, in exactly this format (use \\n line breaks):
+[[NINE_SECTION_DRAFT]]
+When you produce a draft, put the full structured text INSIDE the "reply" field. Use this 9-section format ONLY when the owner did NOT ask for specific deliverables. The moment the owner asks for concrete outputs — cocktails, a concept brief, service lines, a cocktail menu direction, operational risks — DO NOT use this 9-section format; use the EXPLICIT BRIEF format below instead, which overrides this one and must include the full cocktail list. The 9-section format (use \\n line breaks):
 "Working Venue DNA Draft — not yet confirmed
 1. Venue Identity: ...
 2. Guest Profile: ...
@@ -5689,20 +5690,21 @@ When you produce a draft, put the full structured text INSIDE the "reply" field,
 8. Still Missing Before Confirmation: ...
 9. Next Best Question: ..."
 Use ONLY facts the owner actually provided. For anything not known, write "not yet clear" — never fill a gap with an assumption.
+[[/NINE_SECTION_DRAFT]]
 
 EXPLICIT BRIEF — when the owner hands you a full concept in one message and asks for deliverables, DELIVER (never reply with only questions)
-If the owner gives a rich brief (the venue idea, the feeling, the audience, references) AND explicitly asks you to build outputs — a Venue DNA, a concept brief, service lines, a cocktail menu direction, a set of cocktails, operational risks — you MUST produce a first-pass draft on this same turn. Do NOT respond with only clarifying questions. Inside "reply", produce a labeled draft headed "Working Venue DNA Draft — not yet confirmed" containing, in this order:
+If the owner gives a rich brief (the venue idea, the feeling, the audience, references) AND explicitly asks you to build outputs — a Venue DNA, a concept brief, service lines, a cocktail menu direction, a set of cocktails, operational risks — you MUST produce a first-pass draft on this same turn. Do NOT respond with only clarifying questions. This explicit-brief format takes PRECEDENCE over the generic 9-section draft above: produce every requested artifact in full, here, in this response. NEVER move a requested artifact into a "still missing", "next steps", or "to be confirmed" list — missing information is not a reason to withhold or shrink it. Inside "reply", produce a labeled draft headed "Working Venue DNA Draft — not yet confirmed" containing, in this order:
 - Known facts — only what the owner actually said.
 - Assumptions — clearly labeled as assumptions, never stated as fact.
+- Missing data — the venue facts you still lack. This list sits ALONGSIDE the artifacts; it NEVER replaces one.
 - Concept brief — 2-4 sentences.
-- Service lines — the few service behaviours that would define the experience.
+- Service lines — 3-5 concrete service behaviours that would define the experience.
 - Cocktail menu direction — the style and logic, not a full menu.
-- 6 original cocktail concepts — original names and ideas only. NEVER copy any real venue's recipes, signature serves, names, or brand language.
+- AT LEAST 6 original cocktail concepts — you MUST invent at least six, numbered 1 through 6 (or more). Inventing original cocktail concepts IS the requested creative deliverable, so produce them now: "not yet clear" never applies to them, and missing venue information is never a reason to produce fewer than six. Format EACH concept on its own line exactly like this: "N) <original name> — flavor: <flavor direction>; serve: <glass / serve style>; service: <one-line service idea>; difficulty: <low|medium|high>". Original ideas only — NEVER copy any real venue's recipes, signature serves, names, or brand language. High-level concepts are enough; do not write precise recipes unless the owner asked for them.
 - Operational risks — the realistic ways this concept is hard to run.
 - What is NOT yet confirmed Venue DNA — state plainly that everything above is signals/draft, not confirmed Venue DNA.
-- Missing questions — what you still need to know.
-- Next best question — exactly ONE.
-Fill any unknown with "not yet clear" — never invent a number, name, demographic, or KPI.
+- Next best question — exactly ONE (optional, asked AFTER the artifacts, never instead of them).
+ARTIFACTS VS VENUE FACTS — "not yet clear" and "never invent" apply ONLY to FACTS ABOUT THE VENUE the owner has not stated (its real name, real numbers, real demographics, real awards). They do NOT apply to the creative deliverables you were explicitly asked to generate (concept brief, service lines, cocktail concepts) — those you must produce now, originally and in full. Missing venue information must NEVER be used as a reason to withhold, defer, or shrink a requested artifact.
 
 CONCEPT EXPLORATION vs THIS VENUE — keep exploration out of the current venue's DNA
 Distinguish (A) learning or updating THIS venue from (B) exploring a NEW or hypothetical concept — signalled by phrasing like "a new place", "a concept", "inspired by", "in the spirit of", "benchmark", or "what if". When the owner is exploring a new or inspirational concept, treat your draft as EXPLORATION / DRAFT only: never present it as this venue's working or confirmed Venue DNA, and say so in the reply. Do NOT fold an exploration into the current venue's identity unless the owner explicitly asks to update this venue. Treat any named real venue (for example Paradiso or SIPS) strictly as inspiration — never reproduce their menus, recipes, signature serves, or brand language.
@@ -5747,8 +5749,15 @@ Return ONLY valid JSON — no markdown, no commentary — with this EXACT shape:
     "summary": "string — 1-3 sentences on what HESTIA now understands about this venue",
     "openQuestions": ["..."]
   },
-  "focusSuggestions": ["2-3 short possible directions to take the conversation next"]
+  "focusSuggestions": ["2-3 short possible directions to take the conversation next"],
+  "cocktailConcepts": [
+    { "name": "original name (never copied from a real venue)", "flavor": "flavor direction", "serve": "glass / serve style", "service": "one-line service idea", "difficulty": "low | medium | high" }
+  ]
 }
+RULES FOR cocktailConcepts
+- Leave it [] on ordinary turns. ONLY when the owner explicitly asks for cocktails / a cocktail menu / a set of drinks, fill it with AT LEAST 6 ORIGINAL concepts.
+- These are creative output you invent now — never copy a real venue's recipes, signature serves, names, or brand language. High-level concepts (no precise recipes) are fine.
+- This array is a structured mirror of the cocktail list in "reply"; when you fill it, also include the same 6+ concepts inside the "reply" draft.
 
 RULES FOR venueDNA
 - Return the FULL, updated object every turn. Start from the understanding already provided above and refine it — never reset it.
@@ -5899,6 +5908,66 @@ app.get('/api/venue-intelligence/completeness', requireAuth('owner'), (req, res)
   }
 });
 
+// Appended to the system instruction ONLY on turns the code classifies as an
+// explicit deliverable request. Last-position + unconditional + concrete so a small
+// model produces the artifacts now instead of the generic 9-section draft. Defined
+// outside the route handler on purpose (keeps the handler free of draft/label text).
+const VENUE_INTELLIGENCE_EXPLICIT_BRIEF_DIRECTIVE = `
+
+THIS TURN — THE OWNER EXPLICITLY ASKED FOR DELIVERABLES. Follow the EXPLICIT BRIEF rules, not the generic 9-section draft. Non-negotiable for THIS reply:
+- Produce every artifact the owner asked for, in full, now: concept brief, service lines, cocktail menu direction, the cocktail concepts, and operational risks.
+- Output a numbered list of AT LEAST 6 original cocktail concepts. Each on its own line, formatted exactly: "N) <original name> — flavor: <flavor direction>; serve: <glass / serve style>; service: <one-line service idea>; difficulty: <low|medium|high>".
+- These cocktails are creative output you must invent now. Do NOT place them under "Still Missing", do NOT defer them, do NOT replace them with a question. Missing venue facts never reduce the count below six.
+- ALSO fill the JSON "cocktailConcepts" array with the same 6+ concepts ({name, flavor, serve, service, difficulty}). The array and the reply must agree.
+- Keep the "Working Venue DNA Draft — not yet confirmed" heading and the not-confirmed framing. Ask at most ONE question, and only AFTER the artifacts.
+- Original ideas only — never copy any real venue's recipes, signature serves, names, or brand language.`;
+
+// Runtime composition of the system instruction for a single turn. The generic
+// 9-section draft template competes with the explicit-brief format and a small model
+// tends to copy whichever concrete template it sees. So on an explicit deliverable
+// request we REMOVE the 9-section template entirely (leaving only the explicit-brief
+// format) and append the forceful directive. On ordinary turns we keep the template
+// and only strip the sentinel tokens. The template stays in the source (other tests
+// read it there); this only changes what is sent to the model for this turn.
+const NINE_SECTION_DRAFT_BLOCK = /\[\[NINE_SECTION_DRAFT\]\][\s\S]*?\[\[\/NINE_SECTION_DRAFT\]\]/;
+function composeExplicitBriefInstruction(base, isExplicitBrief) {
+  if (isExplicitBrief) {
+    return base.replace(NINE_SECTION_DRAFT_BLOCK, '').replace(/\n{3,}/g, '\n\n')
+      + VENUE_INTELLIGENCE_EXPLICIT_BRIEF_DIRECTIVE;
+  }
+  return base.replace(/\[\[\/?NINE_SECTION_DRAFT\]\]\n?/g, '');
+}
+
+// Deterministic backstop for the explicit-brief contract. If the model returned a
+// structured cocktailConcepts array but its free-text reply did not actually lay the
+// concepts out, surface them in a clean labelled block so the owner always receives
+// the requested artifact. It NEVER fabricates — it only renders what the model
+// produced, and it no-ops when the reply already contains a concept list or the
+// array is empty. Defined outside the route handler on purpose.
+function formatCocktailConceptLine(concept, index) {
+  if (!concept || typeof concept !== 'object') return null;
+  const name = String(concept.name || '').trim();
+  if (!name) return null;
+  const parts = [];
+  if (concept.flavor) parts.push(`flavor: ${String(concept.flavor).trim()}`);
+  if (concept.serve) parts.push(`serve: ${String(concept.serve).trim()}`);
+  if (concept.service) parts.push(`service: ${String(concept.service).trim()}`);
+  if (concept.difficulty) parts.push(`difficulty: ${String(concept.difficulty).trim()}`);
+  return `${index + 1}) ${name}${parts.length ? ' — ' + parts.join('; ') : ''}`;
+}
+function ensureCocktailConceptsInReply(reply, cocktailConcepts) {
+  if (!Array.isArray(cocktailConcepts)) return reply;
+  const lines = cocktailConcepts.map(formatCocktailConceptLine).filter(Boolean).slice(0, 8);
+  if (lines.length === 0) return reply;
+  // No-op if the reply already lays the concepts out. Detect by the cocktail-specific
+  // markers our format uses (flavor:/serve:/difficulty:) — NOT by generic numbering,
+  // because the 9-section draft is itself a numbered list and would false-positive.
+  const flavorLines = (reply.match(/flavou?r\s*:/gi) || []).length;
+  if (/difficulty\s*:/i.test(reply) || flavorLines >= lines.length) return reply;
+  const block = `Cocktail concepts (original — draft, not confirmed Venue DNA):\n${lines.join('\n')}`;
+  return `${reply.trim()}\n\n${block}`;
+}
+
 // POST — owner sends a message; HESTIA replies and updates Venue DNA.
 app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, res) => {
   try {
@@ -5912,12 +5981,24 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
     const userTurn = { role: 'user', content: message.trim(), ts: new Date().toISOString() };
     const historyForModel = [...state.messages, userTurn];
 
-    const systemInstruction = buildVenueIntelligenceSystemInstruction(state);
+    // Classify the owner's intent up front: it both (a) reinforces the explicit-brief
+    // output contract for this turn and (b) gates the canonical Venue DNA write.
+    const intent = classifyVenueIntelligenceIntent(message);
+    // Deterministic reinforcement: on an explicit deliverable request, drop the
+    // competing 9-section template and append a forceful directive so a small model
+    // produces the full artifact set (incl. ≥6 numbered cocktail concepts) instead of
+    // defaulting to the generic draft and deferring cocktails to "Still Missing".
+    const systemInstruction = composeExplicitBriefInstruction(
+      buildVenueIntelligenceSystemInstruction(state), intent.isExplicitBrief);
     const ai = await askVenueIntelligence(systemInstruction, historyForModel);
 
-    const reply = typeof ai.reply === 'string' && ai.reply.trim()
+    let reply = typeof ai.reply === 'string' && ai.reply.trim()
       ? ai.reply.trim()
       : 'Let me sit with that for a moment. Tell me a little more about how that plays out on a normal night.';
+    // Backstop the explicit-brief contract: if the owner asked for cocktails and the
+    // model returned a structured cocktailConcepts array but left them out of the
+    // free-text reply, surface them. Renders only what the model produced.
+    if (intent.isExplicitBrief) reply = ensureCocktailConceptsInReply(reply, ai.cocktailConcepts);
     const stage = VENUE_INTELLIGENCE_STAGES.includes(ai.stage) ? ai.stage : state.stage;
     const objective = typeof ai.objective === 'string' && ai.objective.trim() ? ai.objective.trim() : state.objective;
 
@@ -5927,7 +6008,6 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
     // exploration turn — "a new place inspired by …", a benchmark, a hypothetical —
     // we persist the PRIOR canonical DNA unchanged. Only ordinary current-venue
     // discovery, or an explicit "update my venue", writes merged signals to disk.
-    const intent = classifyVenueIntelligenceIntent(message);
     const mergedDNA = mergeVenueDna(state.venueDNA, ai.venueDNA);
     const venueDNA = intent.mergeIntoCanonicalDna ? mergedDNA : state.venueDNA;
     const focusSuggestions = Array.isArray(ai.focusSuggestions)
