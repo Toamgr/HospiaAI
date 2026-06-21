@@ -651,8 +651,8 @@ export default function EventBrain({ pageContext, events, goToPage, onSelectEven
 
       {/* ── Bottom Section — preserved ── */}
       <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <PlanningSummary />
-        <BarProgramme />
+        <PlanningSummary isEventLinked={isEventLinked} />
+        <BarProgramme isEventLinked={isEventLinked} />
         <StaffNotifications />
         <div className="space-y-5">
           <InvestorValueCard />

@@ -29,8 +29,9 @@ function Section({ label, children }) {
   )
 }
 
-export default function PlanningSummary() {
+export default function PlanningSummary({ isEventLinked = false }) {
   const b = EVENT_BRIEF
+  // Hooks run unconditionally (only consumed in demo/fallback mode).
   const staff = useMemo(
     () => calculateStaff(b.totalGuests, b.barType, b.format, b.accessibility),
     []
@@ -39,9 +40,34 @@ export default function PlanningSummary() {
   const bev = useMemo(() => calculateBeverage(b.totalGuests), [])
   const budget = useMemo(() => calculateBudget(b.totalGuests, b.budgetPerPerson), [])
 
+  // Real linked event: do not present demo planning/budget figures as this
+  // event's intelligence. Render an honest unavailable state instead.
+  if (isEventLinked) {
+    return (
+      <Card>
+        <Label>AI Planning Summary</Label>
+        <div className="mb-4 font-serif text-sm font-black tracking-tight text-[#f5f5f0]">
+          Operations Plan
+        </div>
+        <p className="text-[11px] leading-relaxed text-[#e8dcc0] opacity-55">
+          Planning intelligence is not generated for this event yet.
+        </p>
+        <p className="mt-2 text-[10px] leading-relaxed text-[#e8dcc0] opacity-35">
+          Staffing, food, beverage, and budget figures will appear here once they
+          are connected to this event.
+        </p>
+      </Card>
+    )
+  }
+
   return (
     <Card>
-      <Label>AI Planning Summary</Label>
+      <div className="mb-1 flex items-center justify-between">
+        <Label>AI Planning Summary</Label>
+        <span className="text-[9px] font-black uppercase tracking-[0.12em] text-[#e8dcc0] opacity-30">
+          Demo only
+        </span>
+      </div>
       <div className="mb-4 font-serif text-sm font-black tracking-tight text-[#f5f5f0]">
         Resort Operations Plan
       </div>
@@ -91,6 +117,9 @@ export default function PlanningSummary() {
           </div>
         </div>
       </div>
+      <p className="mt-3 text-[9px] italic text-[#e8dcc0] opacity-30">
+        Demo only — sample figures, not connected to a real event.
+      </p>
     </Card>
   )
 }

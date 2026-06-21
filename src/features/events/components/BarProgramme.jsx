@@ -2,10 +2,35 @@ import React from 'react'
 import { Card, Label } from '../../../components/AppPrimitives'
 import { BAR_PROGRAMME } from '../data/eventBrainDemoData'
 
-export default function BarProgramme() {
+export default function BarProgramme({ isEventLinked = false }) {
+  // Real linked event: do not present the demo signature cocktail/mocktail list
+  // as this event's bar programme. Render an honest unavailable state instead.
+  if (isEventLinked) {
+    return (
+      <Card>
+        <Label>Bar Programme</Label>
+        <div className="mb-4 font-serif text-sm font-black tracking-tight text-[#f5f5f0]">
+          Signature List
+        </div>
+        <p className="text-[11px] leading-relaxed text-[#e8dcc0] opacity-55">
+          Bar programme data is not connected to this event yet.
+        </p>
+        <p className="mt-2 text-[10px] leading-relaxed text-[#e8dcc0] opacity-35">
+          Cocktails, mocktails, and bar locations will appear here once a bar
+          programme is linked to this event.
+        </p>
+      </Card>
+    )
+  }
+
   return (
     <Card>
-      <Label>Bar Programme</Label>
+      <div className="mb-1 flex items-center justify-between">
+        <Label>Bar Programme</Label>
+        <span className="text-[9px] font-black uppercase tracking-[0.12em] text-[#e8dcc0] opacity-30">
+          Demo only
+        </span>
+      </div>
       <div className="mb-4 font-serif text-sm font-black tracking-tight text-[#f5f5f0]">
         Signature List
       </div>
@@ -48,6 +73,9 @@ export default function BarProgramme() {
           ))}
         </div>
       </div>
+      <p className="mt-3 text-[9px] italic text-[#e8dcc0] opacity-30">
+        Demo only — sample bar programme, not connected to a real event.
+      </p>
     </Card>
   )
 }
