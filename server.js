@@ -22,6 +22,7 @@ import { buildFnbDirectorBrief } from "./src/services/venueBridge/fnbDirectorBri
 import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } from "./src/config/featureFlags.js";
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
+import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
 
 dotenv.config();
 
@@ -5689,6 +5690,23 @@ When you produce a draft, put the full structured text INSIDE the "reply" field,
 9. Next Best Question: ..."
 Use ONLY facts the owner actually provided. For anything not known, write "not yet clear" — never fill a gap with an assumption.
 
+EXPLICIT BRIEF — when the owner hands you a full concept in one message and asks for deliverables, DELIVER (never reply with only questions)
+If the owner gives a rich brief (the venue idea, the feeling, the audience, references) AND explicitly asks you to build outputs — a Venue DNA, a concept brief, service lines, a cocktail menu direction, a set of cocktails, operational risks — you MUST produce a first-pass draft on this same turn. Do NOT respond with only clarifying questions. Inside "reply", produce a labeled draft headed "Working Venue DNA Draft — not yet confirmed" containing, in this order:
+- Known facts — only what the owner actually said.
+- Assumptions — clearly labeled as assumptions, never stated as fact.
+- Concept brief — 2-4 sentences.
+- Service lines — the few service behaviours that would define the experience.
+- Cocktail menu direction — the style and logic, not a full menu.
+- 6 original cocktail concepts — original names and ideas only. NEVER copy any real venue's recipes, signature serves, names, or brand language.
+- Operational risks — the realistic ways this concept is hard to run.
+- What is NOT yet confirmed Venue DNA — state plainly that everything above is signals/draft, not confirmed Venue DNA.
+- Missing questions — what you still need to know.
+- Next best question — exactly ONE.
+Fill any unknown with "not yet clear" — never invent a number, name, demographic, or KPI.
+
+CONCEPT EXPLORATION vs THIS VENUE — keep exploration out of the current venue's DNA
+Distinguish (A) learning or updating THIS venue from (B) exploring a NEW or hypothetical concept — signalled by phrasing like "a new place", "a concept", "inspired by", "in the spirit of", "benchmark", or "what if". When the owner is exploring a new or inspirational concept, treat your draft as EXPLORATION / DRAFT only: never present it as this venue's working or confirmed Venue DNA, and say so in the reply. Do NOT fold an exploration into the current venue's identity unless the owner explicitly asks to update this venue. Treat any named real venue (for example Paradiso or SIPS) strictly as inspiration — never reproduce their menus, recipes, signature serves, or brand language.
+
 FORBIDDEN COMPLETION LANGUAGE — never claim completion or confirmation
 Never say any of: "completed DNA", "final DNA", "confirmed DNA", "your DNA is done", "I know your venue fully", or "Full Intelligence Mode is ready/active". There is no owner-confirmation step yet, so nothing is confirmed. ALLOWED framing only: "working draft", "early Venue DNA", "signals", "first version", "not confirmed yet", "needs owner confirmation". Always distinguish three tiers explicitly when relevant: working signals → draft Venue DNA → owner-confirmed Venue DNA (the last does not exist yet).
 
@@ -5902,7 +5920,16 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
       : 'Let me sit with that for a moment. Tell me a little more about how that plays out on a normal night.';
     const stage = VENUE_INTELLIGENCE_STAGES.includes(ai.stage) ? ai.stage : state.stage;
     const objective = typeof ai.objective === 'string' && ai.objective.trim() ? ai.objective.trim() : state.objective;
-    const venueDNA = mergeVenueDna(state.venueDNA, ai.venueDNA);
+
+    // P1 SAFE GATE — concept exploration must not silently rewrite this venue's
+    // canonical Venue DNA. We still COMPUTE the merge (so the model's structure is
+    // well-formed and the writer stays the single sanctioned path), but for an
+    // exploration turn — "a new place inspired by …", a benchmark, a hypothetical —
+    // we persist the PRIOR canonical DNA unchanged. Only ordinary current-venue
+    // discovery, or an explicit "update my venue", writes merged signals to disk.
+    const intent = classifyVenueIntelligenceIntent(message);
+    const mergedDNA = mergeVenueDna(state.venueDNA, ai.venueDNA);
+    const venueDNA = intent.mergeIntoCanonicalDna ? mergedDNA : state.venueDNA;
     const focusSuggestions = Array.isArray(ai.focusSuggestions)
       ? ai.focusSuggestions.map(v => String(v).trim()).filter(Boolean).slice(0, 3)
       : [];
@@ -5916,11 +5943,17 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
       WHERE venue_id = ?
     `).run(stage, objective, JSON.stringify(nextMessages), JSON.stringify(venueDNA), venueId);
 
-    // Venue DNA changed — refresh the derived specialist briefs (non-fatal).
-    try { regenerateVenueBriefs(venueId); }
-    catch (e) { debugLog({ event: 'venue_briefs_regen_failed', error: e.message }); }
+    // Canonical Venue DNA may have changed — refresh the derived specialist briefs
+    // (non-fatal). Skip on an exploration turn, where canonical DNA was left intact.
+    if (intent.mergeIntoCanonicalDna) {
+      try { regenerateVenueBriefs(venueId); }
+      catch (e) { debugLog({ event: 'venue_briefs_regen_failed', error: e.message }); }
+    }
 
-    res.json({ reply, stage, objective, venueDNA, focusSuggestions });
+    // mode/explorationDraft are advisory transparency fields: on an exploration turn
+    // the returned venueDNA is the unchanged canonical DNA, and the draft artifacts
+    // live in `reply` — they are NOT this venue's working/confirmed Venue DNA.
+    res.json({ reply, stage, objective, venueDNA, focusSuggestions, mode: intent.mode, explorationDraft: !intent.mergeIntoCanonicalDna });
   } catch (err) {
     debugLog({ event: 'venue_intelligence_message_threw', error: err.message, stack: err.stack?.slice(0, 300) });
     res.status(500).json({ error: err.message || 'The conversation could not continue. Please try again.' });
