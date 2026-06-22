@@ -16,6 +16,7 @@
     "test:venue-dna-completeness": "node scripts/test-venue-dna-completeness.js",
     "test:venue-dna-completeness-route": "node scripts/test-venue-dna-completeness-route.js",
     "test:venue-dna-taxonomy": "node scripts/test-venue-dna-taxonomy.js",
+    "test:venue-dna-taxonomy-crosswalk": "node scripts/test-venue-dna-taxonomy-crosswalk.js",
     "test:owner-ai-home-completeness-ui": "node scripts/test-owner-ai-home-completeness-ui.js",
     "test:investor-demo-readiness": "node scripts/test-investor-demo-readiness.js",
     "inspect:venue-dna-state": "node scripts/inspect-current-venue-dna-state.js",
