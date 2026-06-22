@@ -121,6 +121,38 @@ ok(/function composeBeverageDevelopmentInstruction/.test(src),
 ok(/Leave the JSON "cocktailConcepts" array EMPTY/i.test(src),
   '[13c] beverage directive leaves the structured cocktail array empty (no forced list)')
 
+// 14. Synthesize-before-interviewing doctrine — after enough concept signal, a
+//     "normal night" / "show me the experience" prompt produces a synthesized Working
+//     Draft instead of handing the synthesis back to the owner.
+ok(/SYNTHESIZE BEFORE INTERVIEWING/i.test(prompt), '[14] prompt encodes a SYNTHESIZE BEFORE INTERVIEWING doctrine')
+ok(/how does this play out on a normal night|normal night/i.test(prompt),
+  '[14b] doctrine recognizes the normal-night render request')
+ok(/Working Draft — not yet confirmed/.test(prompt),
+  '[14c] doctrine labels the output a Working Draft — not yet confirmed')
+ok(/NEVER reply "Tell me more about how that plays out on a normal night"|hands the synthesis back to the owner/i.test(prompt),
+  '[14d] doctrine forbids the weak "tell me more" hand-back pattern')
+ok(/Correct me where this feels wrong/.test(prompt),
+  '[14e] doctrine ends with the correction invitation')
+for (const beat of ['arrival', 'first impression', 'seating', 'service rhythm', 'cocktail role', 'food role', 'guest behavior', 'staff behavior', 'what the room must protect', 'what would signal success']) {
+  ok(new RegExp(beat.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&'), 'i').test(prompt),
+    `[14f] doctrine walks the normal night through "${beat}"`)
+}
+ok(/never invent hard operational facts|exact capacity, prices, specific menu items/i.test(prompt),
+  '[14g] doctrine forbids inventing hard operational facts')
+ok(/Do NOT over-focus on cocktails|ONE line among many/i.test(prompt),
+  '[14h] doctrine forbids over-focusing on cocktails')
+
+// 15. Synthesis directive + composer exist (output-only; no schema/auth/merge change).
+ok(/const\s+VENUE_INTELLIGENCE_NORMAL_NIGHT_SYNTHESIS_DIRECTIVE\s*=/.test(src),
+  '[15] normal-night synthesis directive constant defined')
+ok(/function composeNormalNightSynthesisInstruction/.test(src),
+  '[15b] composeNormalNightSynthesisInstruction defined')
+ok(/Leave the JSON "cocktailConcepts" array EMPTY/i.test(src),
+  '[15c] synthesis directive leaves the structured cocktail array empty (no forced list)')
+// The weak fallback string must no longer appear anywhere in the route.
+ok(!/Tell me a little more about how that plays out on a normal night/.test(src),
+  '[15d] the weak "tell me a little more…" fallback was removed from server.js')
+
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)
 process.exit(0)

@@ -104,11 +104,30 @@ ok(/composeBeverageDevelopmentInstruction\(/.test(handler),
 ok(/intent\.mergeIntoCanonicalDna\s*\?\s*mergedDNA\s*:\s*state\.venueDNA/.test(handler),
   '[10c] canonical-DNA write still gated only by intent.mergeIntoCanonicalDna (beverage flag is output-only)')
 // The forced cocktail-list backstop is suppressed on beverage-development turns.
-ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\)\s*reply\s*=\s*ensureCocktailConceptsInReply/.test(handler),
+ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\)\s*reply\s*=\s*ensureCocktailConceptsInReply/.test(handler),
   '[10d] handler does NOT force a cocktail list on beverage-development turns')
 // Still no destructive / finalization side effects on this new path.
 ok(!/['"]confirmed['"]/.test(handler), '[10e] beverage path adds no confirmed-DNA tier literal')
 ok(!/\bDELETE\b/.test(handler), '[10f] beverage path adds no DELETE')
+
+// 11. Normal-night synthesis routing is ALSO an OUTPUT-only concern: it changes the
+//     prompt composition for the turn, never the canonical-DNA write gate, the writer,
+//     auth, or venue scoping. The handler routes synthesis turns to the synthesis composer.
+ok(/intent\.isExperienceSynthesis/.test(handler),
+  '[11] handler consults intent.isExperienceSynthesis for output routing')
+ok(/composeNormalNightSynthesisInstruction\(/.test(handler),
+  '[11b] handler composes the synthesis instruction on synthesis turns')
+// The canonical-DNA write remains gated SOLELY by intent.mergeIntoCanonicalDna.
+ok(/intent\.mergeIntoCanonicalDna\s*\?\s*mergedDNA\s*:\s*state\.venueDNA/.test(handler),
+  '[11c] canonical-DNA write still gated only by intent.mergeIntoCanonicalDna (synthesis flag is output-only)')
+// The forced cocktail-list backstop is suppressed on synthesis turns.
+ok(/!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\)\s*reply\s*=\s*ensureCocktailConceptsInReply/.test(handler),
+  '[11d] handler does NOT force a cocktail list on synthesis turns')
+// The weak "tell me more" fallback string was removed; the fallback no longer interviews.
+ok(!/Tell me a little more about how that plays out on a normal night/.test(handler),
+  '[11e] handler no longer falls back to the weak "tell me more…" interview prompt')
+// No destructive / finalization side effects on the synthesis path.
+ok(!/['"]confirmed['"]/.test(handler), '[11f] synthesis path adds no confirmed-DNA tier literal')
 
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)

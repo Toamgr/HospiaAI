@@ -139,8 +139,8 @@ ok(/"cocktailConcepts"/.test(src) && /RULES FOR cocktailConcepts/.test(src),
   '[B5e] JSON schema defines a structured cocktailConcepts array + rules')
 ok(/function ensureCocktailConceptsInReply/.test(src) && /function formatCocktailConceptLine/.test(src),
   '[B5f] deterministic cocktail-composition helpers exist')
-ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\)\s*reply\s*=\s*ensureCocktailConceptsInReply\(reply,\s*ai\.cocktailConcepts\)/.test(handler),
-  '[B5g] handler surfaces cocktail concepts into the reply on explicit-brief turns (but NOT on beverage-development turns)')
+ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\)\s*reply\s*=\s*ensureCocktailConceptsInReply\(reply,\s*ai\.cocktailConcepts\)/.test(handler),
+  '[B5g] handler surfaces cocktail concepts into the reply on explicit-brief turns (but NOT on beverage-development or synthesis turns)')
 // The backstop never fabricates: it returns the reply unchanged when the array is empty.
 ok(/if \(lines\.length === 0\) return reply/.test(src),
   '[B5h] backstop no-ops (no fabrication) when no concepts were produced')
@@ -370,6 +370,89 @@ for (const msg of ['', null, undefined, '   ']) {
   const r = classifyVenueIntelligenceIntent(msg)
   ok(r.isBeverageDevelopment === false, `[D9] empty input is not beverage development (${JSON.stringify(msg)})`)
 }
+
+// ── PART E — normal-night synthesis routing (synthesize-before-questioning) ───
+// The OUTPUT gate that, once enough venue concept signal exists, makes a "normal night"
+// / "show me the experience" prompt produce a synthesized Working Draft instead of yet
+// another broad discovery question. Independent of the DNA-merge gate.
+
+// A rich concept conversation: the owner has already laid out the venue concept.
+const SYNTH_HISTORY = [
+  { role: 'user', content: 'A hidden, elegant premium hybrid hospitality venue with a serious cocktail programme.' },
+  { role: 'model', content: 'ok' },
+  { role: 'user', content: 'It should feel like a private salon — an elegant apartment. Intimate, intelligent, warm, slightly mysterious.' },
+  { role: 'model', content: 'ok' },
+  { role: 'user', content: 'Warm, precise, quietly guided service. Discovery without gimmick. Small elegant food support, not a full restaurant.' },
+  { role: 'model', content: 'ok' },
+]
+
+// 1) After enough concept signals, normal-night prompts route to synthesis.
+for (const msg of [
+  'so how does this play out on a normal night?',
+  'what does this feel like in practice?',
+  'show me the experience',
+  'turn this into a working brief',
+  'let me sit with that',
+]) {
+  const r = classifyVenueIntelligenceIntent(msg, { recentMessages: SYNTH_HISTORY })
+  ok(r.wantsExperienceSynthesis === true, `[E1] synthesis cue detected: "${msg.slice(0, 34)}…"`)
+  ok(r.isExperienceSynthesis === true, `[E1b] routes to synthesis once enough signal exists: "${msg.slice(0, 28)}…"`)
+}
+
+// 2) Synthesis NEVER changes the DNA-merge gate — concept exploration stays protected.
+const synthInExploration = classifyVenueIntelligenceIntent('show me how this plays out on a normal night', {
+  recentMessages: [{ role: 'user', content: T1 }, { role: 'model', content: 'ok' },
+    { role: 'user', content: 'intimate elegant premium salon, warm guided service, serious cocktails' }, { role: 'model', content: 'ok' }],
+})
+ok(synthInExploration.isExperienceSynthesis === true, '[E2] synthesis fires inside an exploration thread')
+ok(synthInExploration.mergeIntoCanonicalDna === false, '[E2b] synthesis does NOT merge canonical DNA inside exploration (output gate is orthogonal)')
+
+// 3) With too little concept signal, a bare "let me sit with that" does NOT force synthesis.
+const synthCold = classifyVenueIntelligenceIntent('let me sit with that', { recentMessages: [] })
+ok(synthCold.wantsExperienceSynthesis === true, '[E3] synthesis cue still detected on a cold turn')
+ok(synthCold.hasSufficientConceptContext === false, '[E3b] cold turn lacks sufficient concept context')
+ok(synthCold.isExperienceSynthesis === false, '[E3c] cold turn does NOT force synthesis (gather first)')
+
+// 4) Ordinary discovery (no synthesis cue) is never a synthesis turn, even with rich context.
+for (const msg of [
+  'Our regulars come for the intimacy and the jazz early in the evening.',
+  'My team struggles to stay consistent on busy Friday nights.',
+]) {
+  const r = classifyVenueIntelligenceIntent(msg, { recentMessages: SYNTH_HISTORY })
+  ok(r.isExperienceSynthesis === false, `[E4] ordinary discovery is NOT synthesis: "${msg.slice(0, 34)}…"`)
+}
+
+// 5) Synthesis tied to the current venue still synthesizes AND still merges (gates orthogonal).
+const synthCurrent = classifyVenueIntelligenceIntent('for my venue, show me how a normal night plays out', { recentMessages: SYNTH_HISTORY })
+ok(synthCurrent.isExperienceSynthesis === true, '[E5] synthesis fires for a current-venue render request')
+ok(synthCurrent.mergeIntoCanonicalDna === true, '[E5b] current-venue synthesis still merges (output gate orthogonal)')
+
+// 6) Empty / junk input never reports synthesis.
+for (const msg of ['', null, undefined, '   ']) {
+  const r = classifyVenueIntelligenceIntent(msg)
+  ok(r.isExperienceSynthesis === false, `[E6] empty input is not synthesis (${JSON.stringify(msg)})`)
+}
+
+// ── PART F — server wiring for normal-night synthesis ────────────────────────
+ok(/const\s+VENUE_INTELLIGENCE_NORMAL_NIGHT_SYNTHESIS_DIRECTIVE\s*=/.test(src),
+  '[F1] normal-night synthesis directive constant is defined')
+ok(/function composeNormalNightSynthesisInstruction/.test(src),
+  '[F2] composeNormalNightSynthesisInstruction is defined')
+ok(/if \(intent\.isExperienceSynthesis\)\s*\{[\s\S]*?composeNormalNightSynthesisInstruction\(/.test(handler),
+  '[F3] handler routes synthesis turns to the synthesis composer')
+ok(/Correct me where this feels wrong/.test(src),
+  '[F4] directive ends with the correction invitation')
+ok(/NEVER reply "Tell me more about how that plays out on a normal night"/.test(src),
+  '[F5] directive explicitly forbids the weak "tell me more" pattern')
+ok(/Working Draft — not yet confirmed/.test(src),
+  '[F6] directive labels output as a Working Draft — not yet confirmed')
+ok(/Leave the JSON "cocktailConcepts" array EMPTY/i.test(src),
+  '[F7] synthesis directive leaves the structured cocktail array empty (no forced list)')
+ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\)/.test(handler),
+  '[F8] cocktail backstop is suppressed on synthesis turns')
+// The weak fallback string must no longer be the hardcoded reply fallback.
+ok(!/Tell me a little more about how that plays out on a normal night/.test(handler),
+  '[F9] the weak "tell me a little more…" fallback string was removed from the handler')
 
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)

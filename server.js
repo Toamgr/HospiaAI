@@ -5709,6 +5709,9 @@ ARTIFACTS VS VENUE FACTS — "not yet clear" and "never invent" apply ONLY to FA
 BEVERAGE DEVELOPMENT — deep cocktail R&D belongs to Bar Intelligence, not Venue DNA
 Venue Intelligence understands the venue and ROUTES specialist work; it does not perform professional beverage R&D. The moment the owner moves into cocktail METHODS, PREPARATION QUALITY, RECIPE DEVELOPMENT, beverage MENU DEPTH, or technical cocktail DESIGN — e.g. "the best preparations recipe", "8 cocktails with at least 5 new methods", "one savory, one spicy, one bitter, one sour", or named techniques (sous vide, clarification, fat-wash, carbonation) — DO NOT answer with a shallow, generic cocktail list. NEVER output throwaway names like "Savory Delight", "Spicy Elixir", "Sweet Symphony", "Fruity Fusion", or "Smoky Sensation". Instead: (1) acknowledge the request has crossed from Venue DNA into Beverage Development / Bar Intelligence territory; (2) produce a "Bar Intelligence Handoff Brief" capturing the beverage-development need; (3) keep the Working Venue DNA draft SEPARATE — reference it, do not fold cocktail R&D into the Venue DNA. Any cocktail ideas are PRELIMINARY CONCEPT SLOTS only (e.g. "savory high-complexity slot", "spicy aromatic slot", "temperature-play slot"), explicitly labelled "not final recipes or approved preparations" — never finished recipes, never approved/tested/validated/confirmed, never precise alcoholic formulas. State plainly you will NOT treat untested preparations as final truth. The next specialist step (method validation, prep testing, costing, service feasibility) is owned by Bar Intelligence / Cocktail Lab. Ask at most ONE next-best question.
 
+SYNTHESIZE BEFORE INTERVIEWING — render the experience, never outsource it back
+Once the owner has shared enough venue concept signals (identity, feeling, guests, service, F&B role) and then asks to SEE the experience — "how does this play out on a normal night?", "what does this feel like in practice?", "show me the experience", "turn this into a working brief" — or offers a low-value "let me sit with that"-style turn, you MUST synthesize a working interpretation from the signals you already have. DO NOT ask the owner to describe the whole night. NEVER reply "Tell me more about how that plays out on a normal night" or any variant that hands the synthesis back to the owner — that is unacceptable. Instead label the output "Working Draft — not yet confirmed", then walk "How a normal night might play out" across: arrival, first impression, seating, service rhythm, cocktail role, food role, guest behavior, staff behavior, what the room must protect, what would signal success. Every line is provisional INTERPRETATION ("might", "would likely", "feels like"), never confirmed fact — and never invent hard operational facts (exact capacity, prices, specific menu items, staffing model, opening hours, POS numbers, confirmed business model). Do NOT expose a long Discovery Map. Do NOT over-focus on cocktails — they are ONE line among many. Do NOT write detailed alcoholic recipes or preparation steps. End with exactly: "Correct me where this feels wrong." Ask at most ONE very small correction request, and only if a single missing detail genuinely blocks the picture.
+
 CONCEPT EXPLORATION vs THIS VENUE — keep exploration out of the current venue's DNA
 Distinguish (A) learning or updating THIS venue from (B) exploring a NEW or hypothetical concept — signalled by phrasing like "a new place", "a concept", "inspired by", "in the spirit of", "benchmark", or "what if". When the owner is exploring a new or inspirational concept, treat your draft as EXPLORATION / DRAFT only: never present it as this venue's working or confirmed Venue DNA, and say so in the reply. Do NOT fold an exploration into the current venue's identity unless the owner explicitly asks to update this venue. Treat any named real venue (for example Paradiso or SIPS) strictly as inspiration — never reproduce their menus, recipes, signature serves, or brand language.
 
@@ -5976,6 +5979,39 @@ function composeBeverageDevelopmentInstruction(base, intent) {
     + VENUE_INTELLIGENCE_BEVERAGE_DEVELOPMENT_DIRECTIVE + capturedLine;
 }
 
+// Appended ONLY on turns the code classifies as a normal-night synthesis request —
+// the owner has shared enough venue concept signals and is asking to render the
+// experience ("how does this play out on a normal night?", "show me the experience",
+// "turn this into a working brief", "let me sit with that"). It forces HESTIA to
+// synthesize a working interpretation NOW instead of asking another broad question or
+// handing the synthesis back to the owner. Output-only: it does NOT change the
+// canonical-DNA merge gate, the writer, auth, or venue scoping.
+const VENUE_INTELLIGENCE_NORMAL_NIGHT_SYNTHESIS_DIRECTIVE = `
+
+THIS TURN — SYNTHESIZE, DO NOT INTERVIEW. The owner has already shared enough venue concept signals and is now asking you to render the experience (e.g. "how does this play out on a normal night?", "what does this feel like in practice?", "show me the experience", "turn this into a working brief") or has offered a low-value "let me sit with that"-style turn. DO NOT ask the owner to describe the whole experience. DO NOT ask another broad discovery question. NEVER reply "Tell me more about how that plays out on a normal night" or any variant that hands the synthesis back to the owner. Instead, in "reply", produce a synthesized working interpretation from the signals already gathered, in EXACTLY this shape and order (use \\n line breaks):
+"Working Draft — not yet confirmed
+How a normal night might play out
+- Arrival: ...
+- First impression: ...
+- Seating: ...
+- Service rhythm: ...
+- Cocktail role: ...
+- Food role: ...
+- Guest behavior: ...
+- Staff behavior: ...
+- What the room must protect: ...
+- What would signal success: ..."
+Then end with EXACTLY this line, on its own: "Correct me where this feels wrong."
+INTERPRETATION VS FACT — every line is your INTERPRETATION of the signals, clearly separated from confirmed fact. Keep the language provisional ("might", "would likely", "feels like"). Do NOT invent hard operational facts: no exact capacity, no prices, no specific menu items, no staffing model, no opening hours, no POS numbers, no confirmed business model. Do NOT expose a long Discovery Map or a 9-section draft. Do NOT over-focus on cocktails — the cocktail role is ONE line among many. Do NOT write detailed alcoholic recipes or preparation steps. Ask AT MOST one very small correction request, and only if a single missing detail genuinely blocks the picture — never a broad interview question. Leave the JSON "cocktailConcepts" array EMPTY this turn.`;
+
+// Runtime composition for a normal-night synthesis turn: like the other composers it
+// removes the competing 9-section template, then appends the synthesis directive so a
+// small model renders the working interpretation instead of asking another question.
+function composeNormalNightSynthesisInstruction(base) {
+  return base.replace(NINE_SECTION_DRAFT_BLOCK, '').replace(/\n{3,}/g, '\n\n')
+    + VENUE_INTELLIGENCE_NORMAL_NIGHT_SYNTHESIS_DIRECTIVE;
+}
+
 // Deterministic backstop for the explicit-brief contract. If the model returned a
 // structured cocktailConcepts array but its free-text reply did not actually lay the
 // concepts out, surface them in a clean labelled block so the owner always receives
@@ -6030,10 +6066,18 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
     // defaulting to the generic draft and deferring cocktails to "Still Missing".
     let systemInstruction = composeExplicitBriefInstruction(
       buildVenueIntelligenceSystemInstruction(state), intent.isExplicitBrief);
+    // Normal-night synthesis override: once enough concept signal exists and the owner
+    // asks to render the experience (or offers a low-value "let me sit with that" turn),
+    // force a synthesized Working Draft instead of another broad question. This replaces
+    // the explicit-brief composition for the turn but yields to beverage development below.
+    if (intent.isExperienceSynthesis) {
+      systemInstruction = composeNormalNightSynthesisInstruction(
+        buildVenueIntelligenceSystemInstruction(state));
+    }
     // Beverage-development override: when the owner crosses into cocktail methods /
     // preparation quality / recipe development, route to the Bar Intelligence handoff
-    // brief instead of forcing a shallow generic cocktail list. This replaces the
-    // explicit-brief composition for this turn (the handoff directive wins).
+    // brief instead of forcing a shallow generic cocktail list. This wins over both the
+    // explicit-brief and synthesis compositions for this turn (the handoff directive wins).
     if (intent.isBeverageDevelopment) {
       systemInstruction = composeBeverageDevelopmentInstruction(
         buildVenueIntelligenceSystemInstruction(state), intent);
@@ -6042,13 +6086,13 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
 
     let reply = typeof ai.reply === 'string' && ai.reply.trim()
       ? ai.reply.trim()
-      : 'Let me sit with that for a moment. Tell me a little more about how that plays out on a normal night.';
+      : 'Here is my working read so far — a draft, not yet confirmed. Correct me where this feels wrong.';
     // Backstop the explicit-brief contract: if the owner asked for cocktails and the
     // model returned a structured cocktailConcepts array but left them out of the
     // free-text reply, surface them. Renders only what the model produced. Skipped on a
     // beverage-development turn — that path must NOT surface a finished cocktail list;
     // deep recipes are owned by Bar Intelligence, not produced here.
-    if (intent.isExplicitBrief && !intent.isBeverageDevelopment) reply = ensureCocktailConceptsInReply(reply, ai.cocktailConcepts);
+    if (intent.isExplicitBrief && !intent.isBeverageDevelopment && !intent.isExperienceSynthesis) reply = ensureCocktailConceptsInReply(reply, ai.cocktailConcepts);
     const stage = VENUE_INTELLIGENCE_STAGES.includes(ai.stage) ? ai.stage : state.stage;
     const objective = typeof ai.objective === 'string' && ai.objective.trim() ? ai.objective.trim() : state.objective;
 

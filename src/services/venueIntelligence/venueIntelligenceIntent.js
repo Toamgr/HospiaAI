@@ -160,6 +160,54 @@ const BEVERAGE_CONTEXT_CUES = [
   'קוקטייל', 'קוקטיילים', 'משקה', 'משקאות', 'תפריט',
 ];
 
+// ── Normal-night synthesis routing ───────────────────────────────────────────
+// After enough venue concept signals exist, the owner often asks HESTIA to RENDER the
+// experience ("how does this play out on a normal night?", "what does this feel like in
+// practice?", "show me the experience", "turn this into a working brief") — or offers a
+// low-value "let me sit with that"-style turn where another broad discovery question would
+// not help. On those turns HESTIA must SYNTHESIZE a working interpretation from existing
+// signals instead of asking the owner to describe the whole experience. These cues mark
+// that crossing; like the beverage-development gate they change only the OUTPUT contract
+// for the turn — they do NOT change the canonical-DNA merge gate.
+const SYNTHESIS_REQUEST_CUES = [
+  // English — render the experience / normal night
+  'normal night', 'a normal night', 'typical night', 'a typical night', 'an average night',
+  'how does this play out', 'how this plays out', 'how that plays out', 'how it plays out',
+  'how does it play out', 'plays out on a', 'play out on a',
+  'what does this feel like', 'what it feels like', 'how it feels', 'feel like in practice',
+  'in practice', 'feels in practice', 'show me the experience', 'show me the night',
+  'show me what', 'walk me through the night', 'walk me through a night', 'walk me through the experience',
+  'paint the picture', 'paint me a picture', 'what would a night look like', 'what does a night look like',
+  'how would a night go', 'a night look like', 'the night look like',
+  'turn this into a working brief', 'turn this into a brief', 'make this a working brief',
+  'make this into a brief', 'working interpretation', 'working read', 'your read on this',
+  'let me sit with that', 'sit with that', 'sit with it', 'let me sit with this',
+  // Hebrew
+  'לילה רגיל', 'ערב רגיל', 'איך זה נראה בפועל', 'איך זה מרגיש בפועל', 'בפועל',
+  'תאר לי את החוויה', 'תאר את הערב', 'איך נראה ערב', 'איך עובר ערב', 'תהפוך את זה לבריף',
+  'תהפוך לבריף', 'הפוך את זה לבריף',
+];
+
+// Broad venue-concept vocabulary used only to decide whether ENOUGH concept signal has
+// accumulated across the conversation to synthesize a working interpretation. Deliberately
+// wide: identity/positioning, atmosphere/feeling, guest, service, F&B role, emotional
+// register. We require several DISTINCT cues so HESTIA does not synthesize from nothing.
+const CONCEPT_SIGNAL_CUES = [
+  // identity / positioning
+  'venue', 'bar', 'lounge', 'salon', 'apartment', 'restaurant', 'club', 'speakeasy', 'place',
+  'premium', 'luxury', 'elegant', 'hidden', 'intimate', 'hybrid', 'upscale', 'refined', 'boutique',
+  // atmosphere / feeling
+  'atmosphere', 'feeling', 'feel', 'mood', 'mysterious', 'warm', 'quiet', 'discreet', 'discovery',
+  'intelligent', 'experience', 'vibe', 'ambiance', 'ambience', 'guided', 'precise',
+  // guest / service
+  'guest', 'guests', 'regular', 'regulars', 'service', 'host', 'hospitality', 'staff',
+  // f&b role
+  'cocktail', 'cocktails', 'drink', 'drinks', 'food', 'menu', 'wine', 'programme', 'program',
+  // Hebrew
+  'מקום', 'בר', 'סלון', 'אלגנטי', 'יוקרתי', 'אינטימי', 'אווירה', 'תחושה', 'מסתורי',
+  'חמים', 'אורח', 'אורחים', 'שירות', 'קוקטייל', 'חוויה', 'דיסקרטי', 'גילוי',
+];
+
 function normalize(input) {
   return String(input == null ? '' : input).toLowerCase();
 }
@@ -249,6 +297,29 @@ function detectSessionExplorationMode(recentMessages) {
   return false;
 }
 
+// Decide whether ENOUGH venue concept signal has been shared (across the recent owner
+// turns plus the current message) to justify synthesizing a working interpretation
+// instead of asking another broad question. Counts DISTINCT concept cues; a handful of
+// distinct signals is enough. Conservative on purpose: a bare "let me sit with that" on
+// turn one (no prior signal) does NOT cross the threshold, so HESTIA still gathers first.
+const SYNTHESIS_CONTEXT_WINDOW = 12; // recent owner messages to consider
+const SYNTHESIS_SIGNAL_THRESHOLD = 4; // distinct concept cues required to synthesize
+function detectSufficientConceptContext(recentMessages, currentText) {
+  const ownerTexts = (Array.isArray(recentMessages) ? recentMessages : [])
+    .filter((m) => m && m.role === 'user' && typeof m.content === 'string')
+    .slice(-SYNTHESIS_CONTEXT_WINDOW)
+    .map((m) => normalize(m.content));
+  if (currentText) ownerTexts.push(currentText);
+  const seen = new Set();
+  for (const t of ownerTexts) {
+    for (const cue of CONCEPT_SIGNAL_CUES) {
+      if (t.includes(cue)) seen.add(cue);
+      if (seen.size >= SYNTHESIS_SIGNAL_THRESHOLD) return true;
+    }
+  }
+  return seen.size >= SYNTHESIS_SIGNAL_THRESHOLD;
+}
+
 /**
  * Classify a single owner message, optionally using recent conversation context to
  * keep a concept-exploration thread protected across continuation turns.
@@ -269,6 +340,9 @@ function detectSessionExplorationMode(recentMessages) {
  *   flavorRoles: string[],
  *   preparationQualityConcern: boolean, // owner doubts preparation/recipe quality
  *   isBeverageDevelopment: boolean,   // OUTPUT GATE: route to Bar Intelligence handoff
+ *   wantsExperienceSynthesis: boolean, // owner asked to render the experience / normal night
+ *   hasSufficientConceptContext: boolean, // enough concept signal to synthesize from
+ *   isExperienceSynthesis: boolean,   // OUTPUT GATE: synthesize a normal-night working draft
  *   methods: string[],
  *   reason: string
  * }}
@@ -281,12 +355,17 @@ export function classifyVenueIntelligenceIntent(message, options = {}) {
   const wantsCurrentVenueUpdate = containsAny(text, CURRENT_VENUE_OVERRIDES);
   const sessionInExploration = detectSessionExplorationMode(recentMessages);
   const hasContinuationCue = containsAny(text, CONTINUATION_CUES);
+  // A "render the experience" request (computed early so it can also count as a
+  // continuation cue): inside an active exploration thread, asking to see how the
+  // EXPLORED concept plays out must stay protected from the canonical-DNA write too.
+  const wantsExperienceSynthesis = containsAny(text, SYNTHESIS_REQUEST_CUES);
 
   // A continuation: the session is already exploring a concept, this turn continues
-  // that brief (menu/cocktail/method/audience/flavor/service/design/operational), and
-  // the owner did not explicitly redirect it to the current venue.
+  // that brief (menu/cocktail/method/audience/flavor/service/design/operational, or a
+  // request to render that concept's experience), and the owner did not explicitly
+  // redirect it to the current venue.
   const isExplorationContinuation = Boolean(
-    sessionInExploration && hasContinuationCue && !isExploration && !wantsCurrentVenueUpdate
+    sessionInExploration && (hasContinuationCue || wantsExperienceSynthesis) && !isExploration && !wantsCurrentVenueUpdate
   );
 
   // "Explicit brief" = the owner is clearly asking HESTIA to PRODUCE deliverables.
@@ -354,6 +433,14 @@ export function classifyVenueIntelligenceIntent(message, options = {}) {
       (requestedCocktailCount != null || methods.length >= 1 || flavorRoles.length >= 1 || requestedMethodCount != null))
   );
 
+  // Normal-night synthesis crossing — an OUTPUT gate, orthogonal to the DNA-merge gate
+  // and below beverage development in priority. True when the owner asks HESTIA to render
+  // the experience (or offers a low-value "let me sit with that" turn) AND enough venue
+  // concept signal has accumulated to synthesize from. When the cue is present but too
+  // little has been shared, this stays false so HESTIA gathers a bit more first.
+  const hasSufficientConceptContext = detectSufficientConceptContext(recentMessages, text);
+  const isExperienceSynthesis = Boolean(wantsExperienceSynthesis && hasSufficientConceptContext);
+
   return {
     mode,
     isExploration,
@@ -367,6 +454,9 @@ export function classifyVenueIntelligenceIntent(message, options = {}) {
     flavorRoles,
     preparationQualityConcern,
     isBeverageDevelopment,
+    wantsExperienceSynthesis,
+    hasSufficientConceptContext,
+    isExperienceSynthesis,
     methods,
     reason,
   };
