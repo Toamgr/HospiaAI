@@ -139,11 +139,29 @@ ok(/"cocktailConcepts"/.test(src) && /RULES FOR cocktailConcepts/.test(src),
   '[B5e] JSON schema defines a structured cocktailConcepts array + rules')
 ok(/function ensureCocktailConceptsInReply/.test(src) && /function formatCocktailConceptLine/.test(src),
   '[B5f] deterministic cocktail-composition helpers exist')
-ok(/intent\.isExplicitBrief\)\s*reply\s*=\s*ensureCocktailConceptsInReply\(reply,\s*ai\.cocktailConcepts\)/.test(handler),
-  '[B5g] handler surfaces cocktail concepts into the reply on explicit-brief turns')
+ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\)\s*reply\s*=\s*ensureCocktailConceptsInReply\(reply,\s*ai\.cocktailConcepts\)/.test(handler),
+  '[B5g] handler surfaces cocktail concepts into the reply on explicit-brief turns (but NOT on beverage-development turns)')
 // The backstop never fabricates: it returns the reply unchanged when the array is empty.
 ok(/if \(lines\.length === 0\) return reply/.test(src),
   '[B5h] backstop no-ops (no fabrication) when no concepts were produced')
+
+// Beverage-development routing: a separate directive + composer override the
+// explicit-brief cocktail-forcing path when the owner crosses into bar R&D.
+ok(/const\s+VENUE_INTELLIGENCE_BEVERAGE_DEVELOPMENT_DIRECTIVE\s*=/.test(src),
+  '[B5i] beverage-development directive constant is defined')
+ok(/function composeBeverageDevelopmentInstruction/.test(src),
+  '[B5j] composeBeverageDevelopmentInstruction is defined')
+ok(/Bar Intelligence Handoff Brief/i.test(src),
+  '[B5k] directive produces a Bar Intelligence Handoff Brief')
+ok(/preliminary concept slots, not final recipes or approved preparations/i.test(src),
+  '[B5l] directive labels any cocktail ideas as preliminary concept slots, not final recipes')
+ok(/Leave the JSON "cocktailConcepts" array EMPTY/i.test(src),
+  '[B5m] beverage directive leaves the structured cocktail array empty (no forced list)')
+ok(/if \(intent\.isBeverageDevelopment\)\s*\{[\s\S]*?composeBeverageDevelopmentInstruction\(\s*\n?\s*buildVenueIntelligenceSystemInstruction\(state\),\s*intent\)/.test(handler),
+  '[B5n] handler routes beverage-development turns to the handoff composer')
+// Generic shallow cocktail names are explicitly discouraged in the directive.
+ok(/Savory Delight|Spicy Elixir|Sweet Symphony/i.test(src) && /Do NOT invent a shallow generic cocktail list/i.test(src),
+  '[B5o] directive forbids shallow generic cocktail-list behavior')
 
 // Safety invariants preserved inside the handler.
 ok(!/['"]confirmed['"]/.test(handler), '[B6] handler writes no confirmed-DNA tier literal')
@@ -196,6 +214,17 @@ ok(/Paradiso or SIPS/i.test(prompt), '[B8c] names Paradiso/SIPS as inspiration-o
 
 // Pre-existing draft-label invariant retained.
 ok(/not yet confirmed/i.test(prompt), '[B9] "not yet confirmed" labelling retained')
+
+// System instruction encodes the beverage-development routing doctrine.
+ok(/BEVERAGE DEVELOPMENT/i.test(prompt), '[B10] prompt has a BEVERAGE DEVELOPMENT routing doctrine')
+ok(/belongs to Bar Intelligence, not Venue DNA|Bar Intelligence territory/i.test(prompt),
+  '[B10b] doctrine routes deep cocktail R&D to Bar Intelligence, away from Venue DNA')
+ok(/Savory Delight|Spicy Elixir|Sweet Symphony/i.test(prompt),
+  '[B10c] doctrine names the shallow generic cocktail names to avoid')
+ok(/preliminary concept slots|temperature-play slot|spicy aromatic slot/i.test(prompt),
+  '[B10d] doctrine uses preliminary concept-slot language, not finished recipes')
+ok(/will NOT treat untested preparations as final/i.test(prompt),
+  '[B10e] doctrine refuses to treat untested preparations as final truth')
 
 // ── PART C — conversation-level exploration continuity ───────────────────────
 // The founder's exact multi-turn sequence: the concept turn carries cues; the
@@ -285,6 +314,62 @@ ok(VENUE_INTELLIGENCE_INTENT_MODES.EXPLORATION_CONTINUATION === 'concept_explora
   '[C12] EXPLORATION_CONTINUATION mode constant exists')
 ok(classifyVenueIntelligenceIntent(T2).mergeIntoCanonicalDna === true,
   '[C13] single-arg (no context) T2 merges — backward compatible, no silent over-block')
+
+// ── PART D — beverage-development detection (Bar Intelligence routing) ────────
+// The OUTPUT gate that decides whether the turn produces a Bar Intelligence handoff
+// brief instead of a shallow generic cocktail list. Independent of the DNA-merge gate.
+
+// 1) Beverage-heavy owner turns are detected.
+const bevCount = classifyVenueIntelligenceIntent('8 cocktails, at least 5 different new methods. 1 savory, 1 spicy, 1 sweet, 1 bitter, 1 sour, 1 umami')
+ok(bevCount.isBeverageDevelopment === true, '[D1] "8 cocktails / 5 methods / flavor roles" is a beverage-development turn')
+ok(bevCount.requestedCocktailCount === 8, '[D1b] requestedCocktailCount = 8 captured')
+ok(bevCount.requestedMethodCount === 5, '[D1c] requestedMethodCount = 5 captured')
+ok(bevCount.flavorRoles.length === 6, '[D1d] six flavor roles captured (savory/spicy/sweet/bitter/sour/umami)')
+
+// 2) The "preparation recipe quality" concern is detected.
+const concern = classifyVenueIntelligenceIntent('my concern is that you will not write the best preparations recipe for us')
+ok(concern.preparationQualityConcern === true, '[D2] preparation/recipe quality concern detected')
+ok(concern.isBeverageDevelopment === true, '[D2b] preparation-quality concern routes to beverage development')
+
+// 3) A pure named-technique turn (no count) is still beverage development.
+const techniques = classifyVenueIntelligenceIntent('cold infusions, sous vide, nitrogen, foams, clouds, temperature games')
+ok(techniques.methods.length >= 3, '[D3] multiple named techniques captured')
+ok(techniques.isBeverageDevelopment === true, '[D3b] a technique-heavy turn routes to beverage development')
+
+// 4) An explicit flavor-role framework alone (3+ roles) routes to beverage development.
+const roles = classifyVenueIntelligenceIntent('one savory, one spicy, one bitter, one sour cocktail')
+ok(roles.flavorRoles.length >= 3, '[D4] 3+ explicit flavor roles captured')
+ok(roles.isBeverageDevelopment === true, '[D4b] a flavor-role framework routes to beverage development')
+
+// 5) Ordinary venue discovery is NOT a beverage-development turn (no over-firing).
+for (const msg of [
+  'Our cocktail list leans on fresh citrus and low-ABV aperitivo serves.',
+  'The cocktail program is the heart of the room.',
+  'lets add more cocktails to the menu',
+  'We never say no to a guest directly, we always offer an alternative.',
+]) {
+  const r = classifyVenueIntelligenceIntent(msg)
+  ok(r.isBeverageDevelopment === false, `[D5] ordinary discovery is NOT beverage development: "${msg.slice(0, 34)}…"`)
+}
+
+// 6) "sour" must not be triggered by substrings like "resource"/"source".
+const falsePos = classifyVenueIntelligenceIntent('we want to be resourceful about our cocktail menu')
+ok(!falsePos.flavorRoles.includes('sour'), '[D6] "resource" does not count as a "sour" flavor role')
+
+// 7) Beverage development NEVER alters the DNA-merge gate — exploration stays protected,
+//    ordinary current-venue beverage development still merges (output gate is orthogonal).
+const bevInExploration = classifyVenueIntelligenceIntent(T3, { recentMessages: [{ role: 'user', content: T1 }, { role: 'model', content: 'ok' }] })
+ok(bevInExploration.isBeverageDevelopment === true && bevInExploration.mergeIntoCanonicalDna === false,
+  '[D7] beverage development inside exploration: routed AND canonical DNA still protected')
+const bevCurrentVenue = classifyVenueIntelligenceIntent('for my venue: 8 cocktails with 5 new methods, one savory one spicy one bitter')
+ok(bevCurrentVenue.isBeverageDevelopment === true && bevCurrentVenue.mergeIntoCanonicalDna === true,
+  '[D8] beverage development tied to the current venue: routed AND still merges (gates orthogonal)')
+
+// 8) Empty / junk input never reports beverage development.
+for (const msg of ['', null, undefined, '   ']) {
+  const r = classifyVenueIntelligenceIntent(msg)
+  ok(r.isBeverageDevelopment === false, `[D9] empty input is not beverage development (${JSON.stringify(msg)})`)
+}
 
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)

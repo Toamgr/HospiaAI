@@ -97,6 +97,30 @@ for (const key of ['"reply"', '"stage"', '"objective"', '"venueDNA"', '"focusSug
 ok(/buildVenueIntelligenceSystemInstruction\(state\)/.test(src), '[11] route builds the instruction from session state')
 ok(/mergeVenueDna\(state\.venueDNA, ai\.venueDNA\)/.test(src), '[11b] message route still merges via mergeVenueDna (unchanged)')
 
+// 12. Beverage-development routing doctrine — deep cocktail R&D is handed to Bar
+//     Intelligence rather than answered with a shallow generic cocktail list.
+ok(/BEVERAGE DEVELOPMENT/i.test(prompt), '[12] prompt encodes a BEVERAGE DEVELOPMENT routing doctrine')
+ok(/Bar Intelligence/i.test(prompt), '[12b] doctrine names Bar Intelligence as the specialist owner')
+ok(/Bar Intelligence Handoff Brief/i.test(prompt), '[12c] doctrine produces a Bar Intelligence Handoff Brief')
+ok(/will NOT treat untested preparations as final/i.test(prompt),
+  '[12d] doctrine refuses to treat untested preparations as final truth')
+ok(/preliminary concept slots|not final recipes or approved preparations/i.test(prompt),
+  '[12e] cocktail ideas labelled preliminary concept slots, not final/approved recipes')
+for (const name of ['Savory Delight', 'Spicy Elixir', 'Sweet Symphony']) {
+  ok(prompt.includes(name), `[12f] doctrine names the shallow generic cocktail "${name}" to avoid`)
+}
+ok(/keep the Working Venue DNA draft SEPARATE/i.test(prompt),
+  '[12g] doctrine keeps the Venue DNA draft separate from beverage R&D')
+
+// 13. Beverage-development directive + composer exist and override the explicit-brief
+//     cocktail-forcing path (output contract only — no schema/auth/merge change).
+ok(/const\s+VENUE_INTELLIGENCE_BEVERAGE_DEVELOPMENT_DIRECTIVE\s*=/.test(src),
+  '[13] beverage-development directive constant defined')
+ok(/function composeBeverageDevelopmentInstruction/.test(src),
+  '[13b] composeBeverageDevelopmentInstruction defined')
+ok(/Leave the JSON "cocktailConcepts" array EMPTY/i.test(src),
+  '[13c] beverage directive leaves the structured cocktail array empty (no forced list)')
+
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)
 process.exit(0)

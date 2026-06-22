@@ -92,6 +92,24 @@ ok(!/['"]confirmed['"]/.test(handler), '[9c] handler does not write a confirmed-
 ok(/NO candidate→DNA path|has NO candidate/i.test(src),
   '[9d] candidate routes still document no candidate→DNA promotion')
 
+// 10. Beverage-development routing is an OUTPUT-only concern: it changes the prompt
+//     composition for the turn, never the canonical-DNA write gate, the writer, auth,
+//     or venue scoping. The handler routes beverage-dev turns to the handoff composer.
+ok(/intent\.isBeverageDevelopment/.test(handler),
+  '[10] handler consults intent.isBeverageDevelopment for output routing')
+ok(/composeBeverageDevelopmentInstruction\(/.test(handler),
+  '[10b] handler composes the Bar Intelligence handoff instruction on beverage-dev turns')
+// The canonical-DNA write remains gated SOLELY by intent.mergeIntoCanonicalDna — the
+// beverage flag must not appear on the persistence gate.
+ok(/intent\.mergeIntoCanonicalDna\s*\?\s*mergedDNA\s*:\s*state\.venueDNA/.test(handler),
+  '[10c] canonical-DNA write still gated only by intent.mergeIntoCanonicalDna (beverage flag is output-only)')
+// The forced cocktail-list backstop is suppressed on beverage-development turns.
+ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\)\s*reply\s*=\s*ensureCocktailConceptsInReply/.test(handler),
+  '[10d] handler does NOT force a cocktail list on beverage-development turns')
+// Still no destructive / finalization side effects on this new path.
+ok(!/['"]confirmed['"]/.test(handler), '[10e] beverage path adds no confirmed-DNA tier literal')
+ok(!/\bDELETE\b/.test(handler), '[10f] beverage path adds no DELETE')
+
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)
 process.exit(0)

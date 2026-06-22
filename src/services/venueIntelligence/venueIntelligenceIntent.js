@@ -121,6 +121,45 @@ const METHOD_CUES = [
   'חליטה', 'קצף', 'ענן', 'טמפרטורה', 'עשן',
 ];
 
+// ── Beverage Development / Bar Intelligence routing ──────────────────────────
+// When the owner crosses from understanding the venue (Venue DNA) into deep cocktail
+// R&D — preparation quality, recipe development, named techniques, beverage menu
+// depth, explicit flavor-role frameworks — Venue Intelligence should NOT invent a
+// shallow generic cocktail list. It should produce a Bar Intelligence handoff brief
+// and hand the deep work to the bar/cocktail specialist layer. These cues classify
+// that crossing; they do NOT change canonical-DNA merge behavior (that stays gated by
+// the exploration guard above) — they only change the OUTPUT contract for the turn.
+
+// Direct "preparation/recipe quality" concern — the owner doubts the depth/quality of
+// the preparations themselves (e.g. "the best preparations recipe", "recipe quality").
+const PREPARATION_QUALITY_CONCERN_CUES = [
+  // English
+  'best preparation', 'best preparations', 'preparations recipe', 'preparation recipe',
+  'preparations recipes', 'preparation quality', 'recipe quality', 'best recipe',
+  'best recipes', 'proper recipe', 'real recipe', 'right recipe', 'good recipe',
+  'write the best', 'not write the best', 'will not write', "won't write", 'wont write',
+  'prep quality', 'best prep', 'quality of the preparation', 'quality preparations',
+  // Hebrew
+  'מתכון הכי טוב', 'מתכון טוב', 'איכות המתכון', 'הכנה הכי טובה', 'מתכוני הכנה',
+  'איכות ההכנה',
+];
+
+// Recipe-development / R&D vocabulary. Only a beverage-development signal when paired
+// with a beverage context (cocktail / drink / menu), so it does not fire on ordinary
+// food or operations talk.
+const RECIPE_DEVELOPMENT_CUES = [
+  'recipe', 'recipes', 'preparation', 'preparations', 'prep spec', 'prep specs',
+  'spec sheet', 'build spec', 'batching', 'batch', 'r&d', 'menu depth', 'develop the menu',
+  'method', 'methods', 'technique', 'techniques',
+  'מתכון', 'מתכונים', 'הכנה', 'שיטה', 'שיטות', 'טכניק', 'באטצ',
+];
+
+// Beverage context anchors — used to qualify recipe-development cues.
+const BEVERAGE_CONTEXT_CUES = [
+  'cocktail', 'cocktails', 'drink', 'drinks', 'beverage', 'beverages', 'menu',
+  'קוקטייל', 'קוקטיילים', 'משקה', 'משקאות', 'תפריט',
+];
+
 function normalize(input) {
   return String(input == null ? '' : input).toLowerCase();
 }
@@ -150,6 +189,46 @@ function parseRequestedCocktailCount(text) {
     }
   }
   return null;
+}
+
+// Parse an explicitly requested method/technique count (1–20), e.g. "at least 5
+// different new methods", "5 techniques", "6 שיטות". Returns null when absent.
+function parseRequestedMethodCount(text) {
+  const patterns = [
+    /(\d{1,2})\s*(?:different\s+)?(?:new\s+)?(?:cocktail\s+)?(?:methods?|techniques?|שיטות|טכניק)/,
+    /(?:methods?|techniques?|שיטות)\D{0,8}(\d{1,2})/,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) {
+      const n = Number(m[1]);
+      if (Number.isFinite(n) && n >= 1 && n <= 20) return n;
+    }
+  }
+  return null;
+}
+
+// Detect explicit flavor ROLES the owner names as a menu framework ("1 savory, 1
+// spicy, 1 sweet, 1 bitter, 1 sour, 1 umami"). English uses word boundaries so
+// "resource"/"source" never count as "sour". Returns canonical role names, deduped.
+function detectFlavorRoles(text) {
+  const enRoles = [
+    ['savory', /\b(?:savory|savoury)\b/],
+    ['spicy', /\bspicy\b/],
+    ['sweet', /\bsweet\b/],
+    ['bitter', /\bbitter\b/],
+    ['sour', /\bsour\b/],
+    ['umami', /\bumami\b/],
+  ];
+  const found = [];
+  for (const [role, re] of enRoles) if (re.test(text)) found.push(role);
+  // Hebrew — distinctive tokens only (short ambiguous words excluded; bitter uses מריר).
+  const heRoles = [
+    ['savory', 'מלוח'], ['spicy', 'חריף'], ['sweet', 'מתוק'],
+    ['sour', 'חמוץ'], ['bitter', 'מריר'], ['umami', 'אומאמי'],
+  ];
+  for (const [role, tok] of heRoles) if (text.includes(tok) && !found.includes(role)) found.push(role);
+  return found;
 }
 
 // Determine whether the recent conversation is in an active concept-exploration
@@ -186,6 +265,10 @@ function detectSessionExplorationMode(recentMessages) {
  *   wantsCurrentVenueUpdate: boolean, // owner explicitly tied it to the current venue
  *   mergeIntoCanonicalDna: boolean,   // SAFE GATE: may this turn write canonical DNA?
  *   requestedCocktailCount: number|null,
+ *   requestedMethodCount: number|null,
+ *   flavorRoles: string[],
+ *   preparationQualityConcern: boolean, // owner doubts preparation/recipe quality
+ *   isBeverageDevelopment: boolean,   // OUTPUT GATE: route to Bar Intelligence handoff
  *   methods: string[],
  *   reason: string
  * }}
@@ -248,6 +331,28 @@ export function classifyVenueIntelligenceIntent(message, options = {}) {
 
   const methods = METHOD_CUES.filter((m) => text.includes(m));
   const requestedCocktailCount = parseRequestedCocktailCount(text);
+  const requestedMethodCount = parseRequestedMethodCount(text);
+  const flavorRoles = detectFlavorRoles(text);
+  const preparationQualityConcern = containsAny(text, PREPARATION_QUALITY_CONCERN_CUES);
+
+  // Beverage-development crossing — the OUTPUT gate (independent of the DNA-merge
+  // gate). True when the owner has moved into deep cocktail R&D: a preparation/recipe
+  // quality concern, an explicit flavor-role framework (3+ roles), several named
+  // techniques, a requested method count, a cocktail count paired with technique/role
+  // depth, or an explicit recipe-development ask in a beverage context. Conservative on
+  // purpose so ordinary discovery ("our list leans on fresh citrus") never trips it.
+  const mentionsBeverage = containsAny(text, BEVERAGE_CONTEXT_CUES);
+  const wantsRecipeDevelopment = mentionsBeverage && containsAny(text, RECIPE_DEVELOPMENT_CUES);
+  const isBeverageDevelopment = Boolean(
+    preparationQualityConcern ||
+    flavorRoles.length >= 3 ||
+    methods.length >= 3 ||
+    (requestedMethodCount != null && requestedMethodCount >= 3) ||
+    (requestedCocktailCount != null &&
+      (requestedMethodCount != null || flavorRoles.length >= 2 || methods.length >= 2)) ||
+    (wantsRecipeDevelopment &&
+      (requestedCocktailCount != null || methods.length >= 1 || flavorRoles.length >= 1 || requestedMethodCount != null))
+  );
 
   return {
     mode,
@@ -258,6 +363,10 @@ export function classifyVenueIntelligenceIntent(message, options = {}) {
     wantsCurrentVenueUpdate,
     mergeIntoCanonicalDna,
     requestedCocktailCount,
+    requestedMethodCount,
+    flavorRoles,
+    preparationQualityConcern,
+    isBeverageDevelopment,
     methods,
     reason,
   };

@@ -5706,6 +5706,9 @@ If the owner gives a rich brief (the venue idea, the feeling, the audience, refe
 - Next best question — exactly ONE (optional, asked AFTER the artifacts, never instead of them).
 ARTIFACTS VS VENUE FACTS — "not yet clear" and "never invent" apply ONLY to FACTS ABOUT THE VENUE the owner has not stated (its real name, real numbers, real demographics, real awards). They do NOT apply to the creative deliverables you were explicitly asked to generate (concept brief, service lines, cocktail concepts) — those you must produce now, originally and in full. Missing venue information must NEVER be used as a reason to withhold, defer, or shrink a requested artifact.
 
+BEVERAGE DEVELOPMENT — deep cocktail R&D belongs to Bar Intelligence, not Venue DNA
+Venue Intelligence understands the venue and ROUTES specialist work; it does not perform professional beverage R&D. The moment the owner moves into cocktail METHODS, PREPARATION QUALITY, RECIPE DEVELOPMENT, beverage MENU DEPTH, or technical cocktail DESIGN — e.g. "the best preparations recipe", "8 cocktails with at least 5 new methods", "one savory, one spicy, one bitter, one sour", or named techniques (sous vide, clarification, fat-wash, carbonation) — DO NOT answer with a shallow, generic cocktail list. NEVER output throwaway names like "Savory Delight", "Spicy Elixir", "Sweet Symphony", "Fruity Fusion", or "Smoky Sensation". Instead: (1) acknowledge the request has crossed from Venue DNA into Beverage Development / Bar Intelligence territory; (2) produce a "Bar Intelligence Handoff Brief" capturing the beverage-development need; (3) keep the Working Venue DNA draft SEPARATE — reference it, do not fold cocktail R&D into the Venue DNA. Any cocktail ideas are PRELIMINARY CONCEPT SLOTS only (e.g. "savory high-complexity slot", "spicy aromatic slot", "temperature-play slot"), explicitly labelled "not final recipes or approved preparations" — never finished recipes, never approved/tested/validated/confirmed, never precise alcoholic formulas. State plainly you will NOT treat untested preparations as final truth. The next specialist step (method validation, prep testing, costing, service feasibility) is owned by Bar Intelligence / Cocktail Lab. Ask at most ONE next-best question.
+
 CONCEPT EXPLORATION vs THIS VENUE — keep exploration out of the current venue's DNA
 Distinguish (A) learning or updating THIS venue from (B) exploring a NEW or hypothetical concept — signalled by phrasing like "a new place", "a concept", "inspired by", "in the spirit of", "benchmark", or "what if". When the owner is exploring a new or inspirational concept, treat your draft as EXPLORATION / DRAFT only: never present it as this venue's working or confirmed Venue DNA, and say so in the reply. Do NOT fold an exploration into the current venue's identity unless the owner explicitly asks to update this venue. Treat any named real venue (for example Paradiso or SIPS) strictly as inspiration — never reproduce their menus, recipes, signature serves, or brand language.
 
@@ -5938,6 +5941,41 @@ function composeExplicitBriefInstruction(base, isExplicitBrief) {
   return base.replace(/\[\[\/?NINE_SECTION_DRAFT\]\]\n?/g, '');
 }
 
+// Appended ONLY on turns the code classifies as beverage development (cocktail methods,
+// preparation quality, recipe development, beverage menu depth, technical cocktail
+// design). It OVERRIDES the explicit-brief cocktail-forcing directive: instead of
+// inventing a shallow generic cocktail list, the model produces a Bar Intelligence
+// handoff brief and leaves deep recipe R&D to the specialist layer. Defined outside the
+// route handler on purpose (keeps the handler free of draft/label text).
+const VENUE_INTELLIGENCE_BEVERAGE_DEVELOPMENT_DIRECTIVE = `
+
+THIS TURN — THE OWNER HAS CROSSED FROM VENUE DNA INTO BEVERAGE DEVELOPMENT / BAR INTELLIGENCE TERRITORY (cocktail methods, preparation quality, recipe development, beverage menu depth, or technical cocktail design). Do NOT invent a shallow generic cocktail list — no "Savory Delight" / "Spicy Elixir" / "Sweet Symphony" / "Fruity Fusion" / "Smoky Sensation"-style names, and no precise recipes. In "reply", produce a "Bar Intelligence Handoff Brief — Beverage Development" that:
+- Opens by stating plainly this is now a Bar Intelligence / Cocktail Lab task, not only Venue DNA, and that you will NOT treat untested preparations as final truth.
+- Keeps the Working Venue DNA draft SEPARATE — reference it, but do not fold the beverage R&D into the Venue DNA.
+- Captures, as a structured brief, each of: intended guest profile; beverage identity; number of cocktails requested; requested flavor roles; requested methods / techniques; the technical concern about preparation quality; quality standard / non-negotiables; missing technical inputs; operational complexity risks; what Bar Intelligence / Cocktail Lab should own next.
+- May list PRELIMINARY cocktail architecture SLOTS — labelled exactly "preliminary concept slots, not final recipes or approved preparations". Use slot language ("savory high-complexity slot", "spicy aromatic slot", "temperature-play slot") — NOT finished cocktail names, NOT precise alcoholic formulas.
+- Never calls any preparation final, approved, tested, validated, or confirmed.
+- Ends with the SINGLE next specialist step (method validation / prep testing / costing / service feasibility) and AT MOST one question.
+Leave the JSON "cocktailConcepts" array EMPTY this turn — final cocktail concepts are owned by Bar Intelligence, not produced here.`;
+
+// Runtime composition for a beverage-development turn: like the explicit-brief composer
+// it removes the competing 9-section template, but it appends the Bar Intelligence
+// handoff directive instead — and echoes the deterministically captured request facts
+// so the small model reflects them precisely rather than inventing.
+function composeBeverageDevelopmentInstruction(base, intent) {
+  const captured = [];
+  if (intent && Number.isFinite(intent.requestedCocktailCount)) captured.push(`cocktails requested: ${intent.requestedCocktailCount}`);
+  if (intent && Number.isFinite(intent.requestedMethodCount)) captured.push(`methods/techniques requested: ${intent.requestedMethodCount}`);
+  if (intent && Array.isArray(intent.flavorRoles) && intent.flavorRoles.length) captured.push(`flavor roles: ${intent.flavorRoles.join(', ')}`);
+  if (intent && Array.isArray(intent.methods) && intent.methods.length) captured.push(`named methods: ${intent.methods.join(', ')}`);
+  if (intent && intent.preparationQualityConcern) captured.push('owner raised a preparation-quality concern');
+  const capturedLine = captured.length
+    ? `\nCAPTURED FROM THIS REQUEST (reflect these precisely in the brief, do not invent beyond them): ${captured.join('; ')}.`
+    : '';
+  return base.replace(NINE_SECTION_DRAFT_BLOCK, '').replace(/\n{3,}/g, '\n\n')
+    + VENUE_INTELLIGENCE_BEVERAGE_DEVELOPMENT_DIRECTIVE + capturedLine;
+}
+
 // Deterministic backstop for the explicit-brief contract. If the model returned a
 // structured cocktailConcepts array but its free-text reply did not actually lay the
 // concepts out, surface them in a clean labelled block so the owner always receives
@@ -5990,8 +6028,16 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
     // competing 9-section template and append a forceful directive so a small model
     // produces the full artifact set (incl. ≥6 numbered cocktail concepts) instead of
     // defaulting to the generic draft and deferring cocktails to "Still Missing".
-    const systemInstruction = composeExplicitBriefInstruction(
+    let systemInstruction = composeExplicitBriefInstruction(
       buildVenueIntelligenceSystemInstruction(state), intent.isExplicitBrief);
+    // Beverage-development override: when the owner crosses into cocktail methods /
+    // preparation quality / recipe development, route to the Bar Intelligence handoff
+    // brief instead of forcing a shallow generic cocktail list. This replaces the
+    // explicit-brief composition for this turn (the handoff directive wins).
+    if (intent.isBeverageDevelopment) {
+      systemInstruction = composeBeverageDevelopmentInstruction(
+        buildVenueIntelligenceSystemInstruction(state), intent);
+    }
     const ai = await askVenueIntelligence(systemInstruction, historyForModel);
 
     let reply = typeof ai.reply === 'string' && ai.reply.trim()
@@ -5999,8 +6045,10 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
       : 'Let me sit with that for a moment. Tell me a little more about how that plays out on a normal night.';
     // Backstop the explicit-brief contract: if the owner asked for cocktails and the
     // model returned a structured cocktailConcepts array but left them out of the
-    // free-text reply, surface them. Renders only what the model produced.
-    if (intent.isExplicitBrief) reply = ensureCocktailConceptsInReply(reply, ai.cocktailConcepts);
+    // free-text reply, surface them. Renders only what the model produced. Skipped on a
+    // beverage-development turn — that path must NOT surface a finished cocktail list;
+    // deep recipes are owned by Bar Intelligence, not produced here.
+    if (intent.isExplicitBrief && !intent.isBeverageDevelopment) reply = ensureCocktailConceptsInReply(reply, ai.cocktailConcepts);
     const stage = VENUE_INTELLIGENCE_STAGES.includes(ai.stage) ? ai.stage : state.stage;
     const objective = typeof ai.objective === 'string' && ai.objective.trim() ? ai.objective.trim() : state.objective;
 
