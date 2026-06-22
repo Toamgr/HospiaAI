@@ -80,7 +80,7 @@ Tier 7 — Archive (superseded; preserved for reference only)
 | File | Last Updated | Purpose |
 |---|---|---|
 | `docs/HESTIA_MASTER_STATE.md` | 2026-06-09 | Source of truth for current module status, persistence map, production-readiness per domain. |
-| `docs/HESTIA_ARCHITECTURE_AUDIT.md` | 2026-06-09 | Full module-by-module audit (51 tables, 120+ routes). Identifies what is built, what is connected, what is demo data, what is dead. |
+| `docs/HESTIA_ARCHITECTURE_AUDIT.md` | 2026-06-09 | Full module-by-module audit (~60 tables; see `docs/audits/HESTIA_FULL_APP_DEEP_QA_AUDIT.md` for latest verified DB/table reality. 120+ routes). Identifies what is built, what is connected, what is demo data, what is dead. |
 | `docs/HESTIA_CTO_ROADMAP.md` | 2026-06-09 | Official phased development roadmap. Defines Phase 1–4 sequencing, ROI rankings, exclusions. |
 | `docs/README.md` | — | Docs directory overview. |
 

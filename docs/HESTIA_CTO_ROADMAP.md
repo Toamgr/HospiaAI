@@ -1,5 +1,16 @@
 # HESTIA CTO Roadmap
 
+> ⚠️ **PARTIALLY SUPERSEDED** — verified 2026-06-22.
+> This document remains useful for historical context and original sequencing, but some hard facts are stale.
+> For current repo reality, prefer:
+>
+> - `docs/audits/HESTIA_FULL_APP_DEEP_QA_AUDIT.md`
+> - `docs/gems/hestia-research-brain/01_HESTIA_CURRENT_STATE.md`
+> - `docs/architecture/HESTIA_PHASE_8_MULTI_VENUE.md` where multi-venue status matters
+>
+> Known stale areas may include: server.js line count, DB table count, AI provider reality (OpenAI is primary, not Gemini), and single-venue vs multi-venue framing (multi-venue shipped Phase 8).
+> Do not treat this document as the sole source of truth for current implementation state.
+
 **Last updated:** 2026-06-09
 **Basis:** Full repository audit + roadmap validation — June 2026
 **Authority:** This is the current official development roadmap for HESTIA.
@@ -427,7 +438,7 @@ The following items are known and real but must not be started until the phase p
 | WhatsApp real delivery | Requires Twilio or equivalent integration decision |
 | POS integration | No POS connector exists; requires external procurement |
 | Certificate / assessment engine for Academy | No quiz runner; no completion gate |
-| Multi-venue support | Entire backend uses `defaultVenueId() = "venue-main"` |
+| Multi-venue support | ✅ DONE / superseded — Phase 8 multi-venue shipped on 2026-06-14 (`X-HESTIA-Venue` header, `req.venueId`, `venue_members`). See `docs/architecture/HESTIA_PHASE_8_MULTI_VENUE.md`. |
 | Puppeteer PDF export | Separate server-side rendering infrastructure required |
 | Full server.js split | Phase 4 only — do not start during hospitality connection work |
 | JWT hardening | Phase 4 only — do not start during hospitality connection work |

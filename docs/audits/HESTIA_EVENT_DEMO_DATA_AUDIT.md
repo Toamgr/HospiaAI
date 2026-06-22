@@ -1,5 +1,7 @@
 # HESTIA — Event Architect Demo-Data Contamination Audit
 
+> **RESOLVED UPDATE** — PlanningSummary and BarProgramme primary trust risk was fixed by 257e5dd. Remaining demo-data findings are P2/P3 unless reclassified by a future audit. The body below is preserved as a historical pre-fix snapshot.
+
 **Type:** Read-only audit. No source files modified.
 **Date:** 2026-06-22
 **Base:** origin/main @ f4b9963

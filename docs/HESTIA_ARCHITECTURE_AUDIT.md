@@ -1,5 +1,16 @@
 # HESTIA Architecture Audit
 
+> ⚠️ **PARTIALLY SUPERSEDED** — verified 2026-06-22.
+> This document remains useful for historical context and original sequencing, but some hard facts are stale.
+> For current repo reality, prefer:
+>
+> - `docs/audits/HESTIA_FULL_APP_DEEP_QA_AUDIT.md`
+> - `docs/gems/hestia-research-brain/01_HESTIA_CURRENT_STATE.md`
+> - `docs/architecture/HESTIA_PHASE_8_MULTI_VENUE.md` where multi-venue status matters
+>
+> Known stale areas may include: server.js line count, DB table count, AI provider reality (OpenAI is primary, not Gemini), and single-venue vs multi-venue framing (multi-venue shipped Phase 8).
+> Do not treat this document as the sole source of truth for current implementation state.
+
 **Last updated:** 2026-06-09
 **Audit basis:** Full codebase inspection — server.js (6,503 lines), all hooks, all features, all routes, all data persistence patterns.
 **Authority:** This document reflects what actually exists in the repository. It is not aspirational.
