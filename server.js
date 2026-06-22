@@ -5713,7 +5713,10 @@ SYNTHESIZE BEFORE INTERVIEWING — render the experience, never outsource it bac
 Once the owner has shared enough venue concept signals (identity, feeling, guests, service, F&B role) and then asks to SEE the experience — "how does this play out on a normal night?", "what does this feel like in practice?", "show me the experience", "turn this into a working brief" — or offers a low-value "let me sit with that"-style turn, you MUST synthesize a working interpretation from the signals you already have. DO NOT ask the owner to describe the whole night. NEVER reply "Tell me more about how that plays out on a normal night" or any variant that hands the synthesis back to the owner — that is unacceptable. Instead label the output "Working Draft — not yet confirmed", then walk "How a normal night might play out" across: arrival, first impression, seating, service rhythm, cocktail role, food role, guest behavior, staff behavior, what the room must protect, what would signal success. Every line is provisional INTERPRETATION ("might", "would likely", "feels like"), never confirmed fact — and never invent hard operational facts (exact capacity, prices, specific menu items, staffing model, opening hours, POS numbers, confirmed business model). Do NOT expose a long Discovery Map. Do NOT over-focus on cocktails — they are ONE line among many. Do NOT write detailed alcoholic recipes or preparation steps. End with exactly: "Correct me where this feels wrong." Ask at most ONE very small correction request, and only if a single missing detail genuinely blocks the picture.
 
 FOUNDER BRIEF v0.1 — synthesize a founder-level concept brief on request
-When the owner asks you to STOP discovery and produce a Founder Brief (e.g. "create a Founder Brief", "based on everything we have built so far", "stop the discovery flow", "turn this into a founder-level brief"), and enough concept signal exists, synthesize a structured Founder Brief v0.1 from everything gathered. DO NOT keep interviewing, DO NOT ask another discovery question, DO NOT expose a technical Discovery Map, and NEVER collapse to a one-line "working read" — that is unacceptable. Head the reply "Working Draft — not yet confirmed", then "Founder Brief v0.1", then exactly these 15 numbered sections in order: 1. One-sentence concept; 2. Founder intent; 3. Emotional promise; 4. Guest world; 5. Primary occasions; 6. Service philosophy; 7. Spatial atmosphere; 8. Beverage role; 9. Food role; 10. What the venue must protect; 11. What the venue must never become; 12. Early operational implications; 13. Early risks or contradictions; 14. What is already strong; 15. What still needs decision. Premium hospitality voice, not SaaS onboarding. Keep the beverage programme a major anchor when present, but NOT automatically the entire identity. Never invent hard facts (exact capacity, pricing, specific menu items, opening hours, staffing model, confirmed business model). Everything is interpretation, never confirmed Venue DNA, never a detailed alcoholic recipe. End ONLY with "Correct me where this feels wrong." — no closing question. If too little concept has been shared, do NOT fabricate a brief and do NOT return an empty fallback: give a short premium response naming what is still missing and ask exactly ONE focused question that would unlock the brief.
+When the owner asks you to STOP discovery and produce a Founder Brief (e.g. "create a Founder Brief", "based on everything we have built so far", "stop the discovery flow", "turn this into a founder-level brief"), and enough concept signal exists, synthesize a structured Founder Brief v0.1 from everything gathered. DO NOT keep interviewing, DO NOT ask another discovery question, DO NOT expose a technical Discovery Map, and NEVER collapse to a one-line "working read" — that is unacceptable. Head the reply "Working Draft — not yet confirmed", then "Founder Brief v0.1", then exactly these 15 numbered sections in order: 1. One-sentence concept; 2. Founder intent; 3. Emotional promise; 4. Guest world; 5. Primary occasions; 6. Service philosophy; 7. Spatial atmosphere; 8. Beverage role; 9. Food role; 10. What the venue must protect; 11. What the venue must never become; 12. Early operational implications; 13. Early risks or contradictions; 14. What is already strong; 15. What still needs decision. Sections 10 and 11 are DISTINCT and must NEVER be merged: "What the venue must protect" = the essential qualities to defend; "What the venue must never become" = the failure states to avoid. Write both as separate numbered sections with distinct content. Premium hospitality voice, not SaaS onboarding. Keep the beverage programme a major anchor when present, but NOT automatically the entire identity. Never invent hard facts (exact capacity, pricing, specific menu items, opening hours, staffing model, confirmed business model). Everything is interpretation, never confirmed Venue DNA, never a detailed alcoholic recipe. End ONLY with "Correct me where this feels wrong." — no closing question. If too little concept has been shared, do NOT fabricate a brief and do NOT return an empty fallback: give a short premium response naming what is still missing and ask exactly ONE focused question that would unlock the brief.
+
+OWNER CORRECTION LOOP — after the Founder Brief, help the owner correct, do not interview
+When the owner asks to run an Owner Correction Loop, to separate the brief, to surface what feels wrong / too strong / missing, to stop discovery, or to turn the brief into candidate DNA signals (e.g. "Owner Correction Loop", "separate the brief", "what feels wrong, too strong, or missing", "do not continue discovery", "turn this into candidate DNA"), DO NOT continue discovery, DO NOT ask a long list of questions, and DO NOT treat the Founder Brief as confirmed Venue DNA. Head the reply "Working Draft — not yet confirmed", then "Owner Correction Loop", then exactly these 7 numbered buckets in order: 1. Feels accurate; 2. Feels promising but still unconfirmed; 3. Feels too strong / too early; 4. Needs owner decision; 5. Should be softened before becoming Venue DNA; 6. Candidate Venue DNA signals; 7. Not ready for Venue DNA yet. Under "Candidate Venue DNA signals", list each candidate on its own line carrying ALL of: signal; evidence from the conversation / Founder Brief; confidence (low/medium/high); status (candidate only / needs owner confirmation / too early); suggested destination (Venue DNA / Venue Memory / Bar Intelligence / Service / Academy / Events / F&B). Candidate signals are CANDIDATES ONLY — never confirmed Venue DNA, never approved, never merged. After the 7 buckets, include the distinction as two DISTINCT lines: "What the venue must protect" and "What the venue must never become" — never merge them. End ONLY with "Tell me only what feels wrong, too strong, or missing." — no long list of questions. Do NOT expose a technical taxonomy. Keep the beverage programme an anchor when present, not the whole identity. If too little concept has been shared, do NOT fabricate the loop and do NOT return an empty fallback: give a short premium response naming what is still missing and ask exactly ONE focused question that would unlock it.
 
 CONCEPT EXPLORATION vs THIS VENUE — keep exploration out of the current venue's DNA
 Distinguish (A) learning or updating THIS venue from (B) exploring a NEW or hypothetical concept — signalled by phrasing like "a new place", "a concept", "inspired by", "in the spirit of", "benchmark", or "what if". When the owner is exploring a new or inspirational concept, treat your draft as EXPLORATION / DRAFT only: never present it as this venue's working or confirmed Venue DNA, and say so in the reply. Do NOT fold an exploration into the current venue's identity unless the owner explicitly asks to update this venue. Treat any named real venue (for example Paradiso or SIPS) strictly as inspiration — never reproduce their menus, recipes, signature serves, or brand language.
@@ -6042,6 +6045,7 @@ Founder Brief v0.1
 14. What is already strong: ...
 15. What still needs decision: ..."
 Then end with EXACTLY this line, on its own: "Correct me where this feels wrong."
+SECTION FIDELITY — all 15 sections must be present, distinct, and in order. Section 10 ("What the venue must protect") and section 11 ("What the venue must never become") are TWO SEPARATE sections and must NEVER be merged or collapsed into one: "What the venue must protect" = the essential qualities, feelings, and standards to actively defend; "What the venue must never become" = the failure states, drifts, and identities to avoid. Write each on its own numbered line with its own distinct content.
 PREMIUM HOSPITALITY VOICE — write like a senior hospitality strategist, not SaaS onboarding. Synthesize ONLY from the signals already gathered. Keep the beverage programme a MAJOR anchor when present, but NOT automatically the entire identity — food, service, space, occasions, and guest world carry weight too. Do NOT invent hard operational facts: no exact capacity, no pricing, no specific menu items, no opening hours, no staffing model, no confirmed business model. Everything is interpretation, never confirmed Venue DNA. Do NOT write detailed alcoholic recipes or preparation steps. Do NOT ask any question at the end. Leave the JSON "cocktailConcepts" array EMPTY this turn.`;
 
 // Appended ONLY on a Founder Brief request that arrives BEFORE enough concept signal
@@ -6059,6 +6063,52 @@ function composeFounderBriefInstruction(base, intent) {
   const directive = intent && intent.hasSufficientConceptContext
     ? VENUE_INTELLIGENCE_FOUNDER_BRIEF_DIRECTIVE
     : VENUE_INTELLIGENCE_FOUNDER_BRIEF_INSUFFICIENT_DIRECTIVE;
+  return base.replace(NINE_SECTION_DRAFT_BLOCK, '').replace(/\n{3,}/g, '\n\n') + directive;
+}
+
+// Appended ONLY on turns the code classifies as an Owner Correction Loop request WITH
+// enough concept signal (always the case right after a Founder Brief). It does NOT
+// continue discovery and does NOT ask a long list of questions — it helps the owner
+// correct what feels wrong, too strong, missing, or too early, and surfaces CANDIDATE
+// Venue DNA signals as candidates only. Output-only: it does NOT change the canonical-DNA
+// merge gate, the writer, auth, or venue scoping, and writes NO candidate records to disk.
+const VENUE_INTELLIGENCE_OWNER_CORRECTION_LOOP_DIRECTIVE = `
+
+THIS TURN — RUN THE OWNER CORRECTION LOOP. The owner already has a Founder Brief (or enough concept signal) and now wants to CORRECT it, NOT continue discovery. DO NOT continue discovery. DO NOT ask a long list of questions. DO NOT treat the Founder Brief as confirmed Venue DNA. DO NOT expose a technical taxonomy or Discovery Map. In "reply", produce the Owner Correction Loop in EXACTLY this shape and order (use \\n line breaks):
+"Working Draft — not yet confirmed
+
+Owner Correction Loop
+
+1. Feels accurate: ...
+2. Feels promising but still unconfirmed: ...
+3. Feels too strong / too early: ...
+4. Needs owner decision: ...
+5. Should be softened before becoming Venue DNA: ...
+6. Candidate Venue DNA signals:
+- signal: <short signal>; evidence: <evidence from the conversation / Founder Brief>; confidence: <low|medium|high>; status: <candidate only|needs owner confirmation|too early>; suggested destination: <Venue DNA|Venue Memory|Bar Intelligence|Service|Academy|Events|F&B>
+- (one line per candidate signal — repeat the same format)
+7. Not ready for Venue DNA yet: ...
+
+What the venue must protect: ...
+What the venue must never become: ..."
+Then end with EXACTLY this line, on its own: "Tell me only what feels wrong, too strong, or missing."
+CANDIDATE SIGNALS ARE CANDIDATES ONLY — never confirmed Venue DNA, never approved, never merged into the venue's canonical DNA. Each candidate MUST carry all five fields: signal; evidence from the conversation / Founder Brief; confidence (low/medium/high); status (candidate only / needs owner confirmation / too early); suggested destination (Venue DNA / Venue Memory / Bar Intelligence / Service / Academy / Events / F&B). Keep "What the venue must protect" and "What the venue must never become" as TWO DISTINCT lines — never merge them: "protect" = the essential qualities to defend; "never become" = the failure states to avoid. Premium hospitality voice, not SaaS onboarding. Synthesize ONLY from signals already gathered. Keep the beverage programme an anchor when present, NOT automatically the whole identity. Do NOT invent hard facts (exact capacity, prices, specific menu items, staffing model, opening hours, POS numbers, confirmed business model). Do NOT write detailed alcoholic recipes or preparation steps. Leave the JSON "cocktailConcepts" array EMPTY this turn.`;
+
+// Appended ONLY on an Owner Correction Loop request that arrives BEFORE enough concept
+// signal exists. Prevents both fabrication and an empty fallback: a short honest "not
+// enough yet" response naming what is missing and ONE unlocking question.
+const VENUE_INTELLIGENCE_OWNER_CORRECTION_LOOP_INSUFFICIENT_DIRECTIVE = `
+
+THIS TURN — AN OWNER CORRECTION LOOP WAS REQUESTED, BUT TOO LITTLE CONCEPT HAS BEEN SHARED to run one worth the owner's time. Do NOT fabricate a correction loop and do NOT return an empty one-line fallback. In "reply", give a short, premium response that: (1) is headed "Working Draft — not yet confirmed" then "Owner Correction Loop — not yet possible"; (2) names plainly the few concept areas still missing (e.g. venue identity, the guest it is for, the feeling it must leave, the service posture); (3) ends with exactly ONE focused question that would unlock it. Premium hospitality voice, never SaaS onboarding. Do NOT invent any venue facts. Leave the JSON "cocktailConcepts" array EMPTY this turn.`;
+
+// Runtime composition for an Owner Correction Loop turn: removes the competing 9-section
+// template and appends the full-loop directive when enough concept signal exists,
+// otherwise the "not enough yet" directive. The deterministic backstop in the handler
+// guarantees the turn never collapses to the generic one-line fallback.
+function composeOwnerCorrectionLoopInstruction(base, intent) {
+  const directive = intent && intent.hasSufficientConceptContext
+    ? VENUE_INTELLIGENCE_OWNER_CORRECTION_LOOP_DIRECTIVE
+    : VENUE_INTELLIGENCE_OWNER_CORRECTION_LOOP_INSUFFICIENT_DIRECTIVE;
   return base.replace(NINE_SECTION_DRAFT_BLOCK, '').replace(/\n{3,}/g, '\n\n') + directive;
 }
 
@@ -6138,6 +6188,61 @@ function founderBriefNotEnoughYet() {
     'What is the single feeling a guest should walk out with?',
   ].join('\n');
 }
+
+// ── Owner Correction Loop deterministic backstops ────────────────────────────
+// The Owner Correction Loop turn must NEVER collapse to the generic one-line fallback,
+// and must END with the loop-specific closing line ("Tell me only what feels wrong, too
+// strong, or missing.") rather than the Founder Brief invitation. These helpers detect
+// whether the model returned the seven correction buckets and, when it did not, return an
+// honest error-style working response instead of a placeholder. No fabrication.
+const OWNER_CORRECTION_LOOP_BUCKET_LABELS = [
+  'Feels accurate', 'Feels promising but still unconfirmed', 'Feels too strong / too early',
+  'Needs owner decision', 'Should be softened before becoming Venue DNA',
+  'Candidate Venue DNA signals', 'Not ready for Venue DNA yet',
+];
+const OWNER_CORRECTION_LOOP_CLOSING = 'Tell me only what feels wrong, too strong, or missing.';
+function looksLikeOwnerCorrectionLoop(reply) {
+  const t = String(reply || '');
+  if (!/owner correction loop/i.test(t)) return false;
+  const lower = t.toLowerCase();
+  const labelHits = OWNER_CORRECTION_LOOP_BUCKET_LABELS.filter((s) => lower.includes(s.toLowerCase())).length;
+  // A genuine loop carries most of the seven correction buckets.
+  return labelHits >= 6;
+}
+// Guarantee the loop-specific closing line (the small model sometimes drops it). No
+// fabrication — only appends the fixed closing when the reply does not already end with it.
+function ensureCorrectionLoopClosing(reply) {
+  const trimmed = String(reply || '').trim();
+  if (/tell me only what feels wrong, too strong, or missing\.?$/i.test(trimmed)) return trimmed;
+  return trimmed ? `${trimmed}\n\n${OWNER_CORRECTION_LOOP_CLOSING}` : OWNER_CORRECTION_LOOP_CLOSING;
+}
+// Backstop A — the model was asked for a full correction loop (enough context) but did not
+// return a usable one. Honest, premium, error-style working response. Never fabricates.
+function ownerCorrectionLoopCouldNotGenerate() {
+  return [
+    'Working Draft — not yet confirmed',
+    '',
+    'Owner Correction Loop',
+    '',
+    'I could not assemble the full Owner Correction Loop on this pass — the draft did not come back in a usable shape, and I would rather not guess at facts I do not have. Nothing here is confirmed Venue DNA, and any candidate signals stay candidates only, not confirmed truth. Send it once more and I will lay out all seven correction buckets in full.',
+    '',
+    OWNER_CORRECTION_LOOP_CLOSING,
+  ].join('\n');
+}
+// Backstop B — an Owner Correction Loop was requested before enough concept signal exists,
+// and the model returned nothing usable. Honest "not enough yet" response with one
+// unlocking question (the explicit exception where a closing question is allowed).
+function ownerCorrectionLoopNotEnoughYet() {
+  return [
+    'Working Draft — not yet confirmed',
+    '',
+    'Owner Correction Loop — not yet possible',
+    '',
+    'I do not have enough of the concept yet to run an Owner Correction Loop worth your time. To shape it I still need a clearer sense of the venue\'s identity, the guest it is for, and the feeling it must leave a guest with.',
+    '',
+    'What is the single feeling a guest should walk out with?',
+  ].join('\n');
+}
 function ensureCocktailConceptsInReply(reply, cocktailConcepts) {
   if (!Array.isArray(cocktailConcepts)) return reply;
   const lines = cocktailConcepts.map(formatCocktailConceptLine).filter(Boolean).slice(0, 8);
@@ -6191,6 +6296,14 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
       systemInstruction = composeFounderBriefInstruction(
         buildVenueIntelligenceSystemInstruction(state), intent);
     }
+    // Owner Correction Loop override: when the owner asks to correct the brief (not
+    // continue discovery), force the structured Owner Correction Loop (or, when too little
+    // is known, an honest "not enough yet" response). This wins over the Founder Brief and
+    // synthesis compositions, but still yields to beverage development below.
+    if (intent.wantsOwnerCorrectionLoop) {
+      systemInstruction = composeOwnerCorrectionLoopInstruction(
+        buildVenueIntelligenceSystemInstruction(state), intent);
+    }
     // Beverage-development override: when the owner crosses into cocktail methods /
     // preparation quality / recipe development, route to the Bar Intelligence handoff
     // brief instead of forcing a shallow generic cocktail list. This wins over the
@@ -6214,7 +6327,19 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
     // yields to beverage development (handled above by composition only). When enough
     // context exists we require a structured brief and guarantee the correction line; when
     // not, we return the honest "not enough yet" response (which may end with one question).
-    if (intent.wantsFounderBrief && !intent.isBeverageDevelopment) {
+    // Owner Correction Loop turns MUST return a real loop (or an honest error-style working
+    // response), NEVER the generic one-line fallback, and MUST end with the loop-specific
+    // closing line. Wins over Founder Brief; yields to beverage development (composition
+    // above). When enough context exists we require the seven correction buckets and
+    // guarantee the closing line; when not, we return the honest "not enough yet" response.
+    if (intent.wantsOwnerCorrectionLoop && !intent.isBeverageDevelopment) {
+      if (intent.isOwnerCorrectionLoop) {
+        reply = looksLikeOwnerCorrectionLoop(modelReply) ? modelReply : ownerCorrectionLoopCouldNotGenerate();
+        reply = ensureCorrectionLoopClosing(reply);
+      } else {
+        reply = modelReply || ownerCorrectionLoopNotEnoughYet();
+      }
+    } else if (intent.wantsFounderBrief && !intent.isBeverageDevelopment) {
       if (intent.isFounderBrief) {
         reply = looksLikeFounderBrief(modelReply) ? modelReply : founderBriefCouldNotGenerate();
         reply = ensureCorrectionInvitation(reply);

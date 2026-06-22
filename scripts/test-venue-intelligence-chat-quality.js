@@ -181,6 +181,44 @@ ok(/function composeFounderBriefInstruction/.test(src), '[17c] composeFounderBri
 ok(/function looksLikeFounderBrief/.test(src) && /function founderBriefCouldNotGenerate/.test(src) && /function founderBriefNotEnoughYet/.test(src),
   '[17d] deterministic founder-brief backstops defined (no one-line placeholder)')
 
+// 18. Founder Brief section fidelity — sections 10 ("What the venue must protect") and
+//     11 ("What the venue must never become") must be kept DISTINCT, never merged.
+ok(/Sections 10 and 11 are DISTINCT and must NEVER be merged/i.test(prompt),
+  '[18] founder-brief doctrine keeps protect vs never-become distinct')
+ok(/const\s+VENUE_INTELLIGENCE_FOUNDER_BRIEF_DIRECTIVE\s*=/.test(src) &&
+   /Section 10 \("What the venue must protect"\) and section 11 \("What the venue must never become"\) are TWO SEPARATE sections/i.test(src),
+  '[18b] founder-brief directive spells out the two-section distinction')
+
+// 19. Owner Correction Loop doctrine — after the Founder Brief, help the owner correct,
+//     do not continue discovery, surface candidate Venue DNA signals (candidates only).
+ok(/OWNER CORRECTION LOOP/i.test(prompt), '[19] prompt encodes an OWNER CORRECTION LOOP doctrine')
+ok(/do not continue discovery|DO NOT continue discovery/i.test(prompt),
+  '[19b] doctrine forbids continuing discovery')
+ok(/Working Draft — not yet confirmed/.test(prompt), '[19c] doctrine heads the loop Working Draft — not yet confirmed')
+ok(/Tell me only what feels wrong, too strong, or missing/.test(prompt),
+  '[19d] doctrine ends with the correction-loop closing line')
+for (const bucket of ['Feels accurate', 'Feels promising but still unconfirmed', 'Feels too strong / too early', 'Needs owner decision', 'Should be softened before becoming Venue DNA', 'Candidate Venue DNA signals', 'Not ready for Venue DNA yet']) {
+  ok(prompt.includes(bucket), `[19e] doctrine names the correction bucket "${bucket}"`)
+}
+ok(/Candidate signals are CANDIDATES ONLY|CANDIDATES ONLY/i.test(prompt),
+  '[19f] doctrine states candidate signals are candidates only (never confirmed)')
+for (const field of ['signal', 'evidence', 'confidence', 'status', 'suggested destination']) {
+  ok(new RegExp(field, 'i').test(prompt), `[19g] doctrine names candidate field "${field}"`)
+}
+ok(/two DISTINCT lines: "What the venue must protect" and "What the venue must never become"|"What the venue must protect" and "What the venue must never become" — never merge/i.test(prompt),
+  '[19h] doctrine keeps protect vs never-become distinct in the loop')
+ok(/do not (treat the Founder Brief as confirmed Venue DNA|ask a long list of questions)/i.test(prompt),
+  '[19i] doctrine forbids treating the brief as confirmed DNA / a long question list')
+
+// 20. Owner Correction Loop directives + composer + deterministic backstops exist.
+ok(/const\s+VENUE_INTELLIGENCE_OWNER_CORRECTION_LOOP_DIRECTIVE\s*=/.test(src),
+  '[20] owner-correction-loop directive constant defined')
+ok(/const\s+VENUE_INTELLIGENCE_OWNER_CORRECTION_LOOP_INSUFFICIENT_DIRECTIVE\s*=/.test(src),
+  '[20b] owner-correction-loop "not enough yet" directive defined')
+ok(/function composeOwnerCorrectionLoopInstruction/.test(src), '[20c] composeOwnerCorrectionLoopInstruction defined')
+ok(/function looksLikeOwnerCorrectionLoop/.test(src) && /function ownerCorrectionLoopCouldNotGenerate/.test(src) && /function ownerCorrectionLoopNotEnoughYet/.test(src) && /function ensureCorrectionLoopClosing/.test(src),
+  '[20d] deterministic correction-loop backstops defined (no one-line placeholder)')
+
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)
 process.exit(0)

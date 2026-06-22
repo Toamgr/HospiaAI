@@ -209,6 +209,29 @@ const FOUNDER_BRIEF_REQUEST_CUES = [
   'תבנה בריף', 'בנה לי בריף', 'תסכם את הקונספט', 'סכם את הקונספט', 'בריף קונספט',
 ];
 
+// ── Owner Correction Loop routing ────────────────────────────────────────────
+// After a Founder Brief (or once enough concept signal exists) the owner does not want
+// more discovery — they want to CORRECT what feels wrong, too strong, missing, or too
+// early, and to see which signals are candidate Venue DNA (candidates only, never
+// confirmed). These cues mark that request; like the other synthesis gates this changes
+// only the OUTPUT contract for the turn — it does NOT change the canonical-DNA merge gate.
+const OWNER_CORRECTION_LOOP_REQUEST_CUES = [
+  // English
+  'owner correction loop', 'correction loop', 'create an owner correction loop',
+  'create a correction loop', 'run the correction loop', 'separate the brief',
+  'split the brief', 'what feels wrong', 'feels wrong, too strong', 'too strong, or missing',
+  'too strong or missing', 'what feels wrong, too strong, or missing',
+  'do not continue discovery', "don't continue discovery", 'dont continue discovery',
+  'do not ask more questions', "don't ask more questions", 'dont ask more questions',
+  'no more questions', 'stop asking questions', 'turn this into candidate dna',
+  'candidate dna', 'candidate venue dna', 'dna signals', 'signals for dna',
+  'correct what feels wrong',
+  // Hebrew
+  'לולאת תיקון בעלים', 'לולאת תיקון', 'מה לא נכון', 'מה חזק מדי', 'מה חסר',
+  'אל תמשיך דיסקברי', 'אל תמשיך בדיסקברי', 'תפריד את הבריף', 'תפצל את הבריף',
+  'סיגנלים ל-dna', 'סיגנלים ל dna', 'אל תשאל עוד שאלות', 'תפסיק לשאול',
+];
+
 // Broad venue-concept vocabulary used only to decide whether ENOUGH concept signal has
 // accumulated across the conversation to synthesize a working interpretation. Deliberately
 // wide: identity/positioning, atmosphere/feeling, guest, service, F&B role, emotional
@@ -366,6 +389,8 @@ function detectSufficientConceptContext(recentMessages, currentText) {
  *   isExperienceSynthesis: boolean,   // OUTPUT GATE: synthesize a normal-night working draft
  *   wantsFounderBrief: boolean,       // owner asked for a founder-level concept brief
  *   isFounderBrief: boolean,          // OUTPUT GATE: produce a full Founder Brief v0.1
+ *   wantsOwnerCorrectionLoop: boolean,// owner asked to correct the brief, not continue discovery
+ *   isOwnerCorrectionLoop: boolean,   // OUTPUT GATE: produce the Owner Correction Loop
  *   methods: string[],
  *   reason: string
  * }}
@@ -384,13 +409,14 @@ export function classifyVenueIntelligenceIntent(message, options = {}) {
   // write too.
   const wantsExperienceSynthesis = containsAny(text, SYNTHESIS_REQUEST_CUES);
   const wantsFounderBrief = containsAny(text, FOUNDER_BRIEF_REQUEST_CUES);
+  const wantsOwnerCorrectionLoop = containsAny(text, OWNER_CORRECTION_LOOP_REQUEST_CUES);
 
   // A continuation: the session is already exploring a concept, this turn continues
   // that brief (menu/cocktail/method/audience/flavor/service/design/operational, or a
-  // request to render that concept's experience or a founder brief), and the owner did
-  // not explicitly redirect it to the current venue.
+  // request to render that concept's experience, a founder brief, or an owner correction
+  // loop), and the owner did not explicitly redirect it to the current venue.
   const isExplorationContinuation = Boolean(
-    sessionInExploration && (hasContinuationCue || wantsExperienceSynthesis || wantsFounderBrief) && !isExploration && !wantsCurrentVenueUpdate
+    sessionInExploration && (hasContinuationCue || wantsExperienceSynthesis || wantsFounderBrief || wantsOwnerCorrectionLoop) && !isExploration && !wantsCurrentVenueUpdate
   );
 
   // "Explicit brief" = the owner is clearly asking HESTIA to PRODUCE deliverables.
@@ -473,6 +499,15 @@ export function classifyVenueIntelligenceIntent(message, options = {}) {
   // one-line fallback). Founder Brief yields to beverage development (handled by the route).
   const isFounderBrief = Boolean(wantsFounderBrief && hasSufficientConceptContext);
 
+  // Owner Correction Loop crossing — an OUTPUT gate, orthogonal to the DNA-merge gate.
+  // True (full loop) when the owner asks to correct the brief (not continue discovery)
+  // AND enough concept signal exists — which is always the case right after a Founder
+  // Brief. When the cue is present but too little has been shared, isOwnerCorrectionLoop
+  // stays false and the handler returns an honest "not enough yet" working response. The
+  // candidate Venue DNA signals it surfaces are CANDIDATES ONLY — never confirmed DNA,
+  // never merged. Like Founder Brief it yields to beverage development (handled by the route).
+  const isOwnerCorrectionLoop = Boolean(wantsOwnerCorrectionLoop && hasSufficientConceptContext);
+
   return {
     mode,
     isExploration,
@@ -491,6 +526,8 @@ export function classifyVenueIntelligenceIntent(message, options = {}) {
     isExperienceSynthesis,
     wantsFounderBrief,
     isFounderBrief,
+    wantsOwnerCorrectionLoop,
+    isOwnerCorrectionLoop,
     methods,
     reason,
   };

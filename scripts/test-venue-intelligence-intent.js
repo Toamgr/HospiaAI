@@ -555,6 +555,137 @@ ok(/modelReply\s*\|\|\s*founderBriefNotEnoughYet\(\)/.test(handler),
 ok(/!intent\.isExperienceSynthesis\s*&&\s*!intent\.wantsFounderBrief\)\s*reply\s*=\s*ensureCocktailConceptsInReply/.test(handler),
   '[H5g] cocktail backstop is suppressed on founder-brief turns')
 
+// ── PART I — Owner Correction Loop routing (classifier) ──────────────────────
+// After a Founder Brief (or once enough concept signal exists), an Owner Correction Loop
+// request routes to the structured correction loop; before enough signal, it routes to an
+// honest "not enough yet" response. Independent of the DNA-merge gate.
+
+// Reuse the rich concept conversation from PART E.
+for (const msg of [
+  'create an Owner Correction Loop',
+  'separate the brief into what feels wrong, too strong, or missing',
+  'do not continue discovery, just correct what feels wrong',
+  "don't ask more questions, turn this into candidate DNA",
+  'לולאת תיקון בעלים',
+  'תפריד את הבריף',
+]) {
+  const r = classifyVenueIntelligenceIntent(msg, { recentMessages: SYNTH_HISTORY })
+  ok(r.wantsOwnerCorrectionLoop === true, `[I1] correction-loop cue detected: "${msg.slice(0, 34)}…"`)
+  ok(r.isOwnerCorrectionLoop === true, `[I1b] routes to a full correction loop once enough signal exists: "${msg.slice(0, 28)}…"`)
+}
+
+// 2) Before enough concept signal, a correction-loop request is detected but is NOT a full
+//    loop (handler returns the honest "not enough yet" path, never an empty fallback).
+const clCold = classifyVenueIntelligenceIntent('create an owner correction loop', { recentMessages: [] })
+ok(clCold.wantsOwnerCorrectionLoop === true, '[I2] correction-loop cue still detected on a cold turn')
+ok(clCold.hasSufficientConceptContext === false, '[I2b] cold turn lacks sufficient concept context')
+ok(clCold.isOwnerCorrectionLoop === false, '[I2c] cold turn is NOT a full correction loop (handler gives "not enough yet")')
+
+// 3) Correction loop NEVER changes the DNA-merge gate — concept exploration stays protected.
+const clInExploration = classifyVenueIntelligenceIntent('separate the brief and tell me what feels wrong, too strong, or missing', {
+  recentMessages: [{ role: 'user', content: T1 }, { role: 'model', content: 'ok' },
+    { role: 'user', content: 'intimate elegant premium salon, warm guided service, serious cocktails' }, { role: 'model', content: 'ok' }],
+})
+ok(clInExploration.isOwnerCorrectionLoop === true, '[I3] correction loop fires inside an exploration thread')
+ok(clInExploration.mergeIntoCanonicalDna === false, '[I3b] correction loop does NOT merge canonical DNA inside exploration (output gate orthogonal)')
+
+// 4) Correction loop tied to the current venue still loops AND still merges (gates orthogonal).
+const clCurrent = classifyVenueIntelligenceIntent('for my venue, run an owner correction loop and update my venue dna later', { recentMessages: SYNTH_HISTORY })
+ok(clCurrent.isOwnerCorrectionLoop === true, '[I4] correction loop fires for a current-venue request')
+ok(clCurrent.mergeIntoCanonicalDna === true, '[I4b] current-venue correction loop still merges (output gate orthogonal)')
+
+// 5) Beverage-heavy request takes precedence — a correction loop must NOT override deep
+//    cocktail R&D (handler composes the beverage handoff; loop backstop is gated off).
+const clBeverage = classifyVenueIntelligenceIntent('owner correction loop with 8 cocktails and at least 5 new methods, one savory one spicy one bitter', { recentMessages: SYNTH_HISTORY })
+ok(clBeverage.wantsOwnerCorrectionLoop === true, '[I5] correction-loop cue present alongside beverage R&D')
+ok(clBeverage.isBeverageDevelopment === true, '[I5b] beverage development still detected (takes precedence in the handler)')
+
+// 6) Ordinary discovery, normal-night synthesis, and a plain Founder Brief are NOT
+//    correction-loop turns.
+for (const msg of [
+  'Our regulars come for the intimacy and the jazz early in the evening.',
+  'so how does this play out on a normal night?',
+  'create a Founder Brief v0.1',
+]) {
+  const r = classifyVenueIntelligenceIntent(msg, { recentMessages: SYNTH_HISTORY })
+  ok(r.wantsOwnerCorrectionLoop === false, `[I6] not a correction-loop turn: "${msg.slice(0, 34)}…"`)
+}
+
+// 7) Empty / junk input never reports a correction loop.
+for (const msg of ['', null, undefined, '   ']) {
+  const r = classifyVenueIntelligenceIntent(msg)
+  ok(r.wantsOwnerCorrectionLoop === false && r.isOwnerCorrectionLoop === false, `[I7] empty input is not a correction loop (${JSON.stringify(msg)})`)
+}
+
+// ── PART J — server wiring for Owner Correction Loop ─────────────────────────
+ok(/const\s+VENUE_INTELLIGENCE_OWNER_CORRECTION_LOOP_DIRECTIVE\s*=/.test(src),
+  '[J1] owner-correction-loop directive constant is defined')
+ok(/const\s+VENUE_INTELLIGENCE_OWNER_CORRECTION_LOOP_INSUFFICIENT_DIRECTIVE\s*=/.test(src),
+  '[J1b] owner-correction-loop "not enough yet" directive constant is defined')
+ok(/function composeOwnerCorrectionLoopInstruction/.test(src),
+  '[J2] composeOwnerCorrectionLoopInstruction is defined')
+ok(/if \(intent\.wantsOwnerCorrectionLoop\)\s*\{[\s\S]*?composeOwnerCorrectionLoopInstruction\(/.test(handler),
+  '[J3] handler routes correction-loop turns to the correction-loop composer')
+// Precedence: correction loop composed AFTER founder brief (wins over it); beverage
+// development composed AFTER correction loop (beverage wins over all).
+ok(handler.indexOf('composeFounderBriefInstruction(') < handler.indexOf('composeOwnerCorrectionLoopInstruction('),
+  '[J3b] correction loop is composed after founder brief (correction loop wins)')
+ok(handler.indexOf('composeOwnerCorrectionLoopInstruction(') < handler.indexOf('composeBeverageDevelopmentInstruction('),
+  '[J3c] beverage development is composed after correction loop (beverage wins)')
+// The directive encodes the 7 required correction buckets, in order.
+for (const bucket of ['Feels accurate', 'Feels promising but still unconfirmed', 'Feels too strong / too early', 'Needs owner decision', 'Should be softened before becoming Venue DNA', 'Candidate Venue DNA signals', 'Not ready for Venue DNA yet']) {
+  ok(src.includes(bucket), `[J4] correction-loop directive includes bucket "${bucket}"`)
+}
+ok(/Owner Correction Loop/.test(src), '[J4b] directive labels the output "Owner Correction Loop"')
+ok(/Working Draft — not yet confirmed/.test(src), '[J4c] directive heads the loop "Working Draft — not yet confirmed"')
+ok(/Tell me only what feels wrong, too strong, or missing/.test(src),
+  '[J4d] directive ends with the correction-loop closing line')
+// Candidate signals carry all five fields and are candidates only.
+for (const field of ['signal', 'evidence', 'confidence', 'status', 'suggested destination']) {
+  ok(new RegExp(field, 'i').test(src), `[J4e] candidate signal carries "${field}"`)
+}
+ok(/CANDIDATE SIGNALS ARE CANDIDATES ONLY/.test(src),
+  '[J4f] directive states candidate signals are candidates only (never confirmed/merged)')
+for (const dest of ['Venue Memory', 'Bar Intelligence', 'Service', 'Academy', 'Events', 'F&B']) {
+  ok(src.includes(dest), `[J4g] candidate destination option present: "${dest}"`)
+}
+// Protect vs never-become kept distinct in the loop.
+ok(/Keep "What the venue must protect" and "What the venue must never become" as TWO DISTINCT lines/.test(src),
+  '[J4h] correction-loop directive keeps protect vs never-become distinct')
+// Discovery suppression + no long question list.
+ok(/DO NOT continue discovery\. DO NOT ask a long list of questions/.test(src),
+  '[J4i] directive forbids continuing discovery and asking a long question list')
+ok(/Leave the JSON "cocktailConcepts" array EMPTY/i.test(src),
+  '[J4j] correction-loop directive leaves the cocktail array empty')
+
+// Deterministic backstops — never the one-line fallback; loop-specific closing.
+ok(/function looksLikeOwnerCorrectionLoop/.test(src), '[J5] looksLikeOwnerCorrectionLoop structural check is defined')
+ok(/function ensureCorrectionLoopClosing/.test(src), '[J5b] ensureCorrectionLoopClosing is defined')
+ok(/function ownerCorrectionLoopCouldNotGenerate/.test(src), '[J5c] ownerCorrectionLoopCouldNotGenerate backstop is defined')
+ok(/function ownerCorrectionLoopNotEnoughYet/.test(src), '[J5d] ownerCorrectionLoopNotEnoughYet backstop is defined')
+ok(/if \(intent\.wantsOwnerCorrectionLoop\s*&&\s*!intent\.isBeverageDevelopment\)\s*\{/.test(handler),
+  '[J5e] handler applies the correction-loop reply backstop (gated off on beverage turns)')
+ok(/looksLikeOwnerCorrectionLoop\(modelReply\)\s*\?\s*modelReply\s*:\s*ownerCorrectionLoopCouldNotGenerate\(\)/.test(handler),
+  '[J5f] full-loop path forces a structured loop or an honest error-style response (never the one-liner)')
+ok(/reply\s*=\s*ensureCorrectionLoopClosing\(reply\)/.test(handler),
+  '[J5g] full-loop path guarantees the loop-specific closing line')
+ok(/modelReply\s*\|\|\s*ownerCorrectionLoopNotEnoughYet\(\)/.test(handler),
+  '[J5h] not-enough path returns an honest "not enough yet" response, never the one-liner')
+// Correction loop backstop precedes (wins over) the founder-brief backstop.
+ok(handler.indexOf('intent.wantsOwnerCorrectionLoop && !intent.isBeverageDevelopment') <
+   handler.indexOf('intent.wantsFounderBrief && !intent.isBeverageDevelopment'),
+  '[J5i] correction-loop reply backstop runs before the founder-brief backstop (loop wins)')
+// Closing line is distinct from the Founder Brief invitation.
+ok(/const\s+OWNER_CORRECTION_LOOP_CLOSING\s*=\s*'Tell me only what feels wrong, too strong, or missing\.'/.test(src),
+  '[J5j] correction-loop closing constant is the spec-exact line')
+
+// Canonical-DNA write remains gated SOLELY by intent.mergeIntoCanonicalDna (loop is output-only).
+ok(/intent\.mergeIntoCanonicalDna\s*\?\s*mergedDNA\s*:\s*state\.venueDNA/.test(handler),
+  '[J6] canonical-DNA write still gated only by intent.mergeIntoCanonicalDna (correction-loop flag is output-only)')
+// No candidate persistence / no confirmed-DNA promotion from the correction-loop path.
+ok(!/safeRecordVenueIntelligenceCandidates/.test(handler), '[J6b] correction-loop path writes no candidate records')
+ok(!/['"]confirmed['"]/.test(handler), '[J6c] correction-loop path adds no confirmed-DNA tier literal')
+
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)
 process.exit(0)

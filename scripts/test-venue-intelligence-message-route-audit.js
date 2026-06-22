@@ -155,6 +155,34 @@ ok(/intent\.wantsFounderBrief\s*&&\s*!intent\.isBeverageDevelopment/.test(handle
 ok(!/['"]confirmed['"]/.test(handler), '[12g] founder-brief path adds no confirmed-DNA tier literal')
 ok(!/\bDELETE\b/.test(handler), '[12h] founder-brief path adds no DELETE')
 
+// 13. Owner Correction Loop routing is ALSO output-only: it changes the prompt composition
+//     and the reply backstop for the turn, never the canonical-DNA write gate, the writer,
+//     auth, or venue scoping. It must NEVER return the generic one-line fallback, and must
+//     end with the loop-specific closing line. Crucially, it surfaces candidate Venue DNA
+//     signals as OUTPUT ONLY — it writes NO candidate records and promotes NOTHING to DNA.
+ok(/intent\.wantsOwnerCorrectionLoop/.test(handler),
+  '[13] handler consults intent.wantsOwnerCorrectionLoop for output routing')
+ok(/composeOwnerCorrectionLoopInstruction\(/.test(handler),
+  '[13b] handler composes the Owner Correction Loop instruction on correction-loop turns')
+// Canonical-DNA write remains gated SOLELY by intent.mergeIntoCanonicalDna.
+ok(/intent\.mergeIntoCanonicalDna\s*\?\s*mergedDNA\s*:\s*state\.venueDNA/.test(handler),
+  '[13c] canonical-DNA write still gated only by intent.mergeIntoCanonicalDna (correction-loop flag is output-only)')
+// The deterministic backstop prevents the one-line fallback and guarantees the closing line.
+ok(/looksLikeOwnerCorrectionLoop\(modelReply\)\s*\?\s*modelReply\s*:\s*ownerCorrectionLoopCouldNotGenerate\(\)/.test(handler),
+  '[13d] full correction-loop path forces a loop or honest error-style response (never the one-liner)')
+ok(/reply\s*=\s*ensureCorrectionLoopClosing\(reply\)/.test(handler),
+  '[13e] correction-loop path guarantees the loop-specific closing line')
+ok(/modelReply\s*\|\|\s*ownerCorrectionLoopNotEnoughYet\(\)/.test(handler),
+  '[13f] not-enough correction-loop path returns an honest response (never the one-liner)')
+// Correction loop yields to beverage development (backstop gated off on beverage turns).
+ok(/intent\.wantsOwnerCorrectionLoop\s*&&\s*!intent\.isBeverageDevelopment/.test(handler),
+  '[13g] correction-loop backstop yields to beverage development')
+// CANDIDATE SIGNALS ARE OUTPUT-ONLY — no DB candidate write, no candidate→DNA promotion.
+ok(!/safeRecordVenueIntelligenceCandidates/.test(handler), '[13h] correction-loop path writes no candidate records')
+ok(!/markVenueIntelligenceCandidate/i.test(handler), '[13i] correction-loop path promotes no candidates')
+ok(!/['"]confirmed['"]/.test(handler), '[13j] correction-loop path adds no confirmed-DNA tier literal')
+ok(!/\bDELETE\b/.test(handler), '[13k] correction-loop path adds no DELETE')
+
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)
 process.exit(0)
