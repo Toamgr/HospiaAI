@@ -5712,6 +5712,9 @@ Venue Intelligence understands the venue and ROUTES specialist work; it does not
 SYNTHESIZE BEFORE INTERVIEWING — render the experience, never outsource it back
 Once the owner has shared enough venue concept signals (identity, feeling, guests, service, F&B role) and then asks to SEE the experience — "how does this play out on a normal night?", "what does this feel like in practice?", "show me the experience", "turn this into a working brief" — or offers a low-value "let me sit with that"-style turn, you MUST synthesize a working interpretation from the signals you already have. DO NOT ask the owner to describe the whole night. NEVER reply "Tell me more about how that plays out on a normal night" or any variant that hands the synthesis back to the owner — that is unacceptable. Instead label the output "Working Draft — not yet confirmed", then walk "How a normal night might play out" across: arrival, first impression, seating, service rhythm, cocktail role, food role, guest behavior, staff behavior, what the room must protect, what would signal success. Every line is provisional INTERPRETATION ("might", "would likely", "feels like"), never confirmed fact — and never invent hard operational facts (exact capacity, prices, specific menu items, staffing model, opening hours, POS numbers, confirmed business model). Do NOT expose a long Discovery Map. Do NOT over-focus on cocktails — they are ONE line among many. Do NOT write detailed alcoholic recipes or preparation steps. End with exactly: "Correct me where this feels wrong." Ask at most ONE very small correction request, and only if a single missing detail genuinely blocks the picture.
 
+FOUNDER BRIEF v0.1 — synthesize a founder-level concept brief on request
+When the owner asks you to STOP discovery and produce a Founder Brief (e.g. "create a Founder Brief", "based on everything we have built so far", "stop the discovery flow", "turn this into a founder-level brief"), and enough concept signal exists, synthesize a structured Founder Brief v0.1 from everything gathered. DO NOT keep interviewing, DO NOT ask another discovery question, DO NOT expose a technical Discovery Map, and NEVER collapse to a one-line "working read" — that is unacceptable. Head the reply "Working Draft — not yet confirmed", then "Founder Brief v0.1", then exactly these 15 numbered sections in order: 1. One-sentence concept; 2. Founder intent; 3. Emotional promise; 4. Guest world; 5. Primary occasions; 6. Service philosophy; 7. Spatial atmosphere; 8. Beverage role; 9. Food role; 10. What the venue must protect; 11. What the venue must never become; 12. Early operational implications; 13. Early risks or contradictions; 14. What is already strong; 15. What still needs decision. Premium hospitality voice, not SaaS onboarding. Keep the beverage programme a major anchor when present, but NOT automatically the entire identity. Never invent hard facts (exact capacity, pricing, specific menu items, opening hours, staffing model, confirmed business model). Everything is interpretation, never confirmed Venue DNA, never a detailed alcoholic recipe. End ONLY with "Correct me where this feels wrong." — no closing question. If too little concept has been shared, do NOT fabricate a brief and do NOT return an empty fallback: give a short premium response naming what is still missing and ask exactly ONE focused question that would unlock the brief.
+
 CONCEPT EXPLORATION vs THIS VENUE — keep exploration out of the current venue's DNA
 Distinguish (A) learning or updating THIS venue from (B) exploring a NEW or hypothetical concept — signalled by phrasing like "a new place", "a concept", "inspired by", "in the spirit of", "benchmark", or "what if". When the owner is exploring a new or inspirational concept, treat your draft as EXPLORATION / DRAFT only: never present it as this venue's working or confirmed Venue DNA, and say so in the reply. Do NOT fold an exploration into the current venue's identity unless the owner explicitly asks to update this venue. Treat any named real venue (for example Paradiso or SIPS) strictly as inspiration — never reproduce their menus, recipes, signature serves, or brand language.
 
@@ -6012,6 +6015,53 @@ function composeNormalNightSynthesisInstruction(base) {
     + VENUE_INTELLIGENCE_NORMAL_NIGHT_SYNTHESIS_DIRECTIVE;
 }
 
+// Appended ONLY on turns the code classifies as a Founder Brief request WITH enough
+// concept signal. Forces the structured 15-section Founder Brief v0.1 NOW instead of
+// more interview questions or a one-line fallback. Output-only: it does NOT change the
+// canonical-DNA merge gate, the writer, auth, or venue scoping.
+const VENUE_INTELLIGENCE_FOUNDER_BRIEF_DIRECTIVE = `
+
+THIS TURN — PRODUCE A FOUNDER BRIEF v0.1. The owner has asked you to stop discovery and synthesize a founder-level hospitality concept brief from everything shared so far. DO NOT keep interviewing. DO NOT ask another discovery question. DO NOT expose a technical Discovery Map. NEVER return only a one-line "working read" — that is unacceptable. In "reply", produce the brief in EXACTLY this shape and order (use \\n line breaks):
+"Working Draft — not yet confirmed
+
+Founder Brief v0.1
+
+1. One-sentence concept: ...
+2. Founder intent: ...
+3. Emotional promise: ...
+4. Guest world: ...
+5. Primary occasions: ...
+6. Service philosophy: ...
+7. Spatial atmosphere: ...
+8. Beverage role: ...
+9. Food role: ...
+10. What the venue must protect: ...
+11. What the venue must never become: ...
+12. Early operational implications: ...
+13. Early risks or contradictions: ...
+14. What is already strong: ...
+15. What still needs decision: ..."
+Then end with EXACTLY this line, on its own: "Correct me where this feels wrong."
+PREMIUM HOSPITALITY VOICE — write like a senior hospitality strategist, not SaaS onboarding. Synthesize ONLY from the signals already gathered. Keep the beverage programme a MAJOR anchor when present, but NOT automatically the entire identity — food, service, space, occasions, and guest world carry weight too. Do NOT invent hard operational facts: no exact capacity, no pricing, no specific menu items, no opening hours, no staffing model, no confirmed business model. Everything is interpretation, never confirmed Venue DNA. Do NOT write detailed alcoholic recipes or preparation steps. Do NOT ask any question at the end. Leave the JSON "cocktailConcepts" array EMPTY this turn.`;
+
+// Appended ONLY on a Founder Brief request that arrives BEFORE enough concept signal
+// exists. Prevents both fabrication and the empty one-line fallback: a short, honest,
+// premium "not enough yet" response naming what is missing and ONE unlocking question.
+const VENUE_INTELLIGENCE_FOUNDER_BRIEF_INSUFFICIENT_DIRECTIVE = `
+
+THIS TURN — A FOUNDER BRIEF WAS REQUESTED, BUT TOO LITTLE CONCEPT HAS BEEN SHARED to write one worth the owner's time. Do NOT fabricate a brief and do NOT return an empty one-line fallback. In "reply", give a short, premium response that: (1) is headed "Working Draft — not yet confirmed" then "Founder Brief v0.1 — not yet possible"; (2) names plainly the few concept areas still missing (e.g. venue identity, the guest it is for, the feeling it must leave, the service posture); (3) ends with exactly ONE focused question that would unlock the brief. Premium hospitality voice, never SaaS onboarding. Do NOT invent any venue facts. Leave the JSON "cocktailConcepts" array EMPTY this turn.`;
+
+// Runtime composition for a Founder Brief turn: removes the competing 9-section template
+// and appends the full-brief directive when enough concept signal exists, otherwise the
+// "not enough yet" directive. The deterministic backstop in the handler guarantees the
+// turn never collapses to the generic one-line fallback.
+function composeFounderBriefInstruction(base, intent) {
+  const directive = intent && intent.hasSufficientConceptContext
+    ? VENUE_INTELLIGENCE_FOUNDER_BRIEF_DIRECTIVE
+    : VENUE_INTELLIGENCE_FOUNDER_BRIEF_INSUFFICIENT_DIRECTIVE;
+  return base.replace(NINE_SECTION_DRAFT_BLOCK, '').replace(/\n{3,}/g, '\n\n') + directive;
+}
+
 // Deterministic backstop for the explicit-brief contract. If the model returned a
 // structured cocktailConcepts array but its free-text reply did not actually lay the
 // concepts out, surface them in a clean labelled block so the owner always receives
@@ -6039,6 +6089,54 @@ function ensureCorrectionInvitation(reply) {
   const trimmed = String(reply || '').trim();
   if (/correct me where this feels wrong\.?$/i.test(trimmed)) return trimmed;
   return trimmed ? `${trimmed}\n\n${VENUE_INTELLIGENCE_CORRECTION_INVITATION}` : VENUE_INTELLIGENCE_CORRECTION_INVITATION;
+}
+
+// ── Founder Brief v0.1 deterministic backstops ───────────────────────────────
+// The Founder Brief turn must NEVER collapse to the generic one-line fallback. These
+// helpers detect whether the model actually returned a structured brief and, when it
+// did not, return an honest error-style working response instead of a placeholder.
+const FOUNDER_BRIEF_SECTION_LABELS = [
+  'One-sentence concept', 'Founder intent', 'Emotional promise', 'Guest world',
+  'Primary occasions', 'Service philosophy', 'Spatial atmosphere', 'Beverage role',
+  'Food role', 'What the venue must protect', 'What the venue must never become',
+  'Early operational implications', 'Early risks or contradictions',
+  'What is already strong', 'What still needs decision',
+];
+function looksLikeFounderBrief(reply) {
+  const t = String(reply || '');
+  if (!/founder brief/i.test(t)) return false;
+  const numbered = (t.match(/^\s*\d{1,2}[).]/gm) || []).length;
+  const lower = t.toLowerCase();
+  const labelHits = FOUNDER_BRIEF_SECTION_LABELS.filter((s) => lower.includes(s.toLowerCase())).length;
+  // A genuine brief has most of the 15 sections, by numbering or by section labels.
+  return numbered >= 12 || labelHits >= 10;
+}
+// Backstop A — the model was asked for a full brief (enough context) but did not return
+// a usable one. Honest, premium, error-style working response. Never fabricates facts.
+function founderBriefCouldNotGenerate() {
+  return [
+    'Working Draft — not yet confirmed',
+    '',
+    'Founder Brief v0.1',
+    '',
+    'I could not assemble the full Founder Brief on this pass — the draft did not come back in a usable shape, and I would rather not guess at facts I do not have. Nothing here is confirmed Venue DNA. Send it once more and I will lay out all fifteen sections in full.',
+    '',
+    VENUE_INTELLIGENCE_CORRECTION_INVITATION,
+  ].join('\n');
+}
+// Backstop B — a Founder Brief was requested before enough concept signal exists, and the
+// model returned nothing usable. Honest "not enough yet" response with one unlocking
+// question (the explicit exception where a closing question is allowed).
+function founderBriefNotEnoughYet() {
+  return [
+    'Working Draft — not yet confirmed',
+    '',
+    'Founder Brief v0.1 — not yet possible',
+    '',
+    'I do not have enough of the concept yet to write a Founder Brief worth your time. To shape it I still need a clearer sense of the venue\'s identity, the guest it is for, and the feeling it must leave a guest with.',
+    '',
+    'What is the single feeling a guest should walk out with?',
+  ].join('\n');
 }
 function ensureCocktailConceptsInReply(reply, cocktailConcepts) {
   if (!Array.isArray(cocktailConcepts)) return reply;
@@ -6085,28 +6183,49 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
       systemInstruction = composeNormalNightSynthesisInstruction(
         buildVenueIntelligenceSystemInstruction(state));
     }
+    // Founder Brief override: when the owner asks to stop discovery and produce a
+    // founder-level concept brief, force the structured Founder Brief v0.1 (or, when
+    // too little is known, an honest "not enough yet" response). This wins over the
+    // explicit-brief and synthesis compositions, but still yields to beverage development.
+    if (intent.wantsFounderBrief) {
+      systemInstruction = composeFounderBriefInstruction(
+        buildVenueIntelligenceSystemInstruction(state), intent);
+    }
     // Beverage-development override: when the owner crosses into cocktail methods /
     // preparation quality / recipe development, route to the Bar Intelligence handoff
-    // brief instead of forcing a shallow generic cocktail list. This wins over both the
-    // explicit-brief and synthesis compositions for this turn (the handoff directive wins).
+    // brief instead of forcing a shallow generic cocktail list. This wins over the
+    // explicit-brief, synthesis, and Founder Brief compositions (the handoff directive wins).
     if (intent.isBeverageDevelopment) {
       systemInstruction = composeBeverageDevelopmentInstruction(
         buildVenueIntelligenceSystemInstruction(state), intent);
     }
     const ai = await askVenueIntelligence(systemInstruction, historyForModel);
 
-    let reply = typeof ai.reply === 'string' && ai.reply.trim()
-      ? ai.reply.trim()
-      : 'Here is my working read so far — a draft, not yet confirmed. Correct me where this feels wrong.';
+    const modelReply = typeof ai.reply === 'string' && ai.reply.trim() ? ai.reply.trim() : '';
+    let reply = modelReply || 'Here is my working read so far — a draft, not yet confirmed. Correct me where this feels wrong.';
     // Backstop the explicit-brief contract: if the owner asked for cocktails and the
     // model returned a structured cocktailConcepts array but left them out of the
     // free-text reply, surface them. Renders only what the model produced. Skipped on a
-    // beverage-development turn — that path must NOT surface a finished cocktail list;
-    // deep recipes are owned by Bar Intelligence, not produced here.
-    if (intent.isExplicitBrief && !intent.isBeverageDevelopment && !intent.isExperienceSynthesis) reply = ensureCocktailConceptsInReply(reply, ai.cocktailConcepts);
-    // Synthesis turns MUST end with the correction invitation, never another broad
-    // question — guarantee it deterministically (the small model sometimes drops it).
-    if (intent.isExperienceSynthesis) reply = ensureCorrectionInvitation(reply);
+    // beverage-development, synthesis, or Founder Brief turn — those paths must NOT surface
+    // a finished cocktail list; deep recipes are owned by Bar Intelligence, not produced here.
+    if (intent.isExplicitBrief && !intent.isBeverageDevelopment && !intent.isExperienceSynthesis && !intent.wantsFounderBrief) reply = ensureCocktailConceptsInReply(reply, ai.cocktailConcepts);
+    // Founder Brief turns MUST return a real brief (or an honest error-style working
+    // response), NEVER the generic one-line fallback. Wins over normal-night synthesis;
+    // yields to beverage development (handled above by composition only). When enough
+    // context exists we require a structured brief and guarantee the correction line; when
+    // not, we return the honest "not enough yet" response (which may end with one question).
+    if (intent.wantsFounderBrief && !intent.isBeverageDevelopment) {
+      if (intent.isFounderBrief) {
+        reply = looksLikeFounderBrief(modelReply) ? modelReply : founderBriefCouldNotGenerate();
+        reply = ensureCorrectionInvitation(reply);
+      } else {
+        reply = modelReply || founderBriefNotEnoughYet();
+      }
+    } else if (intent.isExperienceSynthesis) {
+      // Synthesis turns MUST end with the correction invitation, never another broad
+      // question — guarantee it deterministically (the small model sometimes drops it).
+      reply = ensureCorrectionInvitation(reply);
+    }
     const stage = VENUE_INTELLIGENCE_STAGES.includes(ai.stage) ? ai.stage : state.stage;
     const objective = typeof ai.objective === 'string' && ai.objective.trim() ? ai.objective.trim() : state.objective;
 

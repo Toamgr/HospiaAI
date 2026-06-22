@@ -153,6 +153,34 @@ ok(/Leave the JSON "cocktailConcepts" array EMPTY/i.test(src),
 ok(!/Tell me a little more about how that plays out on a normal night/.test(src),
   '[15d] the weak "tell me a little more…" fallback was removed from server.js')
 
+// 16. Founder Brief v0.1 doctrine — after enough concept signal, a Founder Brief request
+//     produces a structured 15-section brief, never a one-line fallback.
+ok(/FOUNDER BRIEF v0\.1/i.test(prompt), '[16] prompt encodes a FOUNDER BRIEF v0.1 doctrine')
+ok(/stop discovery|stop the discovery flow/i.test(prompt), '[16b] doctrine recognizes the stop-discovery request')
+ok(/Working Draft — not yet confirmed/.test(prompt), '[16c] doctrine heads the brief Working Draft — not yet confirmed')
+ok(/NEVER collapse to a one-line "working read"|never collapse to a one-line/i.test(prompt),
+  '[16d] doctrine forbids collapsing to a one-line working read')
+ok(/Correct me where this feels wrong/.test(prompt), '[16e] doctrine ends only with the correction invitation')
+ok(/no closing question|no closing question\.|End ONLY with/i.test(prompt), '[16f] doctrine forbids a closing question on a full brief')
+for (const sec of ['One-sentence concept', 'Founder intent', 'Emotional promise', 'Guest world', 'Primary occasions', 'Service philosophy', 'Spatial atmosphere', 'Beverage role', 'Food role', 'What the venue must protect', 'What the venue must never become', 'Early operational implications', 'Early risks or contradictions', 'What is already strong', 'What still needs decision']) {
+  ok(prompt.includes(sec), `[16g] doctrine names the founder-brief section "${sec}"`)
+}
+ok(/premium hospitality voice, not SaaS onboarding|not SaaS onboarding/i.test(prompt),
+  '[16h] doctrine demands premium hospitality voice, not SaaS onboarding')
+ok(/major anchor when present, but NOT automatically the entire identity/i.test(prompt),
+  '[16i] doctrine keeps the cocktail programme an anchor, not the whole identity')
+ok(/If too little concept has been shared/i.test(prompt),
+  '[16j] doctrine handles the not-enough case without an empty fallback')
+
+// 17. Founder Brief directives + composer + deterministic backstops exist.
+ok(/const\s+VENUE_INTELLIGENCE_FOUNDER_BRIEF_DIRECTIVE\s*=/.test(src),
+  '[17] founder-brief directive constant defined')
+ok(/const\s+VENUE_INTELLIGENCE_FOUNDER_BRIEF_INSUFFICIENT_DIRECTIVE\s*=/.test(src),
+  '[17b] founder-brief "not enough yet" directive defined')
+ok(/function composeFounderBriefInstruction/.test(src), '[17c] composeFounderBriefInstruction defined')
+ok(/function looksLikeFounderBrief/.test(src) && /function founderBriefCouldNotGenerate/.test(src) && /function founderBriefNotEnoughYet/.test(src),
+  '[17d] deterministic founder-brief backstops defined (no one-line placeholder)')
+
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)
 process.exit(0)

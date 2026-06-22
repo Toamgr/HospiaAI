@@ -188,6 +188,27 @@ const SYNTHESIS_REQUEST_CUES = [
   'תהפוך לבריף', 'הפוך את זה לבריף',
 ];
 
+// ── Founder Brief v0.1 routing ───────────────────────────────────────────────
+// When the owner asks HESTIA to STOP discovery and synthesize a founder-level concept
+// brief from everything gathered so far, HESTIA must produce a structured Founder Brief
+// v0.1 — not keep interviewing and not collapse to a one-line fallback. These cues mark
+// that request; like the other synthesis gates this changes only the OUTPUT contract for
+// the turn — it does NOT change the canonical-DNA merge gate.
+const FOUNDER_BRIEF_REQUEST_CUES = [
+  // English
+  'founder brief', 'founders brief', "founder's brief", 'founder brief v0.1', 'founder-brief',
+  'founder level brief', 'founder-level brief', 'create a founder brief', 'create a brief',
+  'make a brief', 'make me a brief', 'build me a brief', 'build a brief', 'write me a brief',
+  'turn this into a founder', 'turn this into a brief', 'into a founder-level brief',
+  'stop the discovery flow', 'stop discovery', 'stop the discovery', 'pause discovery',
+  'based on everything we have built', 'based on everything we built', 'based on everything so far',
+  'based on everything we have so far', 'summarize the concept', 'summarise the concept',
+  'sum up the concept', 'concept brief',
+  // Hebrew
+  'בריף מייסד', 'בריף ראשוני', 'תעצור את הדיסקברי', 'עצור את הדיסקברי', 'תבנה לי בריף',
+  'תבנה בריף', 'בנה לי בריף', 'תסכם את הקונספט', 'סכם את הקונספט', 'בריף קונספט',
+];
+
 // Broad venue-concept vocabulary used only to decide whether ENOUGH concept signal has
 // accumulated across the conversation to synthesize a working interpretation. Deliberately
 // wide: identity/positioning, atmosphere/feeling, guest, service, F&B role, emotional
@@ -343,6 +364,8 @@ function detectSufficientConceptContext(recentMessages, currentText) {
  *   wantsExperienceSynthesis: boolean, // owner asked to render the experience / normal night
  *   hasSufficientConceptContext: boolean, // enough concept signal to synthesize from
  *   isExperienceSynthesis: boolean,   // OUTPUT GATE: synthesize a normal-night working draft
+ *   wantsFounderBrief: boolean,       // owner asked for a founder-level concept brief
+ *   isFounderBrief: boolean,          // OUTPUT GATE: produce a full Founder Brief v0.1
  *   methods: string[],
  *   reason: string
  * }}
@@ -355,17 +378,19 @@ export function classifyVenueIntelligenceIntent(message, options = {}) {
   const wantsCurrentVenueUpdate = containsAny(text, CURRENT_VENUE_OVERRIDES);
   const sessionInExploration = detectSessionExplorationMode(recentMessages);
   const hasContinuationCue = containsAny(text, CONTINUATION_CUES);
-  // A "render the experience" request (computed early so it can also count as a
-  // continuation cue): inside an active exploration thread, asking to see how the
-  // EXPLORED concept plays out must stay protected from the canonical-DNA write too.
+  // A "render the experience" or "founder brief" request (computed early so they can
+  // also count as continuation cues): inside an active exploration thread, asking to
+  // render the EXPLORED concept or brief it must stay protected from the canonical-DNA
+  // write too.
   const wantsExperienceSynthesis = containsAny(text, SYNTHESIS_REQUEST_CUES);
+  const wantsFounderBrief = containsAny(text, FOUNDER_BRIEF_REQUEST_CUES);
 
   // A continuation: the session is already exploring a concept, this turn continues
   // that brief (menu/cocktail/method/audience/flavor/service/design/operational, or a
-  // request to render that concept's experience), and the owner did not explicitly
-  // redirect it to the current venue.
+  // request to render that concept's experience or a founder brief), and the owner did
+  // not explicitly redirect it to the current venue.
   const isExplorationContinuation = Boolean(
-    sessionInExploration && (hasContinuationCue || wantsExperienceSynthesis) && !isExploration && !wantsCurrentVenueUpdate
+    sessionInExploration && (hasContinuationCue || wantsExperienceSynthesis || wantsFounderBrief) && !isExploration && !wantsCurrentVenueUpdate
   );
 
   // "Explicit brief" = the owner is clearly asking HESTIA to PRODUCE deliverables.
@@ -441,6 +466,13 @@ export function classifyVenueIntelligenceIntent(message, options = {}) {
   const hasSufficientConceptContext = detectSufficientConceptContext(recentMessages, text);
   const isExperienceSynthesis = Boolean(wantsExperienceSynthesis && hasSufficientConceptContext);
 
+  // Founder Brief crossing — an OUTPUT gate, orthogonal to the DNA-merge gate. True (full
+  // brief) when the owner asks for a founder-level brief AND enough concept signal exists.
+  // When the cue is present but too little has been shared, isFounderBrief stays false and
+  // the handler instead returns an honest "not enough yet" working response (never a bare
+  // one-line fallback). Founder Brief yields to beverage development (handled by the route).
+  const isFounderBrief = Boolean(wantsFounderBrief && hasSufficientConceptContext);
+
   return {
     mode,
     isExploration,
@@ -457,6 +489,8 @@ export function classifyVenueIntelligenceIntent(message, options = {}) {
     wantsExperienceSynthesis,
     hasSufficientConceptContext,
     isExperienceSynthesis,
+    wantsFounderBrief,
+    isFounderBrief,
     methods,
     reason,
   };

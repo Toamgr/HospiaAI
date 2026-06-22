@@ -104,7 +104,7 @@ ok(/composeBeverageDevelopmentInstruction\(/.test(handler),
 ok(/intent\.mergeIntoCanonicalDna\s*\?\s*mergedDNA\s*:\s*state\.venueDNA/.test(handler),
   '[10c] canonical-DNA write still gated only by intent.mergeIntoCanonicalDna (beverage flag is output-only)')
 // The forced cocktail-list backstop is suppressed on beverage-development turns.
-ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\)\s*reply\s*=\s*ensureCocktailConceptsInReply/.test(handler),
+ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\s*&&\s*!intent\.wantsFounderBrief\)\s*reply\s*=\s*ensureCocktailConceptsInReply/.test(handler),
   '[10d] handler does NOT force a cocktail list on beverage-development turns')
 // Still no destructive / finalization side effects on this new path.
 ok(!/['"]confirmed['"]/.test(handler), '[10e] beverage path adds no confirmed-DNA tier literal')
@@ -121,17 +121,39 @@ ok(/composeNormalNightSynthesisInstruction\(/.test(handler),
 ok(/intent\.mergeIntoCanonicalDna\s*\?\s*mergedDNA\s*:\s*state\.venueDNA/.test(handler),
   '[11c] canonical-DNA write still gated only by intent.mergeIntoCanonicalDna (synthesis flag is output-only)')
 // The forced cocktail-list backstop is suppressed on synthesis turns.
-ok(/!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\)\s*reply\s*=\s*ensureCocktailConceptsInReply/.test(handler),
+ok(/!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\s*&&\s*!intent\.wantsFounderBrief\)\s*reply\s*=\s*ensureCocktailConceptsInReply/.test(handler),
   '[11d] handler does NOT force a cocktail list on synthesis turns')
 // The weak "tell me more" fallback string was removed; the fallback no longer interviews.
 ok(!/Tell me a little more about how that plays out on a normal night/.test(handler),
   '[11e] handler no longer falls back to the weak "tell me more…" interview prompt')
 // The synthesis path deterministically guarantees the correction invitation (so the
 // turn ends with a correction request, never another broad interview question).
-ok(/if \(intent\.isExperienceSynthesis\)\s*reply\s*=\s*ensureCorrectionInvitation\(reply\)/.test(handler),
+ok(/reply\s*=\s*ensureCorrectionInvitation\(reply\)/.test(handler),
   '[11e2] handler guarantees the correction invitation on synthesis turns')
 // No destructive / finalization side effects on the synthesis path.
 ok(!/['"]confirmed['"]/.test(handler), '[11f] synthesis path adds no confirmed-DNA tier literal')
+
+// 12. Founder Brief routing is ALSO output-only: it changes the prompt composition and
+//     the reply backstop for the turn, never the canonical-DNA write gate, the writer,
+//     auth, or venue scoping. It must NEVER return the generic one-line fallback.
+ok(/intent\.wantsFounderBrief/.test(handler),
+  '[12] handler consults intent.wantsFounderBrief for output routing')
+ok(/composeFounderBriefInstruction\(/.test(handler),
+  '[12b] handler composes the Founder Brief instruction on founder-brief turns')
+// Canonical-DNA write remains gated SOLELY by intent.mergeIntoCanonicalDna.
+ok(/intent\.mergeIntoCanonicalDna\s*\?\s*mergedDNA\s*:\s*state\.venueDNA/.test(handler),
+  '[12c] canonical-DNA write still gated only by intent.mergeIntoCanonicalDna (founder flag is output-only)')
+// The deterministic backstop prevents the one-line fallback on founder-brief turns.
+ok(/looksLikeFounderBrief\(modelReply\)\s*\?\s*modelReply\s*:\s*founderBriefCouldNotGenerate\(\)/.test(handler),
+  '[12d] full Founder Brief path forces a brief or honest error-style response (never the one-liner)')
+ok(/modelReply\s*\|\|\s*founderBriefNotEnoughYet\(\)/.test(handler),
+  '[12e] not-enough Founder Brief path returns an honest response (never the one-liner)')
+// Founder Brief yields to beverage development (backstop gated off on beverage turns).
+ok(/intent\.wantsFounderBrief\s*&&\s*!intent\.isBeverageDevelopment/.test(handler),
+  '[12f] founder-brief backstop yields to beverage development')
+// No destructive / finalization side effects on the founder-brief path.
+ok(!/['"]confirmed['"]/.test(handler), '[12g] founder-brief path adds no confirmed-DNA tier literal')
+ok(!/\bDELETE\b/.test(handler), '[12h] founder-brief path adds no DELETE')
 
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)

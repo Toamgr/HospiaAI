@@ -139,8 +139,8 @@ ok(/"cocktailConcepts"/.test(src) && /RULES FOR cocktailConcepts/.test(src),
   '[B5e] JSON schema defines a structured cocktailConcepts array + rules')
 ok(/function ensureCocktailConceptsInReply/.test(src) && /function formatCocktailConceptLine/.test(src),
   '[B5f] deterministic cocktail-composition helpers exist')
-ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\)\s*reply\s*=\s*ensureCocktailConceptsInReply\(reply,\s*ai\.cocktailConcepts\)/.test(handler),
-  '[B5g] handler surfaces cocktail concepts into the reply on explicit-brief turns (but NOT on beverage-development or synthesis turns)')
+ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\s*&&\s*!intent\.wantsFounderBrief\)\s*reply\s*=\s*ensureCocktailConceptsInReply\(reply,\s*ai\.cocktailConcepts\)/.test(handler),
+  '[B5g] handler surfaces cocktail concepts into the reply on explicit-brief turns (but NOT on beverage-development, synthesis, or founder-brief turns)')
 // The backstop never fabricates: it returns the reply unchanged when the array is empty.
 ok(/if \(lines\.length === 0\) return reply/.test(src),
   '[B5h] backstop no-ops (no fabrication) when no concepts were produced')
@@ -448,14 +448,112 @@ ok(/Working Draft — not yet confirmed/.test(src),
   '[F6] directive labels output as a Working Draft — not yet confirmed')
 ok(/Leave the JSON "cocktailConcepts" array EMPTY/i.test(src),
   '[F7] synthesis directive leaves the structured cocktail array empty (no forced list)')
-ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\)/.test(handler),
-  '[F8] cocktail backstop is suppressed on synthesis turns')
+ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\s*&&\s*!intent\.wantsFounderBrief\)/.test(handler),
+  '[F8] cocktail backstop is suppressed on synthesis and founder-brief turns')
 ok(/function ensureCorrectionInvitation/.test(src) &&
-   /if \(intent\.isExperienceSynthesis\)\s*reply\s*=\s*ensureCorrectionInvitation\(reply\)/.test(handler),
+   /else if \(intent\.isExperienceSynthesis\)\s*\{[\s\S]*?reply\s*=\s*ensureCorrectionInvitation\(reply\)/.test(handler),
   '[F8b] handler deterministically guarantees the correction invitation on synthesis turns')
 // The weak fallback string must no longer be the hardcoded reply fallback.
 ok(!/Tell me a little more about how that plays out on a normal night/.test(handler),
   '[F9] the weak "tell me a little more…" fallback string was removed from the handler')
+
+// ── PART G — Founder Brief v0.1 routing (classifier) ─────────────────────────
+// After enough concept signal, a Founder Brief request routes to a full structured
+// brief; before enough signal, it routes to an honest "not enough yet" response.
+// Independent of the DNA-merge gate.
+
+// Reuse the rich concept conversation from PART E.
+for (const msg of [
+  'create a Founder Brief v0.1',
+  'based on everything we have built so far, create a founder brief',
+  'stop the discovery flow and turn this into a founder-level brief',
+  'תבנה לי בריף מייסד',
+  'תסכם את הקונספט',
+]) {
+  const r = classifyVenueIntelligenceIntent(msg, { recentMessages: SYNTH_HISTORY })
+  ok(r.wantsFounderBrief === true, `[G1] founder-brief cue detected: "${msg.slice(0, 34)}…"`)
+  ok(r.isFounderBrief === true, `[G1b] routes to a full Founder Brief once enough signal exists: "${msg.slice(0, 28)}…"`)
+}
+
+// 2) Before enough concept signal, a founder-brief request is detected but is NOT a full
+//    brief (handler returns the honest "not enough yet" path, never an empty fallback).
+const fbCold = classifyVenueIntelligenceIntent('create a founder brief', { recentMessages: [] })
+ok(fbCold.wantsFounderBrief === true, '[G2] founder-brief cue still detected on a cold turn')
+ok(fbCold.hasSufficientConceptContext === false, '[G2b] cold turn lacks sufficient concept context')
+ok(fbCold.isFounderBrief === false, '[G2c] cold turn is NOT a full Founder Brief (handler gives "not enough yet")')
+
+// 3) Founder Brief NEVER changes the DNA-merge gate — concept exploration stays protected.
+const fbInExploration = classifyVenueIntelligenceIntent('based on everything we have built so far, create a founder brief', {
+  recentMessages: [{ role: 'user', content: T1 }, { role: 'model', content: 'ok' },
+    { role: 'user', content: 'intimate elegant premium salon, warm guided service, serious cocktails' }, { role: 'model', content: 'ok' }],
+})
+ok(fbInExploration.isFounderBrief === true, '[G3] founder brief fires inside an exploration thread')
+ok(fbInExploration.mergeIntoCanonicalDna === false, '[G3b] founder brief does NOT merge canonical DNA inside exploration (output gate orthogonal)')
+
+// 4) Founder brief tied to the current venue still briefs AND still merges (gates orthogonal).
+const fbCurrent = classifyVenueIntelligenceIntent('for my venue, create a founder brief', { recentMessages: SYNTH_HISTORY })
+ok(fbCurrent.isFounderBrief === true, '[G4] founder brief fires for a current-venue request')
+ok(fbCurrent.mergeIntoCanonicalDna === true, '[G4b] current-venue founder brief still merges (output gate orthogonal)')
+
+// 5) Beverage-heavy request takes precedence — a founder brief must NOT override deep
+//    cocktail R&D (handler composes the beverage handoff; founder backstop is gated off).
+const fbBeverage = classifyVenueIntelligenceIntent('create a founder brief with 8 cocktails and at least 5 new methods, one savory one spicy one bitter', { recentMessages: SYNTH_HISTORY })
+ok(fbBeverage.wantsFounderBrief === true, '[G5] founder-brief cue present alongside beverage R&D')
+ok(fbBeverage.isBeverageDevelopment === true, '[G5b] beverage development still detected (takes precedence in the handler)')
+
+// 6) Ordinary discovery and normal-night synthesis are NOT founder-brief turns.
+for (const msg of [
+  'Our regulars come for the intimacy and the jazz early in the evening.',
+  'so how does this play out on a normal night?',
+]) {
+  const r = classifyVenueIntelligenceIntent(msg, { recentMessages: SYNTH_HISTORY })
+  ok(r.wantsFounderBrief === false, `[G6] not a founder-brief turn: "${msg.slice(0, 34)}…"`)
+}
+
+// 7) Empty / junk input never reports founder brief.
+for (const msg of ['', null, undefined, '   ']) {
+  const r = classifyVenueIntelligenceIntent(msg)
+  ok(r.wantsFounderBrief === false && r.isFounderBrief === false, `[G7] empty input is not a founder brief (${JSON.stringify(msg)})`)
+}
+
+// ── PART H — server wiring for Founder Brief v0.1 ────────────────────────────
+ok(/const\s+VENUE_INTELLIGENCE_FOUNDER_BRIEF_DIRECTIVE\s*=/.test(src),
+  '[H1] founder-brief directive constant is defined')
+ok(/const\s+VENUE_INTELLIGENCE_FOUNDER_BRIEF_INSUFFICIENT_DIRECTIVE\s*=/.test(src),
+  '[H1b] founder-brief "not enough yet" directive constant is defined')
+ok(/function composeFounderBriefInstruction/.test(src),
+  '[H2] composeFounderBriefInstruction is defined')
+ok(/if \(intent\.wantsFounderBrief\)\s*\{[\s\S]*?composeFounderBriefInstruction\(/.test(handler),
+  '[H3] handler routes founder-brief turns to the founder-brief composer')
+// Precedence: beverage development is composed AFTER (wins over) founder brief.
+ok(handler.indexOf('composeFounderBriefInstruction(') < handler.indexOf('composeBeverageDevelopmentInstruction('),
+  '[H3b] beverage development is composed after founder brief (beverage wins)')
+// The directive encodes all 15 required sections, in order.
+for (const sec of ['One-sentence concept', 'Founder intent', 'Emotional promise', 'Guest world', 'Primary occasions', 'Service philosophy', 'Spatial atmosphere', 'Beverage role', 'Food role', 'What the venue must protect', 'What the venue must never become', 'Early operational implications', 'Early risks or contradictions', 'What is already strong', 'What still needs decision']) {
+  ok(src.includes(sec), `[H4] founder-brief directive includes section "${sec}"`)
+}
+ok(/Founder Brief v0\.1/.test(src), '[H4b] directive labels the output "Founder Brief v0.1"')
+ok(/Working Draft — not yet confirmed/.test(src), '[H4c] directive heads the brief "Working Draft — not yet confirmed"')
+ok(/Correct me where this feels wrong/.test(src), '[H4d] directive ends with the correction invitation')
+ok(/DO NOT ask any question at the end|no closing question/i.test(src),
+  '[H4e] directive forbids a closing question on a full brief')
+ok(/Do NOT expose a (technical )?Discovery Map/i.test(src), '[H4f] directive forbids exposing a Discovery Map')
+ok(/no exact capacity, no pricing, no specific menu items/i.test(src), '[H4g] directive forbids inventing hard facts')
+ok(/Leave the JSON "cocktailConcepts" array EMPTY/i.test(src), '[H4h] founder-brief directive leaves the cocktail array empty')
+
+// Deterministic backstops — never the one-line fallback.
+ok(/function looksLikeFounderBrief/.test(src), '[H5] looksLikeFounderBrief structural check is defined')
+ok(/function founderBriefCouldNotGenerate/.test(src), '[H5b] founderBriefCouldNotGenerate backstop is defined')
+ok(/function founderBriefNotEnoughYet/.test(src), '[H5c] founderBriefNotEnoughYet backstop is defined')
+ok(/if \(intent\.wantsFounderBrief\s*&&\s*!intent\.isBeverageDevelopment\)\s*\{/.test(handler),
+  '[H5d] handler applies the founder-brief reply backstop (gated off on beverage turns)')
+ok(/looksLikeFounderBrief\(modelReply\)\s*\?\s*modelReply\s*:\s*founderBriefCouldNotGenerate\(\)/.test(handler),
+  '[H5e] full-brief path forces a structured brief or an honest error-style response (never the one-liner)')
+ok(/modelReply\s*\|\|\s*founderBriefNotEnoughYet\(\)/.test(handler),
+  '[H5f] not-enough path returns an honest "not enough yet" response, never the one-liner')
+// The cocktail backstop is suppressed on founder-brief turns.
+ok(/!intent\.isExperienceSynthesis\s*&&\s*!intent\.wantsFounderBrief\)\s*reply\s*=\s*ensureCocktailConceptsInReply/.test(handler),
+  '[H5g] cocktail backstop is suppressed on founder-brief turns')
 
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)
