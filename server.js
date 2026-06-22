@@ -6029,6 +6029,17 @@ function formatCocktailConceptLine(concept, index) {
   if (concept.difficulty) parts.push(`difficulty: ${String(concept.difficulty).trim()}`);
   return `${index + 1}) ${name}${parts.length ? ' — ' + parts.join('; ') : ''}`;
 }
+// Deterministic backstop for the synthesis contract. The normal-night synthesis must
+// END with the correction invitation (spec requirement) so the owner is invited to
+// correct the interpretation rather than answer another interview question. A small
+// model sometimes drops the final line, so we guarantee it here. No fabrication — it
+// only appends the fixed invitation when the reply does not already end with it.
+const VENUE_INTELLIGENCE_CORRECTION_INVITATION = 'Correct me where this feels wrong.';
+function ensureCorrectionInvitation(reply) {
+  const trimmed = String(reply || '').trim();
+  if (/correct me where this feels wrong\.?$/i.test(trimmed)) return trimmed;
+  return trimmed ? `${trimmed}\n\n${VENUE_INTELLIGENCE_CORRECTION_INVITATION}` : VENUE_INTELLIGENCE_CORRECTION_INVITATION;
+}
 function ensureCocktailConceptsInReply(reply, cocktailConcepts) {
   if (!Array.isArray(cocktailConcepts)) return reply;
   const lines = cocktailConcepts.map(formatCocktailConceptLine).filter(Boolean).slice(0, 8);
@@ -6093,6 +6104,9 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
     // beverage-development turn — that path must NOT surface a finished cocktail list;
     // deep recipes are owned by Bar Intelligence, not produced here.
     if (intent.isExplicitBrief && !intent.isBeverageDevelopment && !intent.isExperienceSynthesis) reply = ensureCocktailConceptsInReply(reply, ai.cocktailConcepts);
+    // Synthesis turns MUST end with the correction invitation, never another broad
+    // question — guarantee it deterministically (the small model sometimes drops it).
+    if (intent.isExperienceSynthesis) reply = ensureCorrectionInvitation(reply);
     const stage = VENUE_INTELLIGENCE_STAGES.includes(ai.stage) ? ai.stage : state.stage;
     const objective = typeof ai.objective === 'string' && ai.objective.trim() ? ai.objective.trim() : state.objective;
 

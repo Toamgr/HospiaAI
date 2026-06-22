@@ -126,6 +126,10 @@ ok(/!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\)\s*rep
 // The weak "tell me more" fallback string was removed; the fallback no longer interviews.
 ok(!/Tell me a little more about how that plays out on a normal night/.test(handler),
   '[11e] handler no longer falls back to the weak "tell me more…" interview prompt')
+// The synthesis path deterministically guarantees the correction invitation (so the
+// turn ends with a correction request, never another broad interview question).
+ok(/if \(intent\.isExperienceSynthesis\)\s*reply\s*=\s*ensureCorrectionInvitation\(reply\)/.test(handler),
+  '[11e2] handler guarantees the correction invitation on synthesis turns')
 // No destructive / finalization side effects on the synthesis path.
 ok(!/['"]confirmed['"]/.test(handler), '[11f] synthesis path adds no confirmed-DNA tier literal')
 

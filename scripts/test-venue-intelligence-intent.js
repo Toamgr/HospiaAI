@@ -450,6 +450,9 @@ ok(/Leave the JSON "cocktailConcepts" array EMPTY/i.test(src),
   '[F7] synthesis directive leaves the structured cocktail array empty (no forced list)')
 ok(/intent\.isExplicitBrief\s*&&\s*!intent\.isBeverageDevelopment\s*&&\s*!intent\.isExperienceSynthesis\)/.test(handler),
   '[F8] cocktail backstop is suppressed on synthesis turns')
+ok(/function ensureCorrectionInvitation/.test(src) &&
+   /if \(intent\.isExperienceSynthesis\)\s*reply\s*=\s*ensureCorrectionInvitation\(reply\)/.test(handler),
+  '[F8b] handler deterministically guarantees the correction invitation on synthesis turns')
 // The weak fallback string must no longer be the hardcoded reply fallback.
 ok(!/Tell me a little more about how that plays out on a normal night/.test(handler),
   '[F9] the weak "tell me a little more…" fallback string was removed from the handler')
