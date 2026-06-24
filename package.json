@@ -23,7 +23,8 @@
     "inspect:venue-dna-state": "node scripts/inspect-current-venue-dna-state.js",
     "test:first-run-venue-zero-state": "node scripts/test-first-run-venue-zero-state.js",
     "test:venue-intelligence-message-audit": "node scripts/test-venue-intelligence-message-route-audit.js",
-    "test:venue-intelligence-chat-quality": "node scripts/test-venue-intelligence-chat-quality.js"
+    "test:venue-intelligence-chat-quality": "node scripts/test-venue-intelligence-chat-quality.js",
+    "test:owner-correction-loop-format": "node scripts/test-owner-correction-loop-format.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",

@@ -219,6 +219,31 @@ ok(/function composeOwnerCorrectionLoopInstruction/.test(src), '[20c] composeOwn
 ok(/function looksLikeOwnerCorrectionLoop/.test(src) && /function ownerCorrectionLoopCouldNotGenerate/.test(src) && /function ownerCorrectionLoopNotEnoughYet/.test(src) && /function ensureCorrectionLoopClosing/.test(src),
   '[20d] deterministic correction-loop backstops defined (no one-line placeholder)')
 
+// 21. Candidate Venue DNA signals are deterministically forced into the 5-field structure
+//     (Signal / Evidence / Confidence / Status / Suggested destination). This must not
+//     depend on the model following the prompt — a pure formatter repairs plain bullets.
+ok(/import\s*\{\s*ensureStructuredCandidateSignals\s*\}\s*from\s*["'].*ownerCorrectionLoopFormat\.js["']/.test(src),
+  '[21] route imports ensureStructuredCandidateSignals from the candidate-format module')
+ok(/reply = ensureStructuredCandidateSignals\(reply\);/.test(src),
+  '[21b] route applies the candidate-format backstop on the real-loop path')
+// Applied only inside the isOwnerCorrectionLoop branch, before the closing line is ensured.
+const oclBranchIdx = src.indexOf('if (intent.isOwnerCorrectionLoop) {')
+const structIdx = src.indexOf('reply = ensureStructuredCandidateSignals(reply);')
+const closingAfterStructIdx = src.indexOf('reply = ensureCorrectionLoopClosing(reply);', structIdx)
+ok(oclBranchIdx !== -1 && structIdx > oclBranchIdx,
+  '[21c] candidate-format backstop runs inside the isOwnerCorrectionLoop branch')
+ok(closingAfterStructIdx !== -1 && closingAfterStructIdx > structIdx,
+  '[21d] structure repair runs before the closing line is guaranteed')
+// The directive still names the five required candidate fields verbatim.
+ok(/const\s+VENUE_INTELLIGENCE_OWNER_CORRECTION_LOOP_DIRECTIVE\s*=/.test(src), '[21e] correction-loop directive present')
+for (const field of ['signal', 'evidence', 'confidence', 'status', 'suggested destination']) {
+  ok(new RegExp('VENUE_INTELLIGENCE_OWNER_CORRECTION_LOOP_DIRECTIVE[\\s\\S]*?' + field, 'i').test(src),
+    `[21f] directive still names candidate field "${field}"`)
+}
+// The repair must NOT touch the canonical-DNA merge gate (output contract only).
+ok(/const venueDNA = intent\.mergeIntoCanonicalDna \? mergedDNA : state\.venueDNA;/.test(src),
+  '[21g] canonical Venue DNA merge gate is unchanged by the candidate-format backstop')
+
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)
 process.exit(0)

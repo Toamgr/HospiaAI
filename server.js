@@ -23,6 +23,7 @@ import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } fr
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
+import { ensureStructuredCandidateSignals } from "./src/services/venueIntelligence/ownerCorrectionLoopFormat.js";
 
 dotenv.config();
 
@@ -6335,6 +6336,12 @@ app.post('/api/venue-intelligence/message', requireAuth('owner'), async (req, re
     if (intent.wantsOwnerCorrectionLoop && !intent.isBeverageDevelopment) {
       if (intent.isOwnerCorrectionLoop) {
         reply = looksLikeOwnerCorrectionLoop(modelReply) ? modelReply : ownerCorrectionLoopCouldNotGenerate();
+        // Candidate Venue DNA signals MUST carry the 5-field structure (Signal / Evidence /
+        // Confidence / Status / Suggested destination) a future approval step depends on.
+        // Plain-bullet candidates never pass through unstructured: this deterministically
+        // repairs them, reusing any fields the model gave and filling the rest with
+        // conservative, non-fabricated defaults. Output contract only — no persistence.
+        reply = ensureStructuredCandidateSignals(reply);
         reply = ensureCorrectionLoopClosing(reply);
       } else {
         reply = modelReply || ownerCorrectionLoopNotEnoughYet();
