@@ -46,7 +46,7 @@ const CONFIDENCE_TOOLTIP =
 
 // Restrained, explicitly-local action labels (no "Approved", no "Confirmed", no success green).
 const ACTION_LABEL = {
-  captured: 'Captured',
+  captured: 'Captured as meant',
   edited:   'Edited locally',
   held:     'Held',
   rejected: 'Rejected locally',
@@ -209,7 +209,7 @@ function CandidateCard({ candidate }) {
           <div className="mt-1"><ConfidenceBand band={confidence} /></div>
         </div>
         <div>
-          <Eyebrow>Status</Eyebrow>
+          <Eyebrow>DNA status</Eyebrow>
           <p className="mt-1 text-[12px]" style={{ color: candidate.status ? C.text2 : C.text3 }}>
             {candidate.status || 'not captured'}
           </p>
@@ -303,7 +303,7 @@ function CandidateCard({ candidate }) {
             </>
           ) : (
             <>
-              <GhostButton onClick={() => setAction('captured')} emphasis>Accept as captured</GhostButton>
+              <GhostButton onClick={() => setAction('captured')} emphasis>Mark as captured</GhostButton>
               <GhostButton onClick={openEdit}>Revise</GhostButton>
               <GhostButton onClick={() => setAction('held')}>Hold — too early</GhostButton>
               <GhostButton onClick={() => setAction('rejected')}>Reject</GhostButton>
