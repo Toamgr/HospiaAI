@@ -50,7 +50,14 @@ ok(!/app\.put\(\s*['"]\/api\/discovery-reviews\/:reviewId['"]\s*,\s*requireAuth\
 // ── Isolate the route region (the three routes up to the Bridge section) ────────
 const startIdx = src.indexOf("app.get('/api/discovery-reviews'")
 ok(startIdx !== -1, 'route region located')
-const endIdx = src.indexOf('Venue Intelligence Bridge', startIdx)
+// End the region at the next sibling section so it isolates ONLY the three Slice 1
+// discovery-reviews routes. The read-only Concept Drafts Workspace (Slice 2a) routes follow
+// immediately after and have their own audit (test-concept-draft-route-audit.js); their
+// honest documentation legitimately names mergeVenueDna / promote / DELETE, so they must not
+// fall inside this region. Prefer the Concept Drafts marker; fall back to the Bridge section.
+const conceptMarkerIdx = src.indexOf('Concept Drafts Workspace', startIdx)
+const bridgeIdx = src.indexOf('Venue Intelligence Bridge', startIdx)
+const endIdx = conceptMarkerIdx > startIdx ? conceptMarkerIdx : bridgeIdx
 const region = endIdx > startIdx ? src.slice(startIdx, endIdx) : src.slice(startIdx, startIdx + 4000)
 
 // ── Venue scoping ───────────────────────────────────────────────────────────────

@@ -21,7 +21,7 @@ import { buildMenuIntelligenceSnapshot } from "./src/services/venueBridge/menuIn
 import { buildFnbDirectorBrief } from "./src/services/venueBridge/fnbDirectorBriefService.js";
 import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } from "./src/config/featureFlags.js";
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
-import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL, upsertDiscoveryReview, listDiscoveryReviewsForVenue, getDiscoveryReviewById } from "./src/services/venueIntelligence/discoveryCandidateReviewService.js";
+import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL, upsertDiscoveryReview, listDiscoveryReviewsForVenue, getDiscoveryReviewById, listConceptDraftsForVenue, getConceptDraftDetail } from "./src/services/venueIntelligence/discoveryCandidateReviewService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
 import { ensureStructuredCandidateSignals } from "./src/services/venueIntelligence/ownerCorrectionLoopFormat.js";
@@ -6560,6 +6560,43 @@ app.put('/api/discovery-reviews/:reviewId', requireAuth('owner'), (req, res) => 
       return res.status(404).json({ ok: false, error: 'No discovery review found for this venue.' });
     }
     res.status(400).json({ error: err.message || 'Could not save the discovery review.' });
+  }
+});
+
+// ── New Venue Discovery — Concept Drafts Workspace (Slice 2a) — READ-ONLY ─────
+// Derive-first re-entry: lists/reads concept drafts from EXISTING discovery_candidate_reviews
+// rows. There is NO writer here — no PUT/POST/PATCH/DELETE, no audit write, no DB mutation, no
+// DNA store contact, no mergeVenueDna, no confirm/promote, no new table. A saved concept draft
+// is Memory / concept-draft understanding only — never confirmed Venue DNA.
+// Read: owner/admin, venue-scoped. Distinct path (/api/discovery-concept-drafts) so it can
+// never be swallowed by /api/discovery-reviews/:reviewId. The static list route is declared
+// before the :conceptRef param route.
+
+// GET — list the venue's concept drafts (derived summaries; record_space='concept_draft').
+app.get('/api/discovery-concept-drafts', requireAuth('owner', 'admin'), (req, res) => {
+  try {
+    const filters = {};
+    if (req.query.limit != null) filters.limit = Number(req.query.limit);
+    const drafts = listConceptDraftsForVenue(db, req.venueId, filters);
+    res.json({ ok: true, drafts, note: 'Saved concept drafts are Memory / concept-draft understanding — not confirmed Venue DNA.' });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Could not list concept drafts.' });
+  }
+});
+
+// GET — one concept draft's saved review snapshots (full). Malformed UUID → 400 (no write);
+// not found / cross-venue → 404. record_space='concept_draft' + venue-scoped.
+app.get('/api/discovery-concept-drafts/:conceptRef', requireAuth('owner', 'admin'), (req, res) => {
+  try {
+    const draft = getConceptDraftDetail(db, req.venueId, req.params.conceptRef);
+    if (!draft) return res.status(404).json({ ok: false, error: 'No concept draft found for this venue.' });
+    res.json({ ok: true, draft, note: 'Saved snapshots — not the original chat thread, and not confirmed Venue DNA.' });
+  } catch (err) {
+    // Malformed concept_ref → 400 (validation throw); never a write, never an audit row.
+    if (err && err.code === 'BAD_REQUEST') {
+      return res.status(400).json({ ok: false, error: err.message || 'Malformed concept_ref.' });
+    }
+    res.status(500).json({ error: err.message || 'Could not read the concept draft.' });
   }
 });
 

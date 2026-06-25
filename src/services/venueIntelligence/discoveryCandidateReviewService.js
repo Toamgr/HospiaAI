@@ -441,3 +441,116 @@ export function listDiscoveryReviewEvents(db, venueId, reviewId) {
     'SELECT * FROM discovery_candidate_review_events WHERE review_id = ? AND venue_id = ? ORDER BY changed_at DESC, rowid DESC'
   ).all(reviewId, venueId).map(e => ({ ...e, edit_delta: parseJson(e.edit_delta_json) }))
 }
+
+// ── Concept Drafts Workspace (Slice 2a) — READ-ONLY, derive-first re-entry ─────
+//
+// A "concept draft" is NOT a new record type and NOT a new table. It is simply the set of
+// already-saved fidelity reviews that share one concept_ref within a venue's concept_draft
+// space. These two functions are PURE READ projections over discovery_candidate_reviews —
+// they NEVER write, NEVER mutate, NEVER append audit rows, NEVER touch any Venue DNA store,
+// and NEVER call mergeVenueDna. They add NO new writer to the system.
+//
+// Labels are derived ONLY from real saved data (review counts + saved snapshot signal text).
+// They NEVER fabricate a venue name and NEVER imply confirmed Venue DNA. A saved concept draft
+// is Memory / concept-draft understanding only.
+
+// A humble, evidence-bound label derived from the real saved review count — never a venue name.
+function humbleDraftLabel(count) {
+  const n = Number(count) || 0
+  return `Draft concept · ${n} saved ${n === 1 ? 'review' : 'reviews'}`
+}
+
+// Fold one venue's concept_draft review rows into per-concept summaries. Pure; no I/O beyond
+// the single read the caller passes in.
+function foldConceptDrafts(rows, venueId) {
+  const byConcept = new Map()
+  for (const r of rows) {
+    if (!isNonEmptyString(r.concept_ref)) continue
+    let g = byConcept.get(r.concept_ref)
+    if (!g) {
+      g = {
+        concept_ref: r.concept_ref,
+        review_count: 0,
+        actions_summary: {},
+        first_reviewed_at: null,
+        last_reviewed_at: null,
+        _subtitleSignal: null,
+      }
+      byConcept.set(r.concept_ref, g)
+    }
+    g.review_count += 1
+    // actions_summary counts only the four known fidelity actions; nothing fabricated.
+    if (REVIEW_ACTIONS.includes(r.review_action)) {
+      g.actions_summary[r.review_action] = (g.actions_summary[r.review_action] || 0) + 1
+    }
+    const created = r.created_at || null
+    const touched = r.reviewed_at || r.updated_at || r.created_at || null
+    if (created && (!g.first_reviewed_at || created < g.first_reviewed_at)) g.first_reviewed_at = created
+    if (touched && (!g.last_reviewed_at || touched > g.last_reviewed_at)) g.last_reviewed_at = touched
+    // Subtitle: the earliest real saved signal text (rows arrive created_at ASC). Never invented.
+    if (g._subtitleSignal == null) {
+      const snap = parseJson(r.candidate_snapshot_json)
+      if (snap && isNonEmptyString(snap.signal)) g._subtitleSignal = snap.signal.trim()
+    }
+  }
+  return [...byConcept.values()].map(g => ({
+    concept_ref: g.concept_ref,
+    venue_id: venueId,
+    record_space: RECORD_SPACE,
+    review_count: g.review_count,
+    actions_summary: g.actions_summary,
+    first_reviewed_at: g.first_reviewed_at,
+    last_reviewed_at: g.last_reviewed_at,
+    label: humbleDraftLabel(g.review_count),
+    subtitle: g._subtitleSignal ? `Includes: ${g._subtitleSignal}` : null,
+  }))
+}
+
+/**
+ * List the venue's concept drafts, derived from existing saved reviews. READ-ONLY.
+ * Scoped to record_space = 'concept_draft' (the conflation guard — 'live_venue' rows are
+ * NEVER included, so no draft can ever be read as live-venue truth) and to venue_id (the
+ * access boundary — cross-venue rows are never returned). Newest activity first.
+ *
+ * Returns evidence-bound summaries only: { concept_ref, venue_id, record_space, review_count,
+ * actions_summary, first_reviewed_at, last_reviewed_at, label, subtitle }. No reviews inlined.
+ */
+export function listConceptDraftsForVenue(db, venueId, filters = {}) {
+  if (!isNonEmptyString(venueId)) return []
+  const limit = Math.max(1, Math.min(200, Number(filters.limit) || 100))
+  const rows = db.prepare(
+    `SELECT concept_ref, review_action, candidate_snapshot_json, created_at, reviewed_at, updated_at
+     FROM discovery_candidate_reviews
+     WHERE venue_id = ? AND record_space = 'concept_draft'
+     ORDER BY created_at ASC, rowid ASC`
+  ).all(venueId)
+  const drafts = foldConceptDrafts(rows, venueId)
+  drafts.sort((a, b) => String(b.last_reviewed_at || '').localeCompare(String(a.last_reviewed_at || '')))
+  return drafts.slice(0, limit)
+}
+
+/**
+ * Read ONE concept draft's full saved reviews for re-entry/readback. READ-ONLY.
+ * Validates the concept_ref is UUID-shaped (malformed → throws with code 'BAD_REQUEST' so the
+ * route maps it to 400, NEVER a write). Venue- and record_space-scoped. Returns null when no
+ * saved reviews exist for that concept under this venue (route maps to 404). Returns the
+ * concept summary plus its saved review snapshots (full, parsed) — newest snapshot review first.
+ */
+export function getConceptDraftDetail(db, venueId, conceptRef) {
+  if (!isNonEmptyString(venueId)) return null
+  if (!isUuidLike(conceptRef)) {
+    const e = new Error('conceptDraft: a valid UUID concept_ref is required.')
+    e.code = 'BAD_REQUEST'
+    throw e
+  }
+  const rows = db.prepare(
+    `SELECT * FROM discovery_candidate_reviews
+     WHERE venue_id = ? AND concept_ref = ? AND record_space = 'concept_draft'
+     ORDER BY created_at ASC, rowid ASC`
+  ).all(venueId, conceptRef)
+  if (rows.length === 0) return null
+  const summary = foldConceptDrafts(rows, venueId)[0]
+  // Reviews newest-first for display; the underlying snapshots are immutable and unmodified.
+  const reviews = rows.map(shapeFullRow).reverse()
+  return { ...summary, reviews }
+}

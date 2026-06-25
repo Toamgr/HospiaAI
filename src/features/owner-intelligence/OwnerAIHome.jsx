@@ -20,6 +20,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { apiGet } from '../../services/api/client'
 import { parseCandidateSignals } from './candidateSignalParser'
 import CandidateReviewPanel from './CandidateReviewPanel'
+import ConceptDraftsPanel from './ConceptDraftsPanel'
 
 // ── Palette B — Editorial Light tokens (from skills/user/hestia-ui-design) ──────
 const C = {
@@ -429,6 +430,9 @@ export default function OwnerAIHome({ currentUser, venueIntelligence } = {}) {
             locked. Shift+Enter for a new line · Enter to send.
           </p>
         </div>
+
+        {/* ── Concept Drafts Workspace (Slice 2a) — read-only re-entry into saved drafts ── */}
+        <ConceptDraftsPanel />
 
         {/* ── Backstage intelligence — collapsed by default, never the product ── */}
         <details className="mt-10">
