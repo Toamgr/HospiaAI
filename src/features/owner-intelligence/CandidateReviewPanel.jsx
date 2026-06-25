@@ -38,7 +38,7 @@ const FRAMING_LINE =
   'Captured, not confirmed. These are candidate signals from this conversation, not approved Venue DNA.'
 // Flipped for Slice 1 — choices now persist (still never confirmed Venue DNA).
 const LOCAL_NOTE =
-  'Saved as captured, not confirmed.'
+  'Your choices save to Memory as concept-draft understanding — not confirmed Venue DNA.'
 
 // Foundation-first destination ordering (taxonomy posture); unrouted candidates land last.
 const DESTINATION_ORDER = ['Venue DNA', 'Venue Memory', 'Bar Intelligence', 'Service', 'Academy', 'Events', 'F&B']
@@ -103,13 +103,21 @@ function ConfidenceBand({ band }) {
 }
 
 // A small status tag. Tone is neutral — never celebratory. Reflects the SAVED state.
-function SavedTag({ kind, rerouted, saving }) {
+// `status` makes the four lifecycle states visually distinct: saving | saved | failed |
+// dirty (a prior choice was re-opened to Change but not yet re-saved).
+function SavedTag({ kind, rerouted, status }) {
   const label = ACTION_LABEL[kind]
   if (!label && !rerouted) return null
   const tone =
     kind === 'rejected' ? { color: C.text3, border: C.borderSub }
       : kind === 'held' ? { color: C.amber, border: C.borderEmp }
         : { color: C.burgundy, border: C.borderEmp }
+  const tail =
+    status === 'saving' ? { text: '· saving…', color: C.text3 }
+      : status === 'failed' ? { text: '· not saved', color: C.burgundy }
+        : status === 'dirty' ? { text: '· unsaved change', color: C.amber }
+          : status === 'saved' ? { text: '· saved to Memory · not Venue DNA', color: C.text3 }
+            : null
   return (
     <span className="inline-flex items-center gap-1.5">
       {label && (
@@ -128,19 +136,22 @@ function SavedTag({ kind, rerouted, saving }) {
           Re-routed
         </span>
       )}
-      <span className="text-[10px]" style={{ color: C.text3 }}>
-        {saving ? '· saving…' : '· saved, not confirmed'}
-      </span>
+      {tail && (
+        <span className="text-[10px]" style={{ color: tail.color }}>
+          {tail.text}
+        </span>
+      )}
     </span>
   )
 }
 
-function GhostButton({ onClick, children, emphasis, disabled }) {
+function GhostButton({ onClick, children, emphasis, disabled, title }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className="rounded-full px-3 py-1 text-[11px] font-medium transition disabled:opacity-40"
       style={{
         border: `1px solid ${emphasis ? C.burgundy : C.borderSub}`,
@@ -182,6 +193,14 @@ function CandidateCard({ candidate, conceptRef, conversationRef, saved, onSaved 
   const provenance = action === 'edited' ? 'owner_edit' : 'owner_conversation'
   const rerouted = Boolean(candidate.suggestedDestination) && chosenDestination !== candidate.suggestedDestination
   const isRejected = action === 'rejected'
+
+  // The card's lifecycle state, used to keep saving / saved / failed / dirty visually distinct.
+  // 'dirty' = a prior saved choice was re-opened via Change but not yet re-saved.
+  const status = saving ? 'saving'
+    : saveError ? 'failed'
+      : changing ? 'dirty'
+        : action ? 'saved'
+          : null
 
   // Snapshot drift honesty: the saved snapshot is authoritative. When the source candidate no
   // longer matches the snapshot as reviewed, surface an honest dangle note — never re-sync.
@@ -280,14 +299,14 @@ function CandidateCard({ candidate, conceptRef, conversationRef, saved, onSaved 
         <p className="font-serif text-[15px] font-semibold leading-snug" style={{ color: C.text }}>
           {signal}
         </p>
-        <SavedTag kind={action} rerouted={rerouted} saving={saving} />
+        <SavedTag kind={action} rerouted={rerouted} status={status} />
       </div>
 
       {/* Snapshot drift honesty — never silently re-synced from the conversation */}
       {drifted && (
         <p className="mt-2 text-[11px] italic leading-relaxed" style={{ color: C.text3 }}>
-          The source conversation is no longer available; this is the snapshot as you reviewed it
-          {reviewedDate ? ` on ${reviewedDate}` : ''}.
+          This is the saved snapshot from the moment you reviewed it
+          {reviewedDate ? ` on ${reviewedDate}` : ''}. The original chat thread may no longer be available.
         </p>
       )}
 
@@ -393,13 +412,29 @@ function CandidateCard({ candidate, conceptRef, conversationRef, saved, onSaved 
         <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t pt-3" style={{ borderColor: C.borderSub }}>
           {action && !changing ? (
             <>
-              <span className="text-[11px]" style={{ color: C.text3 }}>
-                Saved as captured, not confirmed. Nothing here became Venue DNA.
-              </span>
-              <GhostButton onClick={() => setChanging(true)} disabled={saving}>Change</GhostButton>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[11px] font-medium" style={{ color: C.text2 }}>
+                  Saved to Memory — not confirmed Venue DNA.
+                </span>
+                <span className="text-[10px] leading-relaxed" style={{ color: C.text3 }}>
+                  This saves what you meant in this draft concept. It does not approve Venue DNA.
+                </span>
+              </div>
+              <GhostButton
+                onClick={() => setChanging(true)}
+                disabled={saving}
+                title="Change and save a new review choice."
+              >
+                Change
+              </GhostButton>
             </>
           ) : (
             <>
+              {changing && (
+                <span className="w-full text-[10px]" style={{ color: C.text3 }}>
+                  Change and save a new review choice.
+                </span>
+              )}
               <GhostButton onClick={() => persist('captured')} emphasis disabled={saving}>Mark as captured</GhostButton>
               <GhostButton onClick={openEdit} disabled={saving}>Revise</GhostButton>
               <GhostButton onClick={() => persist('held')} disabled={saving}>Hold — too early</GhostButton>
@@ -488,6 +523,12 @@ export default function CandidateReviewPanel({ candidates, conceptRef, messageIn
           )
         })}
       </div>
+
+      {/* Honest refresh nuance — saved rows live in Memory, but this draft thread is ephemeral. */}
+      <p className="mt-4 text-[10px] leading-relaxed" style={{ color: C.text3 }}>
+        This is a temporary draft thread. Your saved reviews are kept in Memory, but this on-screen
+        thread won't reappear after a refresh.
+      </p>
     </div>
   )
 }
