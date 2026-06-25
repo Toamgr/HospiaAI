@@ -407,10 +407,12 @@ function CandidateCard({ candidate, conceptRef, conversationRef, saved, onSaved 
         </div>
       )}
 
-      {/* Action row — persisted, reversible by re-saving a different action */}
+      {/* Action row — status-driven so saving / saved / failed / dirty never co-mingle.
+          A failed save NEVER claims "Saved to Memory"; an in-flight save never implies it
+          already landed. Re-saving a different action remains the way to change a choice. */}
       {!editing && (
         <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t pt-3" style={{ borderColor: C.borderSub }}>
-          {action && !changing ? (
+          {status === 'saved' && (
             <>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[11px] font-medium" style={{ color: C.text2 }}>
@@ -428,13 +430,52 @@ function CandidateCard({ candidate, conceptRef, conversationRef, saved, onSaved 
                 Change
               </GhostButton>
             </>
-          ) : (
-            <>
-              {changing && (
-                <span className="w-full text-[10px]" style={{ color: C.text3 }}>
-                  Change and save a new review choice.
+          )}
+
+          {status === 'saving' && (
+            <span className="text-[11px] font-medium" style={{ color: C.text2 }}>
+              Saving to Memory…
+            </span>
+          )}
+
+          {status === 'failed' && (
+            <div className="flex w-full flex-col gap-2">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[11px] font-medium" style={{ color: C.burgundy }}>
+                  Not saved — the review was not written to Memory.
                 </span>
-              )}
+                {saveError && (
+                  <span className="text-[10px] leading-relaxed" style={{ color: C.burgundy }}>
+                    {saveError}
+                  </span>
+                )}
+                <span className="text-[10px] leading-relaxed" style={{ color: C.text3 }}>
+                  Nothing here became Venue DNA.
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <GhostButton onClick={() => persist('captured')} emphasis disabled={saving}>Try again — mark as captured</GhostButton>
+                <GhostButton onClick={openEdit} disabled={saving}>Revise</GhostButton>
+                <GhostButton onClick={() => persist('held')} disabled={saving}>Hold — too early</GhostButton>
+                <GhostButton onClick={() => persist('rejected')} disabled={saving}>Reject</GhostButton>
+              </div>
+            </div>
+          )}
+
+          {status === 'dirty' && (
+            <>
+              <span className="w-full text-[11px] font-medium" style={{ color: C.amber }}>
+                Unsaved change — save again to update Memory.
+              </span>
+              <GhostButton onClick={() => persist('captured')} emphasis disabled={saving}>Mark as captured</GhostButton>
+              <GhostButton onClick={openEdit} disabled={saving}>Revise</GhostButton>
+              <GhostButton onClick={() => persist('held')} disabled={saving}>Hold — too early</GhostButton>
+              <GhostButton onClick={() => persist('rejected')} disabled={saving}>Reject</GhostButton>
+            </>
+          )}
+
+          {status === null && (
+            <>
               <GhostButton onClick={() => persist('captured')} emphasis disabled={saving}>Mark as captured</GhostButton>
               <GhostButton onClick={openEdit} disabled={saving}>Revise</GhostButton>
               <GhostButton onClick={() => persist('held')} disabled={saving}>Hold — too early</GhostButton>
@@ -442,10 +483,6 @@ function CandidateCard({ candidate, conceptRef, conversationRef, saved, onSaved 
             </>
           )}
         </div>
-      )}
-
-      {saveError && (
-        <p className="mt-2 text-[11px]" style={{ color: C.burgundy }}>{saveError}</p>
       )}
     </div>
   )
