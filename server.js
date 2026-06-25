@@ -21,6 +21,7 @@ import { buildMenuIntelligenceSnapshot } from "./src/services/venueBridge/menuIn
 import { buildFnbDirectorBrief } from "./src/services/venueBridge/fnbDirectorBriefService.js";
 import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } from "./src/config/featureFlags.js";
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
+import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL, upsertDiscoveryReview, listDiscoveryReviewsForVenue, getDiscoveryReviewById } from "./src/services/venueIntelligence/discoveryCandidateReviewService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
 import { ensureStructuredCandidateSignals } from "./src/services/venueIntelligence/ownerCorrectionLoopFormat.js";
@@ -1190,6 +1191,18 @@ db.exec(VENUE_INTELLIGENCE_CANDIDATES_DDL);
 // Phase 7A — human review note column (idempotent migration for pre-existing DBs;
 // the DDL above already includes it for fresh DBs). Additive, non-destructive.
 try { db.exec("ALTER TABLE venue_intelligence_candidates ADD COLUMN review_note TEXT"); } catch { /* already exists */ }
+
+// New Venue Discovery — Fidelity Review Persistence (Slice 1). Two ISOLATED tables: an
+// owner-writable review record (current state + immutable snapshot) and an append-only
+// audit log. Additive, venue-scoped, idempotent. ISOLATED from canonical Venue DNA:
+// fidelity ("HESTIA captured what I meant") is NOT confirmation. No 'confirmed' vocabulary,
+// no confirmation_ref, no mergeVenueDna, never writes venue_intelligence/venue_briefs/
+// venue_dna_enrichment. record_space is hard-coded 'concept_draft'.
+// NOTE: discovery_candidate_review_events.review_id is a LOGICAL reference, NOT an enforced
+// FK (audit-first ordering writes the audit row before the review row exists). The DDL
+// declares no FOREIGN KEY on these tables; do not add one.
+db.exec(DISCOVERY_CANDIDATE_REVIEWS_DDL);
+db.exec(DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL);
 
 // shift_reports extended fields
 for (const [col, def] of [
@@ -6473,6 +6486,71 @@ app.patch('/api/venue-intelligence/candidates/:candidateId/review', requireAuth(
   } catch (err) {
     // Invalid review status / bad input → 400 (validation throw from the service).
     res.status(400).json({ error: err.message || 'Could not review the candidate.' });
+  }
+});
+
+// ── New Venue Discovery — Fidelity Review Persistence (Slice 1) ───────────────
+// Persists the inline panel's fidelity-review choices (captured|edited|held|rejected, +
+// re-route + owner-edit overlay) into an ISOLATED Venue Memory table. FIDELITY, NOT identity:
+// saving means "HESTIA captured what I meant", NEVER "confirmed Venue DNA". These routes never
+// touch any canonical Venue DNA store (no venue_dna_json/venue_intelligence/venue_briefs/
+// venue_dna_enrichment write) and accept no DNA payload. There is no DNA-write route, no
+// confirm-to-identity route, and no second Venue DNA writer here.
+// record_space is server-hard-coded 'concept_draft'; 'Venue DNA' routing is an inert earmark.
+// Write: owner only (admin is never a fidelity-saver here). Read: owner/admin, venue-scoped.
+
+// GET — compact list of the venue's / concept's persisted reviews (record_space='concept_draft').
+app.get('/api/discovery-reviews', requireAuth('owner', 'admin'), (req, res) => {
+  try {
+    const filters = {};
+    if (typeof req.query.concept_ref === 'string') filters.concept_ref = req.query.concept_ref;
+    if (req.query.limit != null) filters.limit = Number(req.query.limit);
+    const reviews = listDiscoveryReviewsForVenue(db, req.venueId, filters);
+    res.json({ ok: true, reviews, note: 'Saved as captured, not confirmed — fidelity reviews are never confirmed Venue DNA.' });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Could not list discovery reviews.' });
+  }
+});
+
+// GET — one venue-scoped review (full, parsed snapshot). 404 if not found / cross-venue.
+app.get('/api/discovery-reviews/:reviewId', requireAuth('owner', 'admin'), (req, res) => {
+  try {
+    const review = getDiscoveryReviewById(db, req.venueId, req.params.reviewId);
+    if (!review) return res.status(404).json({ ok: false, error: 'No discovery review found for this venue.' });
+    res.json({ ok: true, review, note: 'Snapshot as reviewed — captured, not confirmed Venue DNA.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Could not read the discovery review.' });
+  }
+});
+
+// PUT — owner-only upsert of a fidelity review. Body carries ONLY fidelity fields; the server
+// derives provenance, hard-codes record_space, mints/validates ids, and writes audit-first.
+// Missing/malformed concept_ref → 400 (no write, no audit row). Foreign id → never a foreign
+// write (a non-matching id is treated as new within this venue/concept scope).
+app.put('/api/discovery-reviews/:reviewId', requireAuth('owner'), (req, res) => {
+  try {
+    const body = req.body || {};
+    const review = upsertDiscoveryReview(db, req.venueId, body.concept_ref, {
+      id: req.params.reviewId,
+      review_action: body.review_action,
+      chosen_destination: body.chosen_destination,
+      owner_edit: body.owner_edit,
+      candidate_snapshot: body.candidate_snapshot,
+      conversation_ref: body.conversation_ref,
+      snapshot_taken_at: body.snapshot_taken_at,
+      evidence_type: body.evidence_type,
+      reason_note: body.reason_note,
+      // provenance + record_space are SERVER-SET inside the service — never read from the client.
+      reviewed_by: (req.user && (req.user.full_name || req.user.id)) || null,
+    });
+    res.json({ ok: true, review, note: 'Saved as captured, not confirmed. Venue DNA was not changed.' });
+  } catch (err) {
+    // Cross-venue id → 404 (never a foreign write). Invalid vocabulary / missing concept_ref /
+    // raised confidence → 400 (validation throw from the service).
+    if (err && err.code === 'NOT_FOUND') {
+      return res.status(404).json({ ok: false, error: 'No discovery review found for this venue.' });
+    }
+    res.status(400).json({ error: err.message || 'Could not save the discovery review.' });
   }
 });
 

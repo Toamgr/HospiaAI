@@ -16,7 +16,7 @@
 //
 // If the real hook is unavailable, the input stays inert rather than faking chat.
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { apiGet } from '../../services/api/client'
 import { parseCandidateSignals } from './candidateSignalParser'
 import CandidateReviewPanel from './CandidateReviewPanel'
@@ -183,6 +183,39 @@ export default function OwnerAIHome({ currentUser, venueIntelligence } = {}) {
   const inputRef = useRef(null)
   const lastCountRef = useRef(0)
 
+  // ── New Venue Discovery — Fidelity Review Persistence (Slice 1) ──────────────
+  // concept_ref is the draft/concept thread identity — CLIENT-MINTED once per thread, held in
+  // React state for the thread's lifetime. NOT a venue id; NOT derived from venue_id, message
+  // index, or message text. No localStorage, no concept registry. A refresh mints a new ref
+  // (acceptable: unsaved choices are already ephemeral; saved rows remain readable by their
+  // stored concept_ref). It is sent with every fidelity-review save under this thread.
+  const [conceptRef] = useState(() => (
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  ))
+  const [savedReviews, setSavedReviews] = useState([])
+
+  // Load this thread's persisted fidelity reviews (owner/admin, venue-/concept-scoped). The
+  // route is the source of truth on reload; a failure is non-blocking (panel stays usable).
+  const reloadDiscoveryReviews = useCallback(() => {
+    return apiGet(`/api/discovery-reviews?concept_ref=${encodeURIComponent(conceptRef)}`)
+      .then(res => setSavedReviews(Array.isArray(res?.reviews) ? res.reviews : []))
+      .catch(err => {
+        if (import.meta?.env?.DEV) console.error('[OwnerAIHome] GET /api/discovery-reviews failed:', err)
+      })
+  }, [conceptRef])
+
+  useEffect(() => { reloadDiscoveryReviews() }, [reloadDiscoveryReviews])
+
+  // Map saved reviews by their conversation_ref (message-index : candidate-index) so each card
+  // can reconstruct its persisted state.
+  const savedByConvRef = useMemo(() => {
+    const m = {}
+    for (const r of savedReviews) { if (r && r.conversation_ref) m[r.conversation_ref] = r }
+    return m
+  }, [savedReviews])
+
   const loadCompleteness = useCallback((withSpinner) => {
     if (withSpinner) { setCLoading(true); setCError(null) }
     return apiGet('/api/venue-intelligence/completeness')
@@ -320,7 +353,15 @@ export default function OwnerAIHome({ currentUser, venueIntelligence } = {}) {
               return (
                 <div key={i} className="space-y-2">
                   <MessageBubble role={isModel ? 'model' : 'user'} content={m.content} />
-                  {review && <CandidateReviewPanel candidates={review.candidates} />}
+                  {review && (
+                    <CandidateReviewPanel
+                      candidates={review.candidates}
+                      conceptRef={conceptRef}
+                      messageIndex={i}
+                      savedByConvRef={savedByConvRef}
+                      onSaved={reloadDiscoveryReviews}
+                    />
+                  )}
                 </div>
               )
             })}

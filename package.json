@@ -25,7 +25,9 @@
     "test:venue-intelligence-message-audit": "node scripts/test-venue-intelligence-message-route-audit.js",
     "test:venue-intelligence-chat-quality": "node scripts/test-venue-intelligence-chat-quality.js",
     "test:owner-correction-loop-format": "node scripts/test-owner-correction-loop-format.js",
-    "test:candidate-signal-parser": "node scripts/test-candidate-signal-parser.js"
+    "test:candidate-signal-parser": "node scripts/test-candidate-signal-parser.js",
+    "test:discovery-review-persistence": "node scripts/test-discovery-candidate-review-persistence.js",
+    "test:discovery-review-route-audit": "node scripts/test-discovery-review-route-audit.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",

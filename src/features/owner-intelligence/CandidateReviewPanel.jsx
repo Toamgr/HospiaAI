@@ -5,10 +5,12 @@
 // reject, hold, or re-route a candidate — with restraint and total honesty.
 //
 // CRITICAL PRODUCT DOCTRINE — fidelity, not identity:
-//   • Accepting a candidate means "HESTIA captured what I meant," NOT "this is confirmed
-//     Venue DNA." No control here confirms identity, promotes to DNA, or writes anything.
-//   • All actions are LOCAL ONLY — component useState, reversible, refresh-discarded. There
-//     is no network call, no persistence, no Venue DNA mutation anywhere in this file.
+//   • Saving a candidate means "HESTIA captured what I meant," NOT "this is confirmed Venue
+//     DNA." No control here confirms identity, promotes to DNA, or writes any DNA store.
+//   • Choices are now PERSISTED (Slice 1) through owner-only, venue-/concept-scoped routes
+//     into an isolated Venue Memory table with `confirmed` structurally unreachable. There is
+//     still no Venue DNA mutation anywhere in this file — it only calls the discovery-review
+//     routes (GET load via the host, PUT save).
 //   • Confidence may only be lowered, never raised — raising it would be a fabricated
 //     evidence claim. Evidence is one conversation; the way to strengthen a signal is more
 //     conversation, not a click.
@@ -16,6 +18,7 @@
 // Palette B (Editorial Light) — matches the host OwnerAIHome surface (never mix palettes).
 
 import { useState } from 'react'
+import { apiPut } from '../../services/api/client'
 
 // ── Palette B — Editorial Light tokens (mirrors OwnerAIHome) ───────────────────
 const C = {
@@ -30,10 +33,12 @@ const C = {
   text3:     '#9A9088',
 }
 
+// Mandatory, non-removable honesty framing — UNCHANGED.
 const FRAMING_LINE =
   'Captured, not confirmed. These are candidate signals from this conversation, not approved Venue DNA.'
+// Flipped for Slice 1 — choices now persist (still never confirmed Venue DNA).
 const LOCAL_NOTE =
-  'Review choices are local in this first version and are not saved yet.'
+  'Saved as captured, not confirmed.'
 
 // Foundation-first destination ordering (taxonomy posture); unrouted candidates land last.
 const DESTINATION_ORDER = ['Venue DNA', 'Venue Memory', 'Bar Intelligence', 'Service', 'Academy', 'Events', 'F&B']
@@ -44,12 +49,28 @@ const CONFIDENCE_RANK = { high: 3, medium: 2, low: 1 }
 const CONFIDENCE_TOOLTIP =
   'Confidence is evidence coverage from this conversation — not certainty, and not confirmation.'
 
-// Restrained, explicitly-local action labels (no "Approved", no "Confirmed", no success green).
+// Restrained action labels (no "Approved", no "Confirmed", no success green).
 const ACTION_LABEL = {
   captured: 'Captured as meant',
-  edited:   'Edited locally',
+  edited:   'Edited',
   held:     'Held',
-  rejected: 'Rejected locally',
+  rejected: 'Rejected',
+}
+
+// Client-minted UUID (per candidate-review id). Stable upsert key the server upserts on.
+function mintUuid() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+  })
+}
+
+function formatDate(value) {
+  if (!value) return null
+  const d = new Date(typeof value === 'string' && value.includes(' ') ? value.replace(' ', 'T') + 'Z' : value)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 function Eyebrow({ children }) {
@@ -81,8 +102,8 @@ function ConfidenceBand({ band }) {
   )
 }
 
-// A small, explicitly-local status tag. Tone is neutral — never celebratory.
-function LocalTag({ kind, rerouted }) {
+// A small status tag. Tone is neutral — never celebratory. Reflects the SAVED state.
+function SavedTag({ kind, rerouted, saving }) {
   const label = ACTION_LABEL[kind]
   if (!label && !rerouted) return null
   const tone =
@@ -104,19 +125,22 @@ function LocalTag({ kind, rerouted }) {
           className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em]"
           style={{ border: `1px solid ${C.borderEmp}`, color: C.text2, background: C.inset }}
         >
-          Re-routed locally
+          Re-routed
         </span>
       )}
-      <span className="text-[10px]" style={{ color: C.text3 }}>· local, unsaved</span>
+      <span className="text-[10px]" style={{ color: C.text3 }}>
+        {saving ? '· saving…' : '· saved, not confirmed'}
+      </span>
     </span>
   )
 }
 
-function GhostButton({ onClick, children, emphasis }) {
+function GhostButton({ onClick, children, emphasis, disabled }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className="rounded-full px-3 py-1 text-[11px] font-medium transition disabled:opacity-40"
       style={{
         border: `1px solid ${emphasis ? C.burgundy : C.borderSub}`,
@@ -129,30 +153,85 @@ function GhostButton({ onClick, children, emphasis }) {
   )
 }
 
-function CandidateCard({ candidate }) {
-  // All review state is component-local and reversible. Nothing here is persisted.
-  const [action, setAction] = useState(null) // null | captured | edited | held | rejected
-  const [chosenDestination, setChosenDestination] = useState(candidate.suggestedDestination || '')
-  const [editedSignal, setEditedSignal] = useState(null)
-  const [editedEvidence, setEditedEvidence] = useState(null)
-  const [editedConfidence, setEditedConfidence] = useState(null)
+function CandidateCard({ candidate, conceptRef, conversationRef, saved, onSaved }) {
+  // Stable upsert key: adopt the saved row's id if one exists, else mint one once.
+  const [reviewId] = useState(() => (saved && saved.id) || mintUuid())
+
+  // Review state — seeded from the persisted row when present (route is source of truth).
+  const [action, setAction] = useState((saved && saved.review_action) || null)
+  const [chosenDestination, setChosenDestination] = useState(
+    (saved && saved.chosen_destination) || candidate.suggestedDestination || '',
+  )
+  const ownerEdit = saved && saved.owner_edit
+  const [editedSignal, setEditedSignal] = useState((ownerEdit && ownerEdit.signal) ?? null)
+  const [editedEvidence, setEditedEvidence] = useState((ownerEdit && ownerEdit.evidence) ?? null)
+  const [editedConfidence, setEditedConfidence] = useState((ownerEdit && ownerEdit.confidence_band) ?? null)
 
   const [editing, setEditing] = useState(false)
   const [draftSignal, setDraftSignal] = useState(candidate.signal || '')
   const [draftEvidence, setDraftEvidence] = useState(candidate.evidence || '')
   const [draftConfidence, setDraftConfidence] = useState(candidate.confidence || '')
+  const [changing, setChanging] = useState(false)
+
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
 
   const signal = editedSignal ?? candidate.signal
   const evidence = editedEvidence ?? candidate.evidence
   const confidence = editedConfidence ?? candidate.confidence
-  const provenance = action === 'edited' ? 'owner_edit' : candidate.provenance
+  const provenance = action === 'edited' ? 'owner_edit' : 'owner_conversation'
   const rerouted = Boolean(candidate.suggestedDestination) && chosenDestination !== candidate.suggestedDestination
   const isRejected = action === 'rejected'
 
-  // Confidence may only stay the same or be LOWERED — never raised. Options are capped at
-  // the original band; an uncaptured band offers nothing to raise from.
+  // Snapshot drift honesty: the saved snapshot is authoritative. When the source candidate no
+  // longer matches the snapshot as reviewed, surface an honest dangle note — never re-sync.
+  const reviewedDate = formatDate((saved && (saved.snapshot_taken_at || saved.reviewed_at)) || null)
+  const drifted = Boolean(saved && saved.snapshot_signal && candidate.signal && saved.snapshot_signal !== candidate.signal)
+
+  // Confidence may only stay the same or be LOWERED — never raised. Options are capped at the
+  // original band; an uncaptured band offers nothing to raise from.
   const originalRank = CONFIDENCE_RANK[candidate.confidence] || 0
   const allowedConfidence = CONFIDENCE_ORDER.filter((b) => CONFIDENCE_RANK[b] <= (originalRank || 0))
+
+  // The immutable snapshot sent on every save (the server reuses the stored one on update).
+  function snapshotPayload() {
+    return {
+      signal: candidate.signal,
+      evidence: candidate.evidence,
+      confidence_band: candidate.confidence,
+      dna_status_label: candidate.status,
+      suggested_destination: candidate.suggestedDestination,
+    }
+  }
+
+  // Persist a fidelity-review action through the owner-only PUT route. Optimistic local update;
+  // the route is source of truth on reload. owner_edit overlay is sent ONLY for 'edited'.
+  async function persist(nextAction, overrides = {}) {
+    const nextDestination = overrides.destination !== undefined ? overrides.destination : chosenDestination
+    const ownerEditPayload = nextAction === 'edited'
+      ? (overrides.owner_edit !== undefined ? overrides.owner_edit : null)
+      : null
+
+    setAction(nextAction)
+    setChanging(false)
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await apiPut(`/api/discovery-reviews/${reviewId}`, {
+        concept_ref: conceptRef,
+        review_action: nextAction,
+        chosen_destination: nextDestination || null,
+        owner_edit: ownerEditPayload,
+        candidate_snapshot: snapshotPayload(),
+        conversation_ref: conversationRef,
+      })
+      if (typeof onSaved === 'function') onSaved()
+    } catch (e) {
+      setSaveError((e && e.message) || 'Could not save — your choice was not stored.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   function openEdit() {
     setDraftSignal(signal || '')
@@ -161,19 +240,29 @@ function CandidateCard({ candidate }) {
     setEditing(true)
   }
   function saveEdit() {
-    setEditedSignal(draftSignal.trim() || candidate.signal)
-    setEditedEvidence(draftEvidence.trim() || candidate.evidence)
+    const nextSignal = draftSignal.trim() || candidate.signal
+    const nextEvidence = draftEvidence.trim() || candidate.evidence
     // Guard: never let the draft raise confidence above the original band.
     const safeConfidence = (CONFIDENCE_RANK[draftConfidence] || 0) <= (originalRank || 0)
       ? (draftConfidence || null)
       : candidate.confidence
+    setEditedSignal(nextSignal)
+    setEditedEvidence(nextEvidence)
     setEditedConfidence(safeConfidence)
-    setAction('edited')
     setEditing(false)
+    // Build the overlay from ONLY the fields the owner actually changed (kept separate from
+    // the snapshot; confidence in the overlay can only lower).
+    const overlay = {}
+    if (nextSignal && nextSignal !== candidate.signal) overlay.signal = nextSignal
+    if (nextEvidence && nextEvidence !== candidate.evidence) overlay.evidence = nextEvidence
+    if (safeConfidence && safeConfidence !== candidate.confidence) overlay.confidence_band = safeConfidence
+    persist('edited', { owner_edit: Object.keys(overlay).length ? overlay : { signal: nextSignal } })
   }
-  function resetReview() {
-    setAction(null)
-    setEditing(false)
+
+  function onDestinationChange(value) {
+    setChosenDestination(value)
+    // If already reviewed, persist the re-route immediately (keeps the saved row in sync).
+    if (action) persist(action, { destination: value })
   }
 
   return (
@@ -191,8 +280,16 @@ function CandidateCard({ candidate }) {
         <p className="font-serif text-[15px] font-semibold leading-snug" style={{ color: C.text }}>
           {signal}
         </p>
-        <LocalTag kind={action} rerouted={rerouted} />
+        <SavedTag kind={action} rerouted={rerouted} saving={saving} />
       </div>
+
+      {/* Snapshot drift honesty — never silently re-synced from the conversation */}
+      {drifted && (
+        <p className="mt-2 text-[11px] italic leading-relaxed" style={{ color: C.text3 }}>
+          The source conversation is no longer available; this is the snapshot as you reviewed it
+          {reviewedDate ? ` on ${reviewedDate}` : ''}.
+        </p>
+      )}
 
       {/* Evidence — verbatim; honest when not captured */}
       <div className="mt-2.5">
@@ -202,7 +299,7 @@ function CandidateCard({ candidate }) {
         </p>
       </div>
 
-      {/* Confidence · Status · Destination · Provenance */}
+      {/* Confidence · Status · Provenance */}
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
         <div>
           <Eyebrow>Confidence</Eyebrow>
@@ -220,13 +317,13 @@ function CandidateCard({ candidate }) {
         </div>
       </div>
 
-      {/* Re-route control — local only */}
+      {/* Re-route control — persists when a review action is already set */}
       <div className="mt-3">
         <Eyebrow>Suggested destination</Eyebrow>
         <div className="mt-1 flex items-center gap-2">
           <select
             value={chosenDestination}
-            onChange={(e) => setChosenDestination(e.target.value)}
+            onChange={(e) => onDestinationChange(e.target.value)}
             className="rounded-lg px-2.5 py-1 text-[12px] outline-none"
             style={{ border: `1px solid ${C.borderSub}`, background: C.inset, color: C.text }}
           >
@@ -238,7 +335,7 @@ function CandidateCard({ candidate }) {
           {rerouted && (
             <button
               type="button"
-              onClick={() => setChosenDestination(candidate.suggestedDestination || '')}
+              onClick={() => onDestinationChange(candidate.suggestedDestination || '')}
               className="text-[11px] underline"
               style={{ color: C.text3 }}
             >
@@ -285,48 +382,56 @@ function CandidateCard({ candidate }) {
             <span className="text-[10px]" style={{ color: C.text3 }}>can only be lowered</span>
           </div>
           <div className="mt-2.5 flex items-center gap-2">
-            <GhostButton onClick={saveEdit} emphasis>Save revision</GhostButton>
+            <GhostButton onClick={saveEdit} emphasis disabled={saving}>Save revision</GhostButton>
             <GhostButton onClick={() => setEditing(false)}>Never mind</GhostButton>
           </div>
         </div>
       )}
 
-      {/* Action row — all local, all reversible */}
+      {/* Action row — persisted, reversible by re-saving a different action */}
       {!editing && (
         <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t pt-3" style={{ borderColor: C.borderSub }}>
-          {action ? (
+          {action && !changing ? (
             <>
               <span className="text-[11px]" style={{ color: C.text3 }}>
-                Marked locally. Nothing has been saved or confirmed.
+                Saved as captured, not confirmed. Nothing here became Venue DNA.
               </span>
-              <GhostButton onClick={resetReview}>Undo</GhostButton>
+              <GhostButton onClick={() => setChanging(true)} disabled={saving}>Change</GhostButton>
             </>
           ) : (
             <>
-              <GhostButton onClick={() => setAction('captured')} emphasis>Mark as captured</GhostButton>
-              <GhostButton onClick={openEdit}>Revise</GhostButton>
-              <GhostButton onClick={() => setAction('held')}>Hold — too early</GhostButton>
-              <GhostButton onClick={() => setAction('rejected')}>Reject</GhostButton>
+              <GhostButton onClick={() => persist('captured')} emphasis disabled={saving}>Mark as captured</GhostButton>
+              <GhostButton onClick={openEdit} disabled={saving}>Revise</GhostButton>
+              <GhostButton onClick={() => persist('held')} disabled={saving}>Hold — too early</GhostButton>
+              <GhostButton onClick={() => persist('rejected')} disabled={saving}>Reject</GhostButton>
             </>
           )}
         </div>
+      )}
+
+      {saveError && (
+        <p className="mt-2 text-[11px]" style={{ color: C.burgundy }}>{saveError}</p>
       )}
     </div>
   )
 }
 
-export default function CandidateReviewPanel({ candidates } = {}) {
+export default function CandidateReviewPanel({ candidates, conceptRef, messageIndex = 0, savedByConvRef = {}, onSaved } = {}) {
   const list = Array.isArray(candidates) ? candidates.filter((c) => c && c.signal) : []
   if (list.length === 0) return null
+
+  // Assign each candidate a STABLE index (position in the original list) before grouping, so the
+  // conversation_ref (message-index : candidate-index) is stable across the grouped layout.
+  const indexed = list.map((c, idx) => ({ c, idx }))
 
   // Group by the candidate's ORIGINAL suggested destination (stable layout); re-routes are
   // shown inline on the card rather than reflowing groups mid-review.
   const groups = []
   const byDest = new Map()
-  for (const c of list) {
-    const key = c.suggestedDestination || '__unrouted__'
+  for (const item of indexed) {
+    const key = item.c.suggestedDestination || '__unrouted__'
     if (!byDest.has(key)) { byDest.set(key, []); groups.push(key) }
-    byDest.get(key).push(c)
+    byDest.get(key).push(item)
   }
   const orderedKeys = [
     ...DESTINATION_ORDER.filter((d) => byDest.has(d)),
@@ -350,7 +455,7 @@ export default function CandidateReviewPanel({ candidates } = {}) {
           const cards = byDest.get(key)
           // Within a group, order by confidence coverage descending.
           const sorted = [...cards].sort(
-            (a, b) => (CONFIDENCE_RANK[b.confidence] || 0) - (CONFIDENCE_RANK[a.confidence] || 0),
+            (a, b) => (CONFIDENCE_RANK[b.c.confidence] || 0) - (CONFIDENCE_RANK[a.c.confidence] || 0),
           )
           const heading = key === '__unrouted__' ? 'No suggested destination' : key
           return (
@@ -365,9 +470,19 @@ export default function CandidateReviewPanel({ candidates } = {}) {
                 </span>
               </div>
               <div className="space-y-3">
-                {sorted.map((c, i) => (
-                  <CandidateCard key={`${key}-${i}`} candidate={c} />
-                ))}
+                {sorted.map(({ c, idx }) => {
+                  const conversationRef = `${messageIndex}:${idx}`
+                  return (
+                    <CandidateCard
+                      key={conversationRef}
+                      candidate={c}
+                      conceptRef={conceptRef}
+                      conversationRef={conversationRef}
+                      saved={savedByConvRef[conversationRef]}
+                      onSaved={onSaved}
+                    />
+                  )
+                })}
               </div>
             </div>
           )
