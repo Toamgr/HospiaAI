@@ -18,6 +18,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { apiGet } from '../../services/api/client'
+import { parseCandidateSignals } from './candidateSignalParser'
+import CandidateReviewPanel from './CandidateReviewPanel'
 
 // ── Palette B — Editorial Light tokens (from skills/user/hestia-ui-design) ──────
 const C = {
@@ -309,9 +311,19 @@ export default function OwnerAIHome({ currentUser, venueIntelligence } = {}) {
                 </div>
               </div>
             </div>
-            {messages.map((m, i) => (
-              <MessageBubble key={i} role={m.role === 'user' ? 'user' : 'model'} content={m.content} />
-            ))}
+            {messages.map((m, i) => {
+              const isModel = m.role !== 'user'
+              // Owner Correction Loop replies carry a Candidate Venue DNA signals bucket;
+              // when present, render the inline fidelity-review surface under the message.
+              // Ordinary turns parse to null and render nothing extra.
+              const review = isModel ? parseCandidateSignals(m.content) : null
+              return (
+                <div key={i} className="space-y-2">
+                  <MessageBubble role={isModel ? 'model' : 'user'} content={m.content} />
+                  {review && <CandidateReviewPanel candidates={review.candidates} />}
+                </div>
+              )
+            })}
             {sending && <TypingBubble />}
           </div>
         )}

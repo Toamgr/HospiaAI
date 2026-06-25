@@ -19,100 +19,29 @@
  * destination: Venue DNA, and an Evidence line that truthfully says the supporting
  * detail was not captured rather than inventing one).
  *
+ * The read/parse/normalize primitives now live in the shared, dependency-free module
+ * `candidateSignalFormat.js` so the client-side reader and this server-side writer can
+ * never drift apart. This file owns only the WRITER concern: detecting whether the
+ * bucket is already structured and rewriting it in place when it is not.
+ *
  * Output contract only: no DB, no persistence, no canonical Venue DNA mutation, no
  * approval flow. It rewrites the candidate bucket's free-text presentation, nothing else.
  */
 
-const VALID_CONFIDENCE = ['low', 'medium', 'high'];
-const VALID_STATUS = ['candidate only', 'needs owner confirmation', 'too early'];
-// Canonical casing for the seven destinations a candidate may be routed toward.
-const VALID_DESTINATION = ['Venue DNA', 'Venue Memory', 'Bar Intelligence', 'Service', 'Academy', 'Events', 'F&B'];
-
-const DEFAULT_CONFIDENCE = 'low';
-const DEFAULT_STATUS = 'candidate only';
-const DEFAULT_DESTINATION = 'Venue DNA';
-const DEFAULT_EVIDENCE = 'Raised in the concept conversation; specific supporting detail not yet captured.';
-
-const FIELD_LABELS = ['signal', 'evidence', 'confidence', 'status', 'suggested destination'];
-
-const CANDIDATE_HEADING_RE = /candidate venue dna signals/i;
-// Boundaries that close the candidate bucket: bucket 7 or the protect/never-become block.
-const SECTION_END_RE = /(not ready for venue dna yet|what the venue must (protect|never become))/i;
-const BULLET_RE = /^\s*(?:[-*•]|\d+[).])\s+/;
-
-function escapeRegExp(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// Pull the value for a single labelled field out of one candidate's raw text. The
-// value runs until the next known field label or end of text. Returns null when the
-// label is absent. Never fabricates — only reads what the model wrote.
-function readField(raw, label) {
-  const others = FIELD_LABELS.filter((l) => l !== label).map(escapeRegExp);
-  const re = new RegExp(
-    `\\b${escapeRegExp(label)}\\s*:\\s*([\\s\\S]*?)(?=\\s*(?:${others.join('|')})\\s*:|$)`,
-    'i',
-  );
-  const m = raw.match(re);
-  if (!m) return null;
-  const value = m[1].replace(/^[\s\-–—]+/, '').replace(/[\s;,]+$/, '').trim();
-  return value || null;
-}
-
-function normalizeConfidence(value) {
-  if (!value) return null;
-  const hit = VALID_CONFIDENCE.find((c) => new RegExp(`\\b${c}\\b`, 'i').test(value));
-  return hit || null;
-}
-
-function normalizeStatus(value) {
-  if (!value) return null;
-  const lower = value.toLowerCase();
-  const hit = VALID_STATUS.find((s) => lower.includes(s));
-  return hit || null;
-}
-
-function normalizeDestination(value) {
-  if (!value) return null;
-  const lower = value.toLowerCase();
-  // Longest match first so "Venue Memory" is not shadowed by "Venue DNA" etc.
-  const ordered = [...VALID_DESTINATION].sort((a, b) => b.length - a.length);
-  const hit = ordered.find((d) => lower.includes(d.toLowerCase()));
-  return hit || null;
-}
-
-// Locate the candidate bucket inside an Owner Correction Loop reply. Returns the line
-// indices and the raw candidate-entry blocks, or null when the bucket is absent.
-function locateCandidateSection(reply) {
-  const lines = String(reply || '').split('\n');
-  const headingIdx = lines.findIndex((l) => CANDIDATE_HEADING_RE.test(l));
-  if (headingIdx === -1) return null;
-
-  let endIdx = lines.length;
-  for (let i = headingIdx + 1; i < lines.length; i++) {
-    if (SECTION_END_RE.test(lines[i])) { endIdx = i; break; }
-  }
-
-  // Capture any inline content after the heading colon, plus the body lines, grouping
-  // continuation lines under the bullet that started them.
-  const entries = [];
-  const headingRemainder = lines[headingIdx].replace(/^.*candidate venue dna signals\s*:?/i, '').trim();
-  if (headingRemainder) entries.push(headingRemainder);
-
-  for (let i = headingIdx + 1; i < endIdx; i++) {
-    const line = lines[i];
-    if (!line.trim()) continue;
-    if (BULLET_RE.test(line)) {
-      entries.push(line.replace(BULLET_RE, '').trim());
-    } else if (entries.length > 0) {
-      entries[entries.length - 1] += ` ${line.trim()}`;
-    } else {
-      entries.push(line.trim());
-    }
-  }
-
-  return { lines, headingIdx, endIdx, entries };
-}
+import {
+  VALID_CONFIDENCE,
+  VALID_STATUS,
+  VALID_DESTINATION,
+  DEFAULT_CONFIDENCE,
+  DEFAULT_STATUS,
+  DEFAULT_DESTINATION,
+  DEFAULT_EVIDENCE,
+  readField,
+  normalizeCandidateConfidence,
+  normalizeCandidateStatus,
+  normalizeSuggestedDestination,
+  locateCandidateSection,
+} from './candidateSignalFormat.js';
 
 // True only when the candidate bucket exists, has at least one entry, and EVERY entry
 // already carries all five fields with valid Confidence/Status/Destination values.
@@ -122,9 +51,9 @@ export function candidateSignalsAreStructured(reply) {
   return section.entries.every((raw) => {
     const signal = readField(raw, 'signal');
     const evidence = readField(raw, 'evidence');
-    const confidence = normalizeConfidence(readField(raw, 'confidence'));
-    const status = normalizeStatus(readField(raw, 'status'));
-    const destination = normalizeDestination(readField(raw, 'suggested destination'));
+    const confidence = normalizeCandidateConfidence(readField(raw, 'confidence'));
+    const status = normalizeCandidateStatus(readField(raw, 'status'));
+    const destination = normalizeSuggestedDestination(readField(raw, 'suggested destination'));
     return Boolean(signal && evidence && confidence && status && destination);
   });
 }
@@ -138,9 +67,9 @@ function rebuildEntry(raw) {
     .replace(/[;.\s]+$/, '')
     .trim();
   const evidence = readField(raw, 'evidence') || DEFAULT_EVIDENCE;
-  const confidence = normalizeConfidence(readField(raw, 'confidence')) || DEFAULT_CONFIDENCE;
-  const status = normalizeStatus(readField(raw, 'status')) || DEFAULT_STATUS;
-  const destination = normalizeDestination(readField(raw, 'suggested destination')) || DEFAULT_DESTINATION;
+  const confidence = normalizeCandidateConfidence(readField(raw, 'confidence')) || DEFAULT_CONFIDENCE;
+  const status = normalizeCandidateStatus(readField(raw, 'status')) || DEFAULT_STATUS;
+  const destination = normalizeSuggestedDestination(readField(raw, 'suggested destination')) || DEFAULT_DESTINATION;
   return `- Signal: ${signal}; Evidence: ${evidence}; Confidence: ${confidence}; Status: ${status}; Suggested destination: ${destination}`;
 }
 
@@ -164,9 +93,11 @@ export function ensureStructuredCandidateSignals(reply) {
 
 export const __testing = {
   readField,
-  normalizeConfidence,
-  normalizeStatus,
-  normalizeDestination,
+  // Preserve the historical __testing names used by the existing test suite; these are
+  // the same primitives, now sourced from the shared module.
+  normalizeConfidence: normalizeCandidateConfidence,
+  normalizeStatus: normalizeCandidateStatus,
+  normalizeDestination: normalizeSuggestedDestination,
   locateCandidateSection,
   rebuildEntry,
   VALID_CONFIDENCE,
