@@ -319,7 +319,7 @@ See §3.19 for the enumerated cases. Summary: a new in-memory service test (idem
 
 ## 9. Risks
 
-1. **`concept_ref` lifecycle (the realest open question).** There is no durable discovery-thread id today; the build must mint and carry one client-side, surviving (or honestly not surviving) refresh. Mis-handling could orphan saves or mint duplicates. Mitigation: §3.4 — saved rows are always readable by their stored `concept_ref`; a reloaded ephemeral thread minting a new ref is lossless for already-saved records. **Confirm the exact client store before building.**
+1. **`concept_ref` lifecycle — RESOLVED (§13 addendum).** Formerly the one open caveat; now a settled decision: client-side per-thread UUID, held in component/session state, not persisted before an explicit save, no `localStorage` in the first build, no concept registry. Saved rows remain readable by their stored `concept_ref`; a pre-save refresh may mint a new ref, which is lossless because unsaved choices are already ephemeral. See §13 for the full ruleset and server-side validation requirements.
 2. **Scope creep into confirmation.** The standing risk of the whole program: a "save" that quietly becomes a "confirm." Mitigated structurally by vocabulary (§3.9) and no `confirmation_ref` (§3.20.2), not by vigilance.
 3. **Earmark leakage.** A `'Venue DNA'` route that silently merges into the live venue. Mitigated by `record_space`/`concept_ref` subject separation and the absence of any DNA target (§3.20.4).
 4. **Audit-first/no-transaction subtlety.** A future maintainer enabling `PRAGMA foreign_keys = ON` or reordering writes would break audit-first. Mitigated by §3.16 + an explicit code comment requirement and a test asserting the orphan-audit case.
@@ -345,7 +345,7 @@ See §3.19 for the enumerated cases. Summary: a new in-memory service test (idem
 
 ## 11. Readiness for an actual implementation prompt
 
-**Ready, with one item to confirm first.** Every settled constraint (data model, two-table split, audit-first, idempotency, no-transaction handling, snapshot drift, scoping triple-key, no `confirmation_ref`, role posture, vocabulary) is pinned and grounded in shipped precedent (`fnbVenueFeedbackService.js`, the candidate review route). The **one** thing a builder should resolve before the first line of code is **Risk #1 — the `concept_ref` client lifecycle** (where it lives, refresh behavior). It does not change any schema or boundary decision in this doc; it only determines a client-state wiring detail. Everything else is buildable as specified.
+**Ready — no remaining caveats.** Every settled constraint (data model, two-table split, audit-first, idempotency, no-transaction handling, snapshot drift, scoping triple-key, no `confirmation_ref`, role posture, vocabulary) is pinned and grounded in shipped precedent (`fnbVenueFeedbackService.js`, the candidate review route). The previously-open item — the `concept_ref` client lifecycle — is now **closed by the §13 addendum** (client-minted per-thread UUID, component/session state only, not persisted before save, no `localStorage`, no registry; server requires and validates it, hard-codes `record_space`, never substitutes `venue_id`). The whole slice is buildable as specified.
 
 ---
 
@@ -356,6 +356,39 @@ See §3.19 for the enumerated cases. Summary: a new in-memory service test (idem
 - No `mergeVenueDna`; no write to any canonical Venue DNA store; no mutation of any live venue's DNA.
 - No `confirmed` status, no 9D flow, no corroboration engine, no promotion, no second writer.
 - No change to existing runtime behavior of any kind; the inline panel, the loop output contract, and the parser are untouched.
+
+---
+
+## 13. Addendum — `concept_ref` client lifecycle (DECISION, design-only)
+
+> Added 2026-06-25. This closes the one remaining caveat from §11 (Risk #1). It is a **decision**, not an implementation. Docs-only: no code, DB, routes, persistence, UI, or Venue DNA contact.
+
+### 13.1 Decision
+For the first persistence slice, **`concept_ref` is minted client-side, once per New Venue Discovery / candidate-review thread, as a UUID.** It is the logical identity of the *draft/concept thread* — nothing more.
+
+### 13.2 Rules (binding)
+- `concept_ref` identifies the **draft/concept thread, not the live venue**.
+- `venue_id` remains **only** the access/security boundary (§3.6).
+- `record_space` remains **hard-coded `concept_draft` server-side** (§3.5).
+- `concept_ref` must **not** be derived from `venue_id`.
+- `concept_ref` must **not** be derived from message index.
+- `concept_ref` must **not** be derived from message text.
+- `concept_ref` must **not** imply confirmed Venue DNA.
+- **A refresh before saving may mint a new `concept_ref`. That is acceptable for the MVP** because unsaved local review choices are already ephemeral — nothing durable is orphaned.
+- **Once a fidelity review is saved (future slice), the saved row's `concept_ref` becomes the stable readback identifier** for that saved review.
+- **Do not use `localStorage` in the first build** unless separately approved.
+- **Do not persist `concept_ref` before the owner explicitly saves a fidelity review.** No mint = no write; minting is free and durable only at save time.
+- **Do not create any concept registry/table in this slice.** `concept_ref` is an opaque token scoped under `venue_id`, not a row in a new table.
+
+### 13.3 Implementation guidance (for the future slice — still design-only)
+- The client may keep `concept_ref` in **component/session state** for the current `OwnerAIHome` discovery thread (e.g. minted on first candidate-review render of the thread, carried in React state for that thread's lifetime).
+- The future save route **must require `concept_ref` in the request body**.
+- The server **must validate `concept_ref` shape** (non-empty, UUID-shaped) and **never silently substitute `venue_id`** for it — a missing/malformed `concept_ref` is an error, not a fallback.
+- The server **must hard-code `record_space = 'concept_draft'`** on write (never accept it from the client — §3.5).
+- The server **must reject persistence if `concept_ref` is missing or malformed** (400; no write, no audit row).
+
+### 13.4 Why this is safe
+`concept_ref` carries no venue identity and no confirmation semantics — it cannot leak a concept into a live venue's DNA (the subject is the concept, the boundary is `venue_id`, the space is `concept_draft`; §3.5–§3.6). Minting only at save time, with no pre-save persistence and no registry, means the surface adds **zero** durable state until the owner explicitly acts, and adds **no** new identity store. This fully resolves Risk #1 without touching any boundary or schema decision elsewhere in this scope.
 
 ---
 
