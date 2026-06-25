@@ -27,7 +27,8 @@
     "test:owner-correction-loop-format": "node scripts/test-owner-correction-loop-format.js",
     "test:candidate-signal-parser": "node scripts/test-candidate-signal-parser.js",
     "test:discovery-review-persistence": "node scripts/test-discovery-candidate-review-persistence.js",
-    "test:discovery-review-route-audit": "node scripts/test-discovery-review-route-audit.js"
+    "test:discovery-review-route-audit": "node scripts/test-discovery-review-route-audit.js",
+    "test:discovery-review-route-behavior": "node scripts/test-discovery-review-route-behavior.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",

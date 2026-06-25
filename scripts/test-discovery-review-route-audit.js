@@ -57,6 +57,27 @@ const region = endIdx > startIdx ? src.slice(startIdx, endIdx) : src.slice(start
 ok((region.match(/req\.venueId/g) || []).length >= 3, '[scoping] every route is venue-scoped via req.venueId')
 ok(!/defaultVenueId\(/.test(region), '[scoping] no defaultVenueId() in any handler')
 
+// ── Admin is READ-ONLY for fidelity writes (explicit in-handler block) ──────────
+// Isolate the PUT handler body so we can prove the admin guard precedes the SOLE writer
+// (upsertDiscoveryReview). Because that function is the only thing that inserts audit/review
+// rows, a 403 return BEFORE it guarantees an admin PUT creates ZERO audit and ZERO review rows.
+const putIdx = src.indexOf("app.put('/api/discovery-reviews/:reviewId'")
+const putAfter = src.slice(putIdx + 1)
+const putNextRel = putAfter.search(/app\.(get|post|put|patch|delete)\(/)
+const putHandler = putNextRel === -1 ? src.slice(putIdx) : src.slice(putIdx, putIdx + 1 + putNextRel)
+
+const adminGuardIdx = putHandler.search(/req\.user\s*&&\s*req\.user\.role\s*===\s*['"]admin['"]/)
+ok(adminGuardIdx !== -1, "[PUT admin] handler has an explicit req.user.role === 'admin' block")
+const adminGuardReturns403 = /role\s*===\s*['"]admin['"]\s*\)\s*\{\s*return\s+res\.status\(403\)/.test(putHandler.replace(/\n/g, ' '))
+ok(adminGuardReturns403, '[PUT admin] admin block returns 403')
+const writerIdx = putHandler.indexOf('upsertDiscoveryReview(')
+ok(writerIdx !== -1, '[PUT admin] handler calls upsertDiscoveryReview (the sole writer)')
+ok(adminGuardIdx !== -1 && writerIdx !== -1 && adminGuardIdx < writerIdx,
+  '[PUT admin] 403 admin block precedes upsertDiscoveryReview → zero audit + zero review rows on admin write')
+// Read access for admin is preserved on the GET routes (not removed by this block).
+ok(/app\.get\(\s*['"]\/api\/discovery-reviews['"]\s*,\s*requireAuth\(\s*['"]owner['"]\s*,\s*['"]admin['"]/.test(src),
+  '[PUT admin] admin retains GET (read) access — block is write-only')
+
 // ── concept_ref required; provenance/record_space server-derived ────────────────
 ok(/concept_ref/.test(region), '[PUT] concept_ref is read from the body and passed to the service (validated → 400)')
 ok(/reviewed_by:\s*\(req\.user/.test(region), '[PUT] reviewed_by derived from req.user, not the client body')

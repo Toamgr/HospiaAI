@@ -6529,6 +6529,15 @@ app.get('/api/discovery-reviews/:reviewId', requireAuth('owner', 'admin'), (req,
 // write (a non-matching id is treated as new within this venue/concept scope).
 app.put('/api/discovery-reviews/:reviewId', requireAuth('owner'), (req, res) => {
   try {
+    // Fidelity write is OWNER-ONLY by meaning: it records the OWNER asserting "HESTIA captured
+    // what I meant." A Platform Admin is never that author. requireAuth has a global admin
+    // bypass, so we MUST re-exclude admin HERE, explicitly — before normalization, before the
+    // audit insert, before any upsert — so an admin write creates ZERO audit and ZERO review
+    // rows. (This guard is scoped to THIS route only; it does not change global requireAuth or
+    // any other owner-gated route. Admin keeps read access via the GET routes above.)
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'Fidelity reviews are owner-only; admin is read-only here.' });
+    }
     const body = req.body || {};
     const review = upsertDiscoveryReview(db, req.venueId, body.concept_ref, {
       id: req.params.reviewId,
