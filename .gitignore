@@ -12,6 +12,7 @@ server.err
 server.out
 .claude/
 .agents/
+.vscode/
 skills-lock.json
 .local-artifacts/
 data/
