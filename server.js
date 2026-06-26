@@ -21,7 +21,7 @@ import { buildMenuIntelligenceSnapshot } from "./src/services/venueBridge/menuIn
 import { buildFnbDirectorBrief } from "./src/services/venueBridge/fnbDirectorBriefService.js";
 import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } from "./src/config/featureFlags.js";
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
-import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL, upsertDiscoveryReview, listDiscoveryReviewsForVenue, getDiscoveryReviewById, listConceptDraftsForVenue, getConceptDraftDetail } from "./src/services/venueIntelligence/discoveryCandidateReviewService.js";
+import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL, upsertDiscoveryReview, listDiscoveryReviewsForVenue, getDiscoveryReviewById, listConceptDraftsForVenue, getConceptDraftDetail, summarizeDiscoveryEvidenceForVenue } from "./src/services/venueIntelligence/discoveryCandidateReviewService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
 import { ensureStructuredCandidateSignals } from "./src/services/venueIntelligence/ownerCorrectionLoopFormat.js";
@@ -6597,6 +6597,24 @@ app.get('/api/discovery-concept-drafts/:conceptRef', requireAuth('owner', 'admin
       return res.status(400).json({ ok: false, error: err.message || 'Malformed concept_ref.' });
     }
     res.status(500).json({ error: err.message || 'Could not read the concept draft.' });
+  }
+});
+
+// ── New Venue Discovery — Evidence Summary (EAE Slice 1) — READ-ONLY ──────────
+// A read-only MEMORY MIRROR over the venue's saved concept_draft fidelity reviews. It derives
+// the §9 "safely derivable" observations LIVE from EXISTING discovery_candidate_reviews rows —
+// per-concept saved-review counts, action mix, destination distribution, dna_earmark counts
+// (owner attention only), and a conservative confidence FLOOR. It is NOT an evidence judge: it
+// computes no readiness, no truth score, no DNA promotion, and groups no concept_refs together.
+// There is NO writer here — no PUT/POST/PATCH/DELETE, no audit write, no DB mutation, no DNA
+// store contact, no mergeVenueDna, no confirm/promote, no new table. Memory signals only —
+// never confirmed Venue DNA. Read: owner/admin, venue-scoped, record_space='concept_draft'.
+app.get('/api/discovery-evidence-summary', requireAuth('owner', 'admin'), (req, res) => {
+  try {
+    const summary = summarizeDiscoveryEvidenceForVenue(db, req.venueId);
+    res.json({ ok: true, summary, note: 'Memory signals only — not confirmed Venue DNA.' });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Could not summarize discovery evidence.' });
   }
 });
 

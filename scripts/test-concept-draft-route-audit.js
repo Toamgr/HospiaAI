@@ -52,8 +52,17 @@ ok(listIdx !== -1 && paramIdx !== -1 && listIdx < paramIdx,
   '[ordering] static list route precedes the :conceptRef param route')
 
 // ── Isolate the concept-drafts route region ───────────────────────────────────
+// The region ends at the START of the next discovery section. Originally that was the
+// 'Venue Intelligence Bridge' header; the Evidence Summary (EAE Slice 1) section was later
+// inserted between, so terminate at whichever next-section header comes first. (Without this,
+// the next section's honest guardrail comments — which NAME mergeVenueDna/promote/DELETE to
+// declare they are unused — would bleed into this region and falsely fail the audit.)
 const startIdx = listIdx
-const endIdx = src.indexOf('Venue Intelligence Bridge', startIdx)
+const nextSectionIdxs = [
+  src.indexOf('Evidence Summary (EAE Slice 1)', startIdx),
+  src.indexOf('Venue Intelligence Bridge', startIdx),
+].filter(i => i > startIdx)
+const endIdx = nextSectionIdxs.length ? Math.min(...nextSectionIdxs) : -1
 const region = endIdx > startIdx ? src.slice(startIdx, endIdx) : src.slice(startIdx, startIdx + 4000)
 
 // ── Venue scoping ─────────────────────────────────────────────────────────────

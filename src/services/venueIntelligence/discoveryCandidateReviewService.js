@@ -554,3 +554,165 @@ export function getConceptDraftDetail(db, venueId, conceptRef) {
   const reviews = rows.map(shapeFullRow).reverse()
   return { ...summary, reviews }
 }
+
+// ── Evidence Summary (Evidence Accumulation Engine — Slice 1) — READ-ONLY ──────
+//
+// Design doc (binding): docs/architecture/NEW_VENUE_DISCOVERY_EVIDENCE_ACCUMULATION_ENGINE_DESIGN.md
+//
+// A read-only MEMORY MIRROR over a venue's saved concept_draft fidelity reviews. It derives
+// the §9 "safely derivable today" observations LIVE from existing discovery_candidate_reviews
+// rows — per-concept saved-review counts, the four-action mix, destination distribution,
+// dna_earmark counts (owner ATTENTION, never confirmation), and a conservative confidence
+// FLOOR (the lowest band present, never inflated). It is NOT an evidence judge:
+//   - it computes NO readiness score, NO truth score, NO DNA-readiness;
+//   - it performs NO semantic clustering and does NOT group different concept_refs as the
+//     "same attribute" (independence/cross-concept identity is human-asserted only — §6);
+//   - it NEVER raises confidence from repetition (floor-only — §5.7);
+//   - it WRITES NOTHING: no review row, no audit row, no DNA store, no mergeVenueDna.
+// Memory signals only — never confirmed Venue DNA.
+
+// The honest limitations carried verbatim on every summary (§9 / §12). The phrase
+// "not confirmed Venue DNA" is the project's existing guardrail framing — it states a
+// negative, it never creates a confirmed state.
+export const EVIDENCE_SUMMARY_LIMITATIONS = Object.freeze([
+  'Memory signals only — not confirmed Venue DNA.',
+  'This summary does not prove venue identity.',
+  'Counts reflect saved reviews, not independent corroboration.',
+  'Cross-concept semantic repetition is not inferred here.',
+])
+
+export const EVIDENCE_SUMMARY_LABEL = 'Evidence Summary — Memory Signals Only'
+
+// A fresh zeroed action-mix over the four known fidelity actions (nothing fabricated).
+function emptyActionMix() {
+  const mix = {}
+  for (const a of REVIEW_ACTIONS) mix[a] = 0
+  return mix
+}
+
+// The LOWEST confidence band present in a set of snapshot bands — a FLOOR, never inflated,
+// never upgraded by repetition. Returns null when no band is present (never fabricates 'low').
+function confidenceFloorOf(bands) {
+  let floor = null
+  let floorRank = Infinity
+  for (const b of bands) {
+    const rank = CONFIDENCE_RANK[b]
+    if (rank && rank < floorRank) { floorRank = rank; floor = b }
+  }
+  return floor
+}
+
+/**
+ * Summarize a venue's concept_draft evidence (saved fidelity reviews) into a humble,
+ * memory-only mirror. READ-ONLY. Venue-scoped (the access boundary) and filtered to
+ * record_space = 'concept_draft' (rows outside that space — e.g. any future 'live_venue'
+ * row — are NEVER read here). Creates zero rows, appends zero audit events, touches no
+ * Venue DNA store. An empty/unknown venue returns the base shape with zero counts and the
+ * honest limitations — `ok` at the route, never an error.
+ *
+ * @returns {{
+ *   scope: 'concept_draft', label: string, memory_only: true,
+ *   totals: { saved_reviews, concept_refs, dna_earmarks },
+ *   action_mix: object, destinations: array, concepts: array,
+ *   confidence_floor?: 'low'|'medium'|'high', limitations: string[]
+ * }}
+ */
+export function summarizeDiscoveryEvidenceForVenue(db, venueId) {
+  const base = {
+    scope: RECORD_SPACE,
+    label: EVIDENCE_SUMMARY_LABEL,
+    memory_only: true,
+    totals: { saved_reviews: 0, concept_refs: 0, dna_earmarks: 0 },
+    action_mix: emptyActionMix(),
+    destinations: [],
+    concepts: [],
+    limitations: EVIDENCE_SUMMARY_LIMITATIONS,
+  }
+  if (!isNonEmptyString(venueId)) return base
+
+  const rows = db.prepare(
+    `SELECT concept_ref, review_action, chosen_destination, dna_earmarked,
+            candidate_snapshot_json, created_at, reviewed_at, updated_at
+     FROM discovery_candidate_reviews
+     WHERE venue_id = ? AND record_space = 'concept_draft'
+     ORDER BY created_at ASC, rowid ASC`
+  ).all(venueId)
+  if (rows.length === 0) return base
+
+  const byConcept = new Map()
+  const destMap = new Map()
+  const overallBands = []
+
+  for (const r of rows) {
+    if (!isNonEmptyString(r.concept_ref)) continue
+    base.totals.saved_reviews += 1
+
+    const isEarmarked = r.dna_earmarked === 1 || r.dna_earmarked === true
+    if (isEarmarked) base.totals.dna_earmarks += 1
+    if (REVIEW_ACTIONS.includes(r.review_action)) base.action_mix[r.review_action] += 1
+
+    const snap = parseJson(r.candidate_snapshot_json)
+    const band = snap && CONFIDENCE_BANDS.includes(snap.confidence_band) ? snap.confidence_band : null
+    if (band) overallBands.push(band)
+
+    // Destination distribution. A null/blank route groups under 'Unrouted' (no fabrication).
+    // dna_earmarked on a destination is the inert owner-attention boolean, never confirmation.
+    const destKey = isNonEmptyString(r.chosen_destination) ? r.chosen_destination : 'Unrouted'
+    let d = destMap.get(destKey)
+    if (!d) { d = { destination: destKey, count: 0, dna_earmarked: false }; destMap.set(destKey, d) }
+    d.count += 1
+    if (isEarmarked) d.dna_earmarked = true
+
+    // Per-concept fold. concept_ref is concept identity; it is NEVER merged with another
+    // concept_ref (no semantic clustering — independence stays human-asserted, §6).
+    let g = byConcept.get(r.concept_ref)
+    if (!g) {
+      g = {
+        concept_ref: r.concept_ref,
+        saved_review_count: 0,
+        latest_saved_at: null,
+        action_mix: emptyActionMix(),
+        _destMap: new Map(),
+        dna_earmarked_count: 0,
+        _bands: [],
+      }
+      byConcept.set(r.concept_ref, g)
+    }
+    g.saved_review_count += 1
+    if (REVIEW_ACTIONS.includes(r.review_action)) g.action_mix[r.review_action] += 1
+    if (isEarmarked) g.dna_earmarked_count += 1
+    if (band) g._bands.push(band)
+    const touched = r.reviewed_at || r.updated_at || r.created_at || null
+    if (touched && (!g.latest_saved_at || touched > g.latest_saved_at)) g.latest_saved_at = touched
+    let gd = g._destMap.get(destKey)
+    if (!gd) { gd = { destination: destKey, count: 0, dna_earmarked: false }; g._destMap.set(destKey, gd) }
+    gd.count += 1
+    if (isEarmarked) gd.dna_earmarked = true
+  }
+
+  base.totals.concept_refs = byConcept.size
+  base.destinations = [...destMap.values()]
+    .sort((a, b) => b.count - a.count || a.destination.localeCompare(b.destination))
+
+  const overallFloor = confidenceFloorOf(overallBands)
+  if (overallFloor) base.confidence_floor = overallFloor
+
+  base.concepts = [...byConcept.values()]
+    .map(g => {
+      const concept = {
+        concept_ref: g.concept_ref,
+        saved_review_count: g.saved_review_count,
+        latest_saved_at: g.latest_saved_at,
+        action_mix: g.action_mix,
+        destinations: [...g._destMap.values()]
+          .sort((a, b) => b.count - a.count || a.destination.localeCompare(b.destination)),
+        dna_earmarked_count: g.dna_earmarked_count,
+      }
+      const floor = confidenceFloorOf(g._bands)
+      if (floor) concept.confidence_floor = floor
+      return concept
+    })
+    .sort((a, b) => String(b.latest_saved_at || '').localeCompare(String(a.latest_saved_at || '')))
+
+  return base
+}

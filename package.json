@@ -31,7 +31,9 @@
     "test:discovery-review-route-behavior": "node scripts/test-discovery-review-route-behavior.js",
     "test:concept-draft-workspace": "node scripts/test-concept-draft-workspace.js",
     "test:concept-draft-route-audit": "node scripts/test-concept-draft-route-audit.js",
-    "test:concept-draft-route-behavior": "node scripts/test-concept-draft-route-behavior.js"
+    "test:concept-draft-route-behavior": "node scripts/test-concept-draft-route-behavior.js",
+    "test:discovery-evidence-summary": "node scripts/test-discovery-evidence-summary.js",
+    "test:discovery-evidence-summary-route": "node scripts/test-discovery-evidence-summary-route.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",
