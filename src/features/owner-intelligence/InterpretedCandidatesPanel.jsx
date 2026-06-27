@@ -211,11 +211,33 @@ function CandidateCard({ candidate }) {
         </div>
       )}
 
-      {/* Suggested owner question — DISPLAY ONLY. No input, no submit, no answer affordance. */}
+      {/* Suggested owner question — READ-ONLY PREVIEW (Owner Meaning Capture, Slice 4B).
+          DISPLAY ONLY: no input, no textarea, no submit, no save, no answer affordance. The
+          owner's answer is NOT collected here in this slice. This is the existing 3D-B preview
+          formalized to the Owner Meaning Capture doctrine — it stays read-only until a future,
+          separately-approved write slice (4D/4E). It never confirms, promotes, or touches Venue
+          DNA. See docs/architecture/OWNER_MEANING_CAPTURE_DESIGN.md (§3, §9, §10). */}
       {c.suggested_owner_question && (
         <div className="mt-3 rounded-lg px-3 py-2" style={{ background: C.inset, border: `1px dashed ${C.borderEmp}` }}>
-          <span className="text-[11px] font-semibold" style={{ color: C.burgundy }}>HESTIA would ask: </span>
-          <span className="text-[12px] leading-relaxed" style={{ color: C.text2 }}>{c.suggested_owner_question}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Eyebrow>Help HESTIA understand this</Eyebrow>
+            <span
+              className="rounded-full px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em]"
+              style={{ border: `1px solid ${C.borderSub}`, color: C.text3, background: C.card }}
+            >
+              Read-only preview
+            </span>
+          </div>
+          <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: C.text3 }}>
+            Suggested owner question
+          </p>
+          <p className="mt-0.5 text-[12px] leading-relaxed" style={{ color: C.text2 }}>
+            <span className="font-semibold" style={{ color: C.burgundy }}>HESTIA would ask: </span>
+            {c.suggested_owner_question}
+          </p>
+          <p className="mt-1 text-[11px] italic leading-relaxed" style={{ color: C.text3 }}>
+            Your answer is not being collected here yet.
+          </p>
         </div>
       )}
 

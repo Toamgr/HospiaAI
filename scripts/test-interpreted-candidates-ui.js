@@ -157,5 +157,33 @@ const evIdx = home.indexOf('<EvidenceSummaryPanel')
 const icIdx = home.indexOf('<InterpretedCandidatesPanel')
 ok(evIdx !== -1 && icIdx !== -1 && icIdx > evIdx, '[12c] mounted as a sibling AFTER EvidenceSummaryPanel')
 
+// 13. Owner Meaning Capture — read-only suggested-question preview LOCK (Slice 4B).
+//     The existing suggested_owner_question preview is formalized to the Owner Meaning Capture
+//     doctrine and proven to stay read-only: it previews the question HESTIA WOULD ask, it does
+//     not ask now, it collects no answer, and it offers no write/confirm/promote affordance.
+//     (docs/architecture/OWNER_MEANING_CAPTURE_DESIGN.md §3, §9, §10.)
+ok(/HESTIA would ask:/.test(src), '[13] suggested question shown as a preview ("HESTIA would ask:")')
+ok(/Read-only preview/.test(src), '[13b] preview is explicitly labelled "Read-only preview"')
+ok(/Suggested owner question/.test(src), '[13c] preview carries the "Suggested owner question" label')
+ok(/Help HESTIA understand this/.test(src), '[13d] doctrine section copy "Help HESTIA understand this" present')
+ok(/Your answer is not being collected here yet\./.test(src),
+  '[13e] preview states the answer is NOT collected here yet (no write in this slice)')
+// No answer-collection affordance of any kind (textarea/input/form/submit/save handlers).
+ok(!/<input|<textarea|<form|onSubmit|onSave|handleSave|handleSubmit/.test(code),
+  '[13f] no owner-answer composer affordance (no input/textarea/form/submit/save)')
+// No save/submit/confirm/promote/add-to-DNA control labels anywhere in the visible copy.
+for (const phrase of ['Confirm this insight', 'Is this correct?', 'Add to Venue DNA', 'Approve', 'Promote', 'Save answer', 'Submit answer']) {
+  ok(!copy.includes(phrase), `[13g] forbidden control/label absent: "${phrase}"`)
+}
+// The forbidden Owner Meaning Capture persistence tokens must not leak into the read-only UI —
+// they belong to the (future) design only, not to this slice's component.
+for (const token of ['captured_owner_meaning', 'eligible_for_future_proposal']) {
+  ok(!code.includes(token), `[13h] no forbidden persistence token in panel source: "${token}"`)
+}
+// Belt-and-braces: the ONLY network verb this panel issues is the existing read GET (re-asserts
+// the no-write guarantee at the Slice 4B boundary, independent of section 2 above).
+ok(apiGetCount === 1 && !/apiPost|apiPut|apiPatch|apiDelete/.test(code) && !/fetch\s*\(/.test(code),
+  '[13i] preview triggers no write request — read-only GET only')
+
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 process.exit(failed > 0 ? 1 : 0)

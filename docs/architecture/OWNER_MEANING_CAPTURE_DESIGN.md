@@ -342,10 +342,16 @@ interpretation, which is not what is being saved.
 
 ## 10. Future slice plan (revised order)
 
-* **Slice 4A** — *(this document)* docs-only Owner Meaning Capture design.
-* **Slice 4B** — lock / formalize the **existing** read-only `suggested_owner_question` preview in
-  `InterpretedCandidatesPanel`, and prove no-write. (Most of this already ships; 4B re-scopes it as
-  "formalize + assert no network write," not a new surface.)
+* **Slice 4A** — ✅ *complete (pushed at `ad3e620`).* *(this document)* docs-only Owner Meaning
+  Capture design.
+* **Slice 4B** — ✅ *complete: read-only preview lock / no-write proof.* The **existing**
+  `suggested_owner_question` preview in `InterpretedCandidatesPanel` was formalized to this
+  doctrine — labelled "Help HESTIA understand this" / "Suggested owner question" / "Read-only
+  preview" with the standing line "Your answer is not being collected here yet." No surface,
+  endpoint, input, or write was added. The read-only / no-write guarantee is locked by the
+  strengthened static guards in `scripts/test-interpreted-candidates-ui.js` (§13: no
+  input/textarea/form/submit/save affordance; no forbidden control labels; no
+  `captured_owner_meaning` / `eligible_for_future_proposal` tokens; GET-only, no write verb).
 * **Slice 4C** — schema + DDL design review only (no migration applied).
 * **Slice 4D** — first write endpoint/service for the **raw owner answer only**, shipped **with
   negative guardrail tests in the same slice**.
