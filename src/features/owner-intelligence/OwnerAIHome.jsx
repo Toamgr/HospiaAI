@@ -22,6 +22,7 @@ import { parseCandidateSignals } from './candidateSignalParser'
 import CandidateReviewPanel from './CandidateReviewPanel'
 import ConceptDraftsPanel from './ConceptDraftsPanel'
 import EvidenceSummaryPanel from './EvidenceSummaryPanel'
+import InterpretedCandidatesPanel from './InterpretedCandidatesPanel'
 
 // ── Palette B — Editorial Light tokens (from skills/user/hestia-ui-design) ──────
 const C = {
@@ -437,6 +438,9 @@ export default function OwnerAIHome({ currentUser, venueIntelligence } = {}) {
 
         {/* ── Evidence Summary (EAE Slice 2) — read-only memory mirror, never confirmed Venue DNA ── */}
         <EvidenceSummaryPanel />
+
+        {/* ── Interpreted Candidates (EAE Slice 3D-B) — read-only interpretation, never confirmed Venue DNA ── */}
+        <InterpretedCandidatesPanel />
 
         {/* ── Backstage intelligence — collapsed by default, never the product ── */}
         <details className="mt-10">
