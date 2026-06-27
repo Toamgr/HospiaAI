@@ -142,5 +142,37 @@ ok(!/<input|<textarea|<form|onSubmit|handleSubmit/.test(panelCode), '[12] Interp
 ok(!/apiPost|apiPut|apiPatch|apiDelete/.test(panelCode), '[12b] InterpretedCandidatesPanel still issues no write verb')
 ok(/Read-only preview/.test(panel), '[12c] InterpretedCandidatesPanel read-only preview label still present')
 
+// 13. Accessibility hardening (Slice 4E.1).
+// 13a. Textarea has an associated <label> (htmlFor → id) and an explicit id.
+ok(/<label\s+htmlFor="owner-meaning-answer"/.test(code), '[13a] textarea has an associated <label htmlFor>')
+ok(/id="owner-meaning-answer"/.test(code), '[13a2] textarea carries the matching id')
+// 13b. Textarea is described by the question + the character counter, and flags over-limit input.
+ok(/aria-describedby=\{`\$\{QUESTION_ID\}\s+\$\{COUNTER_ID\}`\}/.test(code) || /aria-describedby="owner-meaning-question owner-meaning-counter"/.test(code),
+  '[13b] textarea aria-describedby links the question + counter')
+ok(/aria-invalid=\{tooLong\}/.test(code), '[13b2] textarea sets aria-invalid when over the limit')
+ok(/id=\{QUESTION_ID\}|id="owner-meaning-question"/.test(code), '[13b3] the question carries the describedby id')
+ok(/id=\{COUNTER_ID\}|id="owner-meaning-counter"/.test(code), '[13b4] the counter carries the describedby id')
+// 13c. A polite live region announces save success/error.
+ok(/role="status"\s+aria-live="polite"/.test(code), '[13c] a role=status aria-live=polite region wraps the save outcome')
+ok(/aria-atomic="true"/.test(code), '[13c2] the live region is atomic (announces the full message)')
+// 13d. Loading lines are announced politely (role=status), not via a noisy live counter.
+ok(/role="status"/.test(code), '[13d] loading/status lines use role=status')
+ok(!/aria-live="assertive"/.test(code), '[13d2] no assertive (noisy) live regions')
+ok(!/aria-live/.test(code.match(/id=\{COUNTER_ID\}[^>]*>/)?.[0] || ''), '[13d3] the character counter is not itself a live region (read on focus, not per keystroke)')
+// 13e. The inspect toggle exposes expand state + controls its detail region; the region is labelled.
+ok(/aria-expanded=\{expanded\}/.test(code), '[13e] inspect button exposes aria-expanded')
+ok(/aria-controls=\{detailId\}/.test(code), '[13e2] inspect button references its detail region via aria-controls')
+ok(/aria-label=\{expanded[\s\S]*?Inspect saved evidence details/.test(code), '[13e3] inspect button has an explicit accessible name')
+ok(/id=\{detailId\}\s+role="region"\s+aria-label=/.test(code), '[13e4] the detail region is a labelled region with the controlled id')
+// 13f. Concept chips are real toggle buttons with names.
+ok(/aria-pressed=\{selected\}/.test(code), '[13f] concept selector chips expose aria-pressed')
+ok(/aria-label=\{`Answer the question for concept ending/.test(code), '[13f2] concept chips have explicit accessible names')
+// 13g. Predictable focus return after a submit resolves (a ref + a focus() call, never a trap).
+ok(/useRef/.test(code) && /const textareaRef = useRef\(null\)/.test(code), '[13g] a textarea ref exists for focus management')
+ok(/textareaRef\.current\?\.focus\(\)/.test(code), '[13g2] focus returns to the textarea after submit resolves')
+// 13h. The submit button announces busy state and every control has a visible keyboard focus ring.
+ok(/aria-busy=\{submitting\}/.test(code), '[13h] submit button exposes aria-busy while saving')
+ok(/focus-visible:/.test(code), '[13h2] interactive controls have a visible keyboard focus ring')
+
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 process.exit(failed > 0 ? 1 : 0)
