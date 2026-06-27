@@ -23,6 +23,7 @@ import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } fr
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
 import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL, upsertDiscoveryReview, listDiscoveryReviewsForVenue, getDiscoveryReviewById, listConceptDraftsForVenue, getConceptDraftDetail, summarizeDiscoveryEvidenceForVenue, deriveInterpretedCandidatesForVenue } from "./src/services/venueIntelligence/discoveryCandidateReviewService.js";
 import { OWNER_MEANING_CAPTURES_DDL, OWNER_MEANING_CAPTURE_EVENTS_DDL, createOwnerMeaningCapture, listOwnerMeaningCaptures, getOwnerMeaningCaptureById, listOwnerMeaningCaptureEvents } from "./src/services/venueIntelligence/ownerMeaningCaptureService.js";
+import { OWNER_MEANING_PROMOTION_CANDIDATES_DDL, OWNER_MEANING_PROMOTION_EVENTS_DDL, OWNER_MEANING_PROMOTION_ALLOWED_ACTIONS, listOwnerMeaningPromotionCandidates, getOwnerMeaningPromotionCandidateById, listOwnerMeaningPromotionEvents, resolveSourceCapturesForPromotionCandidate } from "./src/services/venueIntelligence/ownerMeaningPromotionService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
 import { ensureStructuredCandidateSignals } from "./src/services/venueIntelligence/ownerCorrectionLoopFormat.js";
@@ -1216,6 +1217,19 @@ db.exec(DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL);
 // declares no FOREIGN KEY on these tables — do not add one.
 db.exec(OWNER_MEANING_CAPTURES_DDL);
 db.exec(OWNER_MEANING_CAPTURE_EVENTS_DDL);
+
+// Owner Meaning Promotion — Read-only Candidate Queue (Slice 4G.1). Two ISOLATED promotion tables:
+// the proposal candidate (owner_meaning_promotion_candidates) and its append-only audit
+// (owner_meaning_promotion_events). Additive, venue-scoped, idempotent. READ-ONLY in this slice:
+// there is NO proposal generator and NO approval/rejection/revision/apply writer — only the two GET
+// routes below read these tables. ISOLATED from Venue DNA: no mergeVenueDna, never writes
+// venue_intelligence/venue_dna_json/venue_briefs/venue_dna_enrichment/venue_intelligence_candidates.
+// record_space hard-coded 'concept_draft'; schema_version 'owner_meaning_promotion_v1'; the
+// applied_*/dna_application_ref fields are RESERVED and null. NOTE:
+// owner_meaning_promotion_events.candidate_id is a LOGICAL reference, NOT an enforced FK (a future
+// writer is audit-first); the DDL declares no FOREIGN KEY on these tables — do not add one.
+db.exec(OWNER_MEANING_PROMOTION_CANDIDATES_DDL);
+db.exec(OWNER_MEANING_PROMOTION_EVENTS_DDL);
 
 // shift_reports extended fields
 for (const [col, def] of [
@@ -7031,6 +7045,82 @@ app.post('/api/venue-bridge/sync-operations', requireAuth('owner'), (req, res) =
     res.status(500).json({ error: err.message || 'Could not sync operations.' });
   }
 });
+
+// ── Owner Meaning Promotion — Read-only Candidate Queue (Slice 4G.1) — OWNER-ONLY READ ──
+// Read-only, venue-scoped access to the PROPOSED Venue DNA change candidates (stages 2–3 of the
+// promotion model: proposal, approval) AS OBSERVED, never as mutated. These two GET routes are the
+// FIRST runtime surface for the promotion layer, and they are strictly read-only: they query and
+// shape existing rows, never writing, never creating an event, never changing a status, never
+// generating a candidate, never refreshing confidence, never touching Venue DNA, and never invoking
+// the single DNA writer. There is NO approval / rejection / request-revision / apply writer here.
+//
+// Auth: OWNER-ONLY, exactly like the capture read routes. requireAuth('owner') PLUS the same
+// explicit in-handler re-exclusion of the platform-admin global bypass, so admin gets ZERO read
+// access (admin read is OPEN; the safe default is blocked). Manager / bar_manager are blocked at
+// requireAuth; unauthenticated is 401 there.
+//
+// Venue scope: SERVER-resolved req.venueId only. The client never supplies a venue subject; a
+// candidate of another venue is never returned by the list, and a cross-venue / unknown candidate
+// id returns an identical safe 404 (no existence leak). Source captures are resolved only within the
+// active venue. Application is BLOCKED (application.blocked: true); allowed_actions are ALL false.
+//
+// NOTE on placement: these routes are deliberately registered AFTER the Venue Intelligence Bridge
+// section (not next to the capture read routes) so they fall OUTSIDE the capture audits' isolation
+// regions, which bound at the Bridge banner. The region is self-delimited by the END marker below.
+
+// GET list — paginated candidate queue for the active venue, newest first.
+app.get('/api/owner-meaning-promotion-candidates', requireAuth('owner'), (req, res) => {
+  try {
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'Owner Meaning Promotion is owner-only.' });
+    }
+    const result = listOwnerMeaningPromotionCandidates(db, req.venueId, {
+      limit: req.query.limit,
+      offset: req.query.offset,
+      status: req.query.status,
+      targetPath: req.query.target_path,
+      confidenceLabel: req.query.confidence_label,
+      includeCounts: req.query.include_counts === undefined ? true : req.query.include_counts !== 'false',
+      includeSourcePreview: req.query.include_source_preview === undefined ? true : req.query.include_source_preview !== 'false',
+    });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    // Invalid closed-vocab filter → 400 (a typo must not silently widen the result set); any other
+    // failure → a generic, safe 500 that never leaks SQL / stack / row contents.
+    if (err && err.code === 'BAD_REQUEST') {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+    res.status(500).json({ ok: false, error: 'Could not read promotion candidates.' });
+  }
+});
+
+// GET one — a single candidate plus its resolved source captures and audit event trail, venue-scoped.
+app.get('/api/owner-meaning-promotion-candidates/:candidateId', requireAuth('owner'), (req, res) => {
+  try {
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'Owner Meaning Promotion is owner-only.' });
+    }
+    const candidate = getOwnerMeaningPromotionCandidateById(db, req.venueId, req.params.candidateId);
+    if (!candidate) {
+      // Unknown id OR a candidate belonging to another venue → identical safe 404 (no leakage of
+      // whether the id exists elsewhere).
+      return res.status(404).json({ ok: false, error: 'No promotion candidate found for this venue.' });
+    }
+    const source_captures = resolveSourceCapturesForPromotionCandidate(db, req.venueId, candidate);
+    const events = listOwnerMeaningPromotionEvents(db, req.venueId, req.params.candidateId);
+    res.json({
+      ok: true,
+      candidate,
+      source_captures,
+      events,
+      // Forward-declared, read-only hint — ALL false in this contract. No writer exists yet.
+      allowed_actions: { ...OWNER_MEANING_PROMOTION_ALLOWED_ACTIONS },
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'Could not read the promotion candidate.' });
+  }
+});
+// ── Owner Meaning Promotion routes — END ──────────────────────────────────────
 
 // ── CI VISUAL MENU ────────────────────────────────────────────────────────────
 

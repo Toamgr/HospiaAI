@@ -44,7 +44,10 @@
     "test:owner-meaning-capture-read-route-behavior": "node scripts/test-owner-meaning-capture-read-route-behavior.js",
     "test:owner-meaning-capture-read-route-audit": "node scripts/test-owner-meaning-capture-read-route-audit.js",
     "test:owner-meaning-capture-composer-ui": "node scripts/test-owner-meaning-capture-composer-ui.js",
-    "test:owner-meaning-capture-composer-render": "vitest run src/features/owner-intelligence/OwnerMeaningComposer.render.test.jsx"
+    "test:owner-meaning-capture-composer-render": "vitest run src/features/owner-intelligence/OwnerMeaningComposer.render.test.jsx",
+    "test:owner-meaning-promotion-persistence": "node scripts/test-owner-meaning-promotion-persistence.js",
+    "test:owner-meaning-promotion-read-route-behavior": "node scripts/test-owner-meaning-promotion-read-route-behavior.js",
+    "test:owner-meaning-promotion-read-route-audit": "node scripts/test-owner-meaning-promotion-read-route-audit.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",
