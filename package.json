@@ -34,7 +34,8 @@
     "test:concept-draft-route-behavior": "node scripts/test-concept-draft-route-behavior.js",
     "test:discovery-evidence-summary": "node scripts/test-discovery-evidence-summary.js",
     "test:discovery-evidence-summary-route": "node scripts/test-discovery-evidence-summary-route.js",
-    "test:interpreted-candidates": "node scripts/test-interpreted-candidate-derivation.js"
+    "test:interpreted-candidates": "node scripts/test-interpreted-candidate-derivation.js",
+    "test:interpreted-candidates-route": "node scripts/test-interpreted-candidates-route.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",

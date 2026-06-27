@@ -21,7 +21,7 @@ import { buildMenuIntelligenceSnapshot } from "./src/services/venueBridge/menuIn
 import { buildFnbDirectorBrief } from "./src/services/venueBridge/fnbDirectorBriefService.js";
 import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } from "./src/config/featureFlags.js";
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
-import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL, upsertDiscoveryReview, listDiscoveryReviewsForVenue, getDiscoveryReviewById, listConceptDraftsForVenue, getConceptDraftDetail, summarizeDiscoveryEvidenceForVenue } from "./src/services/venueIntelligence/discoveryCandidateReviewService.js";
+import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL, upsertDiscoveryReview, listDiscoveryReviewsForVenue, getDiscoveryReviewById, listConceptDraftsForVenue, getConceptDraftDetail, summarizeDiscoveryEvidenceForVenue, deriveInterpretedCandidatesForVenue } from "./src/services/venueIntelligence/discoveryCandidateReviewService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
 import { ensureStructuredCandidateSignals } from "./src/services/venueIntelligence/ownerCorrectionLoopFormat.js";
@@ -6615,6 +6615,30 @@ app.get('/api/discovery-evidence-summary', requireAuth('owner', 'admin'), (req, 
     res.json({ ok: true, summary, note: 'Memory signals only — not confirmed Venue DNA.' });
   } catch (err) {
     res.status(400).json({ error: err.message || 'Could not summarize discovery evidence.' });
+  }
+});
+
+// ── New Venue Discovery — Interpreted Intelligence Candidates (EAE Slice 3C) — READ-ONLY ──
+// A read-only window onto the Slice 3B derivation: it returns the Interpreted Intelligence
+// Candidates derived LIVE from the venue's saved concept_draft fidelity reviews. Each candidate
+// is HESTIA's evidence-bound *suspicion* (the AI ceiling) — it asks and suggests; it never
+// asserts, confirms, approves, promotes, or mutates Venue DNA, and HESTIA never self-confirms.
+// There is NO writer here — no PUT/POST/PATCH/DELETE, no audit write, no DB mutation, no DNA
+// store contact, no mergeVenueDna, no confirm/promote, no new table. The service is derive-live
+// (zero rows written). This route adds NO new candidate type, NO themed classification, and does
+// NOT activate destination_hint (it stays inert null as returned by the service). Read:
+// owner/admin, venue-scoped (req.venueId), record_space='concept_draft'.
+app.get('/api/discovery-interpreted-candidates', requireAuth('owner', 'admin'), (req, res) => {
+  try {
+    const result = deriveInterpretedCandidatesForVenue(db, req.venueId);
+    res.json({
+      ok: true,
+      candidates: result.candidates,
+      note: 'Interpreted candidates are evidence-bound signals only. They are not confirmed Venue DNA. HESTIA cannot self-confirm its own interpretation; contradictions and missing data are preserved, never resolved here.',
+      limitations: result.limitations,
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Could not derive interpreted candidates.' });
   }
 });
 
