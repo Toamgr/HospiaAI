@@ -36,7 +36,10 @@
     "test:discovery-evidence-summary-route": "node scripts/test-discovery-evidence-summary-route.js",
     "test:interpreted-candidates": "node scripts/test-interpreted-candidate-derivation.js",
     "test:interpreted-candidates-route": "node scripts/test-interpreted-candidates-route.js",
-    "test:interpreted-candidates-ui": "node scripts/test-interpreted-candidates-ui.js"
+    "test:interpreted-candidates-ui": "node scripts/test-interpreted-candidates-ui.js",
+    "test:owner-meaning-capture-persistence": "node scripts/test-owner-meaning-capture-persistence.js",
+    "test:owner-meaning-capture-route-behavior": "node scripts/test-owner-meaning-capture-route-behavior.js",
+    "test:owner-meaning-capture-route-audit": "node scripts/test-owner-meaning-capture-route-audit.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",

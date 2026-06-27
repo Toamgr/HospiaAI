@@ -22,6 +22,7 @@ import { buildFnbDirectorBrief } from "./src/services/venueBridge/fnbDirectorBri
 import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } from "./src/config/featureFlags.js";
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
 import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL, upsertDiscoveryReview, listDiscoveryReviewsForVenue, getDiscoveryReviewById, listConceptDraftsForVenue, getConceptDraftDetail, summarizeDiscoveryEvidenceForVenue, deriveInterpretedCandidatesForVenue } from "./src/services/venueIntelligence/discoveryCandidateReviewService.js";
+import { OWNER_MEANING_CAPTURES_DDL, OWNER_MEANING_CAPTURE_EVENTS_DDL, createOwnerMeaningCapture } from "./src/services/venueIntelligence/ownerMeaningCaptureService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
 import { ensureStructuredCandidateSignals } from "./src/services/venueIntelligence/ownerCorrectionLoopFormat.js";
@@ -1203,6 +1204,18 @@ try { db.exec("ALTER TABLE venue_intelligence_candidates ADD COLUMN review_note 
 // declares no FOREIGN KEY on these tables; do not add one.
 db.exec(DISCOVERY_CANDIDATE_REVIEWS_DDL);
 db.exec(DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL);
+
+// Owner Meaning Capture — Raw Owner Answer Persistence (Slice 4D). Two ISOLATED Venue Memory
+// sibling tables: the capture record (owner's verbatim answer + immutable server-authored
+// snapshot) and an append-only audit log. Additive, venue-scoped, idempotent. ISOLATED from
+// Venue DNA: capturing the owner's WORDS is NOT confirmation and NEVER persists HESTIA's
+// interpretation. No mergeVenueDna, never writes venue_intelligence/venue_briefs/
+// venue_dna_enrichment/venue_dna_json. provenance is hard-coded 'owner_response'; record_space
+// 'concept_draft'. NOTE: owner_meaning_capture_events.capture_id is a LOGICAL reference, NOT an
+// enforced FK (audit-first ordering writes the audit row before the capture row exists); the DDL
+// declares no FOREIGN KEY on these tables — do not add one.
+db.exec(OWNER_MEANING_CAPTURES_DDL);
+db.exec(OWNER_MEANING_CAPTURE_EVENTS_DDL);
 
 // shift_reports extended fields
 for (const [col, def] of [
@@ -6639,6 +6652,69 @@ app.get('/api/discovery-interpreted-candidates', requireAuth('owner', 'admin'), 
     });
   } catch (err) {
     res.status(400).json({ error: err.message || 'Could not derive interpreted candidates.' });
+  }
+});
+
+// ── Owner Meaning Capture — Raw Owner Answer Persistence (Slice 4D) — OWNER-ONLY WRITE ──
+// The first write slice for Owner Meaning Capture. It persists ONLY the owner's verbatim answer
+// to a HESTIA interpreted-candidate question, plus the exact server-authored question/candidate
+// snapshot context, into the isolated owner_meaning_captures Venue Memory table (+ its append-only
+// audit). It NEVER persists HESTIA's interpretation of the owner's words, NEVER mutates Venue DNA,
+// NEVER calls mergeVenueDna, and adds NO confirmation/promotion flow.
+//
+// Snapshot source: SERVER-DERIVED. The server re-derives the live interpreted candidates for this
+// venue and selects the one for the posted concept_ref; the snapshot + question_text +
+// question_reason + candidate_type + fingerprint are all SERVER-AUTHORED from that live candidate.
+// The client supplies ONLY concept_ref and owner_response_raw — never the snapshot body and never
+// a trusted candidate_fingerprint. If the candidate no longer derives (drift) the request is
+// rejected (400, no write); the server never fabricates a snapshot.
+//
+// Auth: OWNER-ONLY write. requireAuth('owner') PLUS an explicit in-handler re-exclusion of the
+// platform-admin global bypass (mirrors PUT /api/discovery-reviews), so an admin write creates
+// ZERO capture rows and ZERO audit rows. Venue-scoped via req.venueId; the client never supplies
+// venue_id as a subject. Manager / bar_manager are blocked at requireAuth.
+app.post('/api/owner-meaning-captures', requireAuth('owner'), (req, res) => {
+  try {
+    // OWNER-ONLY by meaning: the OWNER is the author of venue identity meaning. A Platform Admin
+    // is never that author. requireAuth has a global admin bypass, so we MUST re-exclude admin
+    // HERE, explicitly — before re-derivation, before the audit insert, before any capture write —
+    // so an admin write creates ZERO audit and ZERO capture rows. (Scoped to THIS route only.)
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'Owner Meaning Capture is owner-only; admin is read-only here.' });
+    }
+    const body = req.body || {};
+    const conceptRef = body.concept_ref;
+
+    // Re-derive the live candidates for THIS venue and select the one for this concept. The
+    // snapshot is SERVER-AUTHORED from this re-derived candidate — never a client-supplied body.
+    const derivation = deriveInterpretedCandidatesForVenue(db, req.venueId);
+    const candidate = (derivation.candidates || []).find((c) => c.concept_ref === conceptRef);
+    if (!candidate) {
+      // Missing/blank concept_ref OR the candidate no longer derives (drift) → 400, no write.
+      return res.status(400).json({
+        ok: false,
+        error: 'No live interpreted candidate for this concept — nothing was captured. The candidate may have changed since it was shown.',
+      });
+    }
+
+    const capture = createOwnerMeaningCapture(db, {
+      venueId: req.venueId,
+      conceptRef,
+      ownerResponseRaw: body.owner_response_raw,
+      candidate,
+      createdBy: (req.user && (req.user.full_name || req.user.id)) || null,
+    });
+    res.status(201).json({
+      ok: true,
+      capture,
+      note: 'Saved as your words in Venue Memory. Venue DNA was not changed, and nothing was confirmed.',
+    });
+  } catch (err) {
+    if (err && err.code === 'NOT_FOUND') {
+      return res.status(404).json({ ok: false, error: 'No owner meaning capture found for this venue.' });
+    }
+    // Blank / over-limit answer, missing concept_ref, or any validation throw → 400 (no write).
+    res.status(400).json({ error: err.message || 'Could not save the owner meaning capture.' });
   }
 });
 
