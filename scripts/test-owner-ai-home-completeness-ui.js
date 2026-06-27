@@ -33,8 +33,11 @@ function ok(cond, msg) {
 
 const src = readFileSync(HOME_PATH, 'utf8')
 // Comment-stripped source for "does not call X" guards (a guardrail comment that
-// names /message must not trip a forbidden-token check).
+// names /message must not trip a forbidden-token check). Normalize CRLF first: on a
+// Windows checkout a trailing \r survives the \n split, and `.` / `$` won't cross it,
+// so the line-comment strip would silently no-op and leave commented tokens behind.
 const code = src
+  .replace(/\r\n?/g, '\n')
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n')
   .map(line => line.replace(/\/\/.*$/, ''))
