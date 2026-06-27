@@ -23,6 +23,7 @@ import CandidateReviewPanel from './CandidateReviewPanel'
 import ConceptDraftsPanel from './ConceptDraftsPanel'
 import EvidenceSummaryPanel from './EvidenceSummaryPanel'
 import InterpretedCandidatesPanel from './InterpretedCandidatesPanel'
+import OwnerMeaningComposer from './OwnerMeaningComposer'
 
 // ── Palette B — Editorial Light tokens (from skills/user/hestia-ui-design) ──────
 const C = {
@@ -441,6 +442,9 @@ export default function OwnerAIHome({ currentUser, venueIntelligence } = {}) {
 
         {/* ── Interpreted Candidates (EAE Slice 3D-B) — read-only interpretation, never confirmed Venue DNA ── */}
         <InterpretedCandidatesPanel />
+
+        {/* ── Owner Meaning Composer (Slice 4E) — owner-only write: save raw owner evidence, never DNA ── */}
+        <OwnerMeaningComposer currentUser={currentUser} />
 
         {/* ── Backstage intelligence — collapsed by default, never the product ── */}
         <details className="mt-10">
