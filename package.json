@@ -39,7 +39,10 @@
     "test:interpreted-candidates-ui": "node scripts/test-interpreted-candidates-ui.js",
     "test:owner-meaning-capture-persistence": "node scripts/test-owner-meaning-capture-persistence.js",
     "test:owner-meaning-capture-route-behavior": "node scripts/test-owner-meaning-capture-route-behavior.js",
-    "test:owner-meaning-capture-route-audit": "node scripts/test-owner-meaning-capture-route-audit.js"
+    "test:owner-meaning-capture-route-audit": "node scripts/test-owner-meaning-capture-route-audit.js",
+    "test:owner-meaning-capture-read": "node scripts/test-owner-meaning-capture-read.js",
+    "test:owner-meaning-capture-read-route-behavior": "node scripts/test-owner-meaning-capture-read-route-behavior.js",
+    "test:owner-meaning-capture-read-route-audit": "node scripts/test-owner-meaning-capture-read-route-audit.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",

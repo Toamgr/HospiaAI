@@ -74,6 +74,13 @@ export const OWNER_MEANING_CONFIDENCE_BANDS = Object.freeze([null, 'low'])
 // owner_response_raw bound — validation only; the stored value is never truncated (4C.1 §9).
 export const OWNER_RESPONSE_RAW_MAX = 8000
 
+// Audit-read (Slice 4D.2) pagination bounds. A read list is paged, newest-first, venue-scoped.
+// An invalid/blank/<1 limit falls back to the default; a limit above the max is clamped DOWN to
+// the max (never widened); a negative/invalid offset becomes 0. Read-only — no value here affects
+// what is stored, only how much of the existing audit is returned at once.
+export const OWNER_MEANING_LIST_DEFAULT_LIMIT = 25
+export const OWNER_MEANING_LIST_MAX_LIMIT = 100
+
 // ── small helpers (pure) ──────────────────────────────────────────────────────
 
 function isNonEmptyString(v) { return typeof v === 'string' && v.trim().length > 0 }
@@ -413,4 +420,76 @@ export function listOwnerMeaningCaptureEvents(db, venueId, captureId) {
   return db.prepare(
     'SELECT * FROM owner_meaning_capture_events WHERE capture_id = ? AND venue_id = ? ORDER BY created_at DESC, rowid DESC'
   ).all(captureId, venueId).map(e => ({ ...e, event_payload: parseJson(e.event_payload_json) }))
+}
+
+// ── Audit read list (Slice 4D.2) ───────────────────────────────────────────────
+
+// Clamp a requested page limit into [1, MAX]; any non-finite / <1 value falls back to the default.
+// Never widens past the max — an over-large request is reduced, never honored.
+function clampListLimit(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return OWNER_MEANING_LIST_DEFAULT_LIMIT
+  const i = Math.floor(n)
+  if (i < 1) return OWNER_MEANING_LIST_DEFAULT_LIMIT
+  return Math.min(i, OWNER_MEANING_LIST_MAX_LIMIT)
+}
+
+// Clamp a requested offset to a non-negative integer; any non-finite / negative value becomes 0.
+function clampListOffset(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return 0
+  const i = Math.floor(n)
+  return i < 0 ? 0 : i
+}
+
+/**
+ * Paginated, venue-scoped audit list of owner meaning captures, newest first. READ-ONLY: it runs
+ * SELECTs only and mutates nothing. Venue scope is the SERVER-resolved venueId (the route passes
+ * req.venueId) — a client can never widen it, and captures of another venue are never returned.
+ *
+ * Only the stable candidate identity (candidate_fingerprint) is offered as a filter — the ephemeral
+ * per-derivation candidate id is deliberately NOT stored, so there is no candidate_id column to
+ * filter on (and inventing one would be fabrication). Ordering is created_at DESC then rowid DESC
+ * so ties (same-second inserts) stay deterministic for tests.
+ *
+ * @param db
+ * @param venueId server-resolved access boundary (required)
+ * @param opts { limit?, offset?, candidateFingerprint? }
+ * @returns { captures: [shaped row + event_count], pagination: { limit, offset, count, has_more } }
+ */
+export function listOwnerMeaningCaptures(db, venueId, opts = {}) {
+  const limit = clampListLimit(opts.limit)
+  const offset = clampListOffset(opts.offset)
+  if (!isNonEmptyString(venueId)) {
+    return { captures: [], pagination: { limit, offset, count: 0, has_more: false } }
+  }
+
+  const where = ['venue_id = ?', "record_space = 'concept_draft'"]
+  const args = [venueId]
+  const fingerprint = isNonEmptyString(opts.candidateFingerprint) ? opts.candidateFingerprint.trim() : null
+  if (fingerprint) { where.push('candidate_fingerprint = ?'); args.push(fingerprint) }
+  const whereSql = where.join(' AND ')
+
+  const total = db.prepare(`SELECT COUNT(*) AS n FROM owner_meaning_captures WHERE ${whereSql}`).get(...args).n
+
+  const rows = db.prepare(
+    `SELECT *,
+       (SELECT COUNT(*) FROM owner_meaning_capture_events e
+         WHERE e.capture_id = owner_meaning_captures.id AND e.venue_id = owner_meaning_captures.venue_id) AS event_count
+     FROM owner_meaning_captures
+     WHERE ${whereSql}
+     ORDER BY created_at DESC, rowid DESC
+     LIMIT ? OFFSET ?`
+  ).all(...args, limit, offset)
+
+  const captures = rows.map(r => {
+    const shaped = shapeCaptureRow(r)
+    shaped.event_count = Number.isFinite(Number(r.event_count)) ? Number(r.event_count) : 0
+    return shaped
+  })
+
+  return {
+    captures,
+    pagination: { limit, offset, count: captures.length, has_more: offset + captures.length < total },
+  }
 }

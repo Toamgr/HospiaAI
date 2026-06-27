@@ -22,7 +22,7 @@ import { buildFnbDirectorBrief } from "./src/services/venueBridge/fnbDirectorBri
 import { isVenueBeverageContextEnabled, isFnbVenueFeedbackCandidatesEnabled } from "./src/config/featureFlags.js";
 import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidates, listVenueIntelligenceCandidatesForVenue, getVenueIntelligenceCandidateById, markVenueIntelligenceCandidateReviewed } from "./src/services/venueBridge/fnbVenueFeedbackService.js";
 import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL, upsertDiscoveryReview, listDiscoveryReviewsForVenue, getDiscoveryReviewById, listConceptDraftsForVenue, getConceptDraftDetail, summarizeDiscoveryEvidenceForVenue, deriveInterpretedCandidatesForVenue } from "./src/services/venueIntelligence/discoveryCandidateReviewService.js";
-import { OWNER_MEANING_CAPTURES_DDL, OWNER_MEANING_CAPTURE_EVENTS_DDL, createOwnerMeaningCapture } from "./src/services/venueIntelligence/ownerMeaningCaptureService.js";
+import { OWNER_MEANING_CAPTURES_DDL, OWNER_MEANING_CAPTURE_EVENTS_DDL, createOwnerMeaningCapture, listOwnerMeaningCaptures, getOwnerMeaningCaptureById, listOwnerMeaningCaptureEvents } from "./src/services/venueIntelligence/ownerMeaningCaptureService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
 import { ensureStructuredCandidateSignals } from "./src/services/venueIntelligence/ownerCorrectionLoopFormat.js";
@@ -6715,6 +6715,58 @@ app.post('/api/owner-meaning-captures', requireAuth('owner'), (req, res) => {
     }
     // Blank / over-limit answer, missing concept_ref, or any validation throw → 400 (no write).
     res.status(400).json({ error: err.message || 'Could not save the owner meaning capture.' });
+  }
+});
+
+// ── Owner Meaning Capture — Audit Read API (Slice 4D.2) — OWNER-ONLY READ ──
+// Read-only, venue-scoped audit access to the raw Owner Meaning Captures written by the 4D write
+// route above, so the owner can inspect their own verbatim answers + the server-authored
+// question/snapshot context BEFORE any answer composer UI exists. These routes are strictly
+// read-only: they query and return existing rows, never writing, never touching Venue DNA, and
+// never merging anything into it.
+//
+// Auth: OWNER-ONLY, exactly like the write route. requireAuth('owner') PLUS the same explicit
+// in-handler re-exclusion of the platform-admin global bypass, so admin gets ZERO read access in
+// this slice. Manager / bar_manager are blocked at requireAuth; unauthenticated is 401 there.
+//
+// Venue scope: SERVER-resolved req.venueId only. The client never supplies a venue subject; a
+// capture of another venue is never returned by the list, and a cross-venue capture id returns 404
+// (safe not-found, never a foreign-row leak). Only candidate_fingerprint (the stable candidate
+// identity) is offered as a filter — the ephemeral candidate id is deliberately not stored.
+
+// GET list — paginated audit feed for the active venue, newest first.
+app.get('/api/owner-meaning-captures', requireAuth('owner'), (req, res) => {
+  try {
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'Owner Meaning Capture is owner-only; admin has no read access here.' });
+    }
+    const result = listOwnerMeaningCaptures(db, req.venueId, {
+      limit: req.query.limit,
+      offset: req.query.offset,
+      candidateFingerprint: req.query.candidate_fingerprint,
+    });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message || 'Could not list owner meaning captures.' });
+  }
+});
+
+// GET one — a single capture plus its append-only audit event trail, venue-scoped.
+app.get('/api/owner-meaning-captures/:captureId', requireAuth('owner'), (req, res) => {
+  try {
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'Owner Meaning Capture is owner-only; admin has no read access here.' });
+    }
+    const capture = getOwnerMeaningCaptureById(db, req.venueId, req.params.captureId);
+    if (!capture) {
+      // Unknown id OR a capture belonging to another venue → identical safe 404 (no leakage of
+      // whether the id exists elsewhere).
+      return res.status(404).json({ ok: false, error: 'No owner meaning capture found for this venue.' });
+    }
+    const events = listOwnerMeaningCaptureEvents(db, req.venueId, req.params.captureId);
+    res.json({ ok: true, capture, events });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message || 'Could not read the owner meaning capture.' });
   }
 });
 
