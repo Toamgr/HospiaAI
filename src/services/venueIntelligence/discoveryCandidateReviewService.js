@@ -716,3 +716,250 @@ export function summarizeDiscoveryEvidenceForVenue(db, venueId) {
 
   return base
 }
+
+// ── Interpreted Intelligence Candidates (EAE Slice 3B) — READ-ONLY DERIVATION ──
+//
+// Design doc (binding):
+//   docs/architecture/NEW_VENUE_DISCOVERY_INTERPRETED_INTELLIGENCE_CANDIDATES_DESIGN.md
+// Governed by VENUE_MEMORY_AND_DNA_GUARDRAILS.md and the Evidence Accumulation Engine design
+// (state 4 = the AI ceiling; §5 confidence; §6 independence; §7 contradiction).
+//
+// The FIRST true Intelligence layer over New Venue Discovery. It turns a venue's saved,
+// owner-triaged concept_draft evidence into READ-ONLY Interpreted Intelligence Candidates —
+// HESTIA's honest, evidence-bound *suspicions* carrying confidence + uncertainty. A candidate
+// is the AI CEILING: it ASKS and SUGGESTS; it never asserts, confirms, approves, promotes, or
+// mutates Venue DNA, and HESTIA never self-confirms its own interpretation.
+//
+// HARD DOCTRINE (enforced by design — if a line here contradicts it, it is a bug):
+//   - DERIVE-LIVE, WRITE NOTHING: no candidate row, no audit row, no Venue DNA write, and no
+//     call to the Venue DNA merge path. (Asserted by test against this function's source.)
+//   - Candidates interpret MEMORY; they never produce DNA. "Captured as meant ≠ confirmed Venue DNA."
+//   - Every candidate is EVIDENCE-BOUND: non-empty supporting_evidence_refs pointing at REAL saved
+//     discovery_candidate_reviews rows. No source rows → no candidate. No synthetic claims.
+//   - Confidence is a WORD band (low|medium|high) or null ("not captured") — NEVER a number, scale,
+//     or meter. Floor-only: repetition never raises it.
+//   - INDEPENDENCE is the wall: rows under one concept_ref are ONE thread, NOT independent
+//     corroboration. Cross-concept "same meaning" is HUMAN-asserted only — this service NEVER
+//     merges two concept_refs and therefore NEVER manufactures corroborated strength.
+//   - CONTRADICTIONS are preserved side by side, never averaged or majority-voted.
+//   - The status vocabulary cannot express confirmation: there is NO confirmed / approved /
+//     canonical / promoted / dna_ready / verified value, and no confirmation handle.
+//
+// SCOPE NOTE (deliberately narrow — "do not overbuild"): because no AI call and no normalized
+// cross-concept subject key exist yet, this service does NOT classify a signal's *theme*
+// (positioning vs service-style etc.) — guessing a theme deterministically would be a fabricated
+// interpretation. It therefore emits ONLY the two theme-agnostic, structurally-derivable types:
+//   • 'contradiction_signal' — a concept whose saved triage is split (kept AND rejected).
+//   • 'missing_data_signal'  — a concept with a kept meaning that cannot yet be corroborated
+//                              (single thread / saved once / unresolved held reviews).
+// Themed candidate types remain DESIGN-ONLY until a separately-approved classification path exists.
+
+// The only candidate types this slice emits (see SCOPE NOTE). Narrow by design.
+export const CANDIDATE_TYPES = Object.freeze(['contradiction_signal', 'missing_data_signal'])
+
+// Allowed candidate statuses. The set deliberately contains NO way to express confirmation —
+// 'confirmed' / 'approved' / 'canonical' / 'promoted' / 'dna_ready' / 'verified' are absent by
+// construction (vocabulary, not vigilance).
+export const CANDIDATE_STATUSES = Object.freeze([
+  'proposed', 'needs_owner_clarification', 'insufficient_evidence', 'contradicted',
+])
+
+export const INTERPRETED_CANDIDATE_LABEL =
+  'Interpreted Intelligence Candidates — Interpretation Only, Not Confirmed Venue DNA'
+
+// Standing, non-removable disclaimers carried on every derivation (the project's existing
+// guardrail framing — they state negatives, they create no confirmed state).
+export const INTERPRETED_CANDIDATE_LIMITATIONS = Object.freeze([
+  'Interpretation only — not confirmed Venue DNA.',
+  "A candidate is HESTIA's evidence-bound suspicion, never a settled fact about the venue.",
+  'Confidence is shown only as a word band — never a number, scale, or meter.',
+  'Within one concept, saved reviews are a single thread — not independent corroboration.',
+  'Contradictions are preserved side by side, never averaged or resolved by HESTIA.',
+  'Only a human may ever confirm Venue DNA — HESTIA proposes, it never self-confirms.',
+])
+
+// The fidelity actions that mean the owner KEPT a meaning. 'held' is deferred; 'rejected' is
+// pushed away. (Mirrors REVIEW_ACTIONS, partitioned by intent.)
+const AFFIRMING_ACTIONS = Object.freeze(['captured', 'edited'])
+
+/**
+ * Derive a venue's Interpreted Intelligence Candidates LIVE from its saved concept_draft
+ * fidelity reviews. READ-ONLY. Venue-scoped (the access boundary) and filtered to
+ * record_space = 'concept_draft' (rows outside that space are NEVER read here). Creates zero
+ * rows, appends zero audit events, touches no Venue DNA store. An empty/unknown venue returns
+ * the base shape with an empty candidate list and the honest limitations — never an error.
+ *
+ * @returns {{
+ *   scope: 'concept_draft', label: string, interpretation_only: true, derived_at: string,
+ *   candidates: object[], limitations: string[]
+ * }}
+ */
+export function deriveInterpretedCandidatesForVenue(db, venueId) {
+  const derivedAt = new Date().toISOString()
+  const base = {
+    scope: RECORD_SPACE,
+    label: INTERPRETED_CANDIDATE_LABEL,
+    interpretation_only: true,
+    derived_at: derivedAt,
+    candidates: [],
+    limitations: INTERPRETED_CANDIDATE_LIMITATIONS,
+  }
+  if (!isNonEmptyString(venueId)) return base
+
+  const rows = db.prepare(
+    `SELECT id, venue_id, concept_ref, conversation_ref, review_action,
+            candidate_snapshot_json, owner_edit_json, created_at, reviewed_at, updated_at
+     FROM discovery_candidate_reviews
+     WHERE venue_id = ? AND record_space = 'concept_draft'
+     ORDER BY created_at ASC, rowid ASC`
+  ).all(venueId)
+  if (rows.length === 0) return base
+
+  // Group by concept_ref. concept_ref is the thread key — it is NEVER merged with another
+  // concept_ref (independence stays human-asserted; no cross-concept clustering happens here).
+  const byConcept = new Map()
+  for (const r of rows) {
+    if (!isNonEmptyString(r.concept_ref)) continue
+    let g = byConcept.get(r.concept_ref)
+    if (!g) { g = { concept_ref: r.concept_ref, rows: [], latest: null }; byConcept.set(r.concept_ref, g) }
+    g.rows.push(r)
+    const touched = r.reviewed_at || r.updated_at || r.created_at || null
+    if (touched && (!g.latest || touched > g.latest)) g.latest = touched
+  }
+
+  const candidates = []
+  for (const g of byConcept.values()) {
+    const c = deriveConceptCandidate(g, venueId, derivedAt)
+    if (c) candidates.push(c)
+  }
+  // Newest concept activity first; deterministic tiebreak by concept_ref.
+  candidates.sort((a, b) =>
+    String(b._latest || '').localeCompare(String(a._latest || '')) ||
+    String(a.concept_ref).localeCompare(String(b.concept_ref)))
+  // Strip the internal sort key before returning.
+  base.candidates = candidates.map(({ _latest, ...rest }) => rest)
+  return base
+}
+
+// owner_edit may only ever LOWER confidence (enforced on write), so when an edit band is present
+// it is the floor-true band for that row. Returns null when no band was captured (never 'low').
+function effectiveBandOfRow(snap, ownerEdit) {
+  const editBand = ownerEdit && CONFIDENCE_BANDS.includes(ownerEdit.confidence_band) ? ownerEdit.confidence_band : null
+  const snapBand = snap && CONFIDENCE_BANDS.includes(snap.confidence_band) ? snap.confidence_band : null
+  return editBand || snapBand
+}
+
+// Build an evidence ref straight from a REAL saved review row. No fabrication, no paraphrase —
+// every field is drawn from the stored row so a candidate is always traceable to its source.
+function evidenceRefOfRow(row) {
+  const snap = parseJson(row.candidate_snapshot_json)
+  const ownerEdit = parseJson(row.owner_edit_json)
+  const snapSignal = snap && isNonEmptyString(snap.signal) ? snap.signal.trim() : null
+  return {
+    review_id: row.id,
+    concept_ref: row.concept_ref,
+    conversation_ref: isNonEmptyString(row.conversation_ref) ? row.conversation_ref : null,
+    review_action: row.review_action,
+    snapshot_signal: snapSignal,
+    confidence_band: effectiveBandOfRow(snap, ownerEdit),
+    created_at: row.created_at || null,
+  }
+}
+
+// Derive 0..1 candidate(s) for one concept's saved reviews. Pure; no I/O. Returns null when the
+// concept offers nothing to interpret beyond what the Evidence Summary already counts.
+function deriveConceptCandidate(group, venueId, derivedAt) {
+  const rows = group.rows
+  const kept = rows.filter(r => AFFIRMING_ACTIONS.includes(r.review_action))
+  const rejected = rows.filter(r => r.review_action === 'rejected')
+  const held = rows.filter(r => r.review_action === 'held')
+
+  // Nothing the owner kept → no meaning to interpret, and no kept side for a contradiction.
+  // (The Evidence Summary already counts held/rejected-only concepts; a candidate would add no
+  //  honest interpretation here.)
+  if (kept.length === 0) return null
+
+  const keptRefs = kept.map(evidenceRefOfRow)
+  const rejectedRefs = rejected.map(evidenceRefOfRow)
+
+  // Independence within one concept is ALWAYS weak (one concept = one thread). A sharper note is
+  // added when the supporting rows literally share a single saved conversation.
+  const distinctConvs = new Set(keptRefs.map(r => r.conversation_ref).filter(v => isNonEmptyString(v)))
+  const sharesOneConversation = keptRefs.length >= 2 && distinctConvs.size <= 1
+  const anyKeptBand = keptRefs.some(r => r.confidence_band)
+
+  const baseCandidate = {
+    candidate_id: randomUUID(),       // EPHEMERAL — derived live, never persisted.
+    venue_id: venueId,                // ACCESS BOUNDARY only — never the subject/claim.
+    source_record_space: RECORD_SPACE,
+    concept_ref: group.concept_ref,   // the thread key — not an identity assertion.
+    destination_hint: null,           // inert; surfacing the owner earmark is deferred (never a write).
+    created_from_summary_version: `derived-live@${derivedAt}`,
+    _latest: group.latest,            // internal sort key, stripped before return.
+  }
+
+  // ── contradiction_signal: the owner KEPT and REJECTED meanings within ONE concept ──
+  if (rejected.length >= 1) {
+    const missing = [
+      'These saved reviews are one concept thread — within a single concept, repetition is not independent corroboration.',
+    ]
+    if (held.length >= 1) missing.push(`${held.length} saved review(s) held — deferred by the owner, not counted on either side.`)
+    if (sharesOneConversation) missing.push('Supporting reviews share a single saved conversation — independence is weak.')
+    return {
+      ...baseCandidate,
+      candidate_type: 'contradiction_signal',
+      status: 'contradicted',
+      interpretation_title: 'Conflicting saved meanings for this concept',
+      interpretation_summary:
+        "Across this concept's saved reviews, some meanings were kept while others were rejected. " +
+        'Evidence suggests the concept may not resolve to a single meaning. The conflict is preserved ' +
+        'side by side and is not averaged.',
+      supporting_evidence_refs: keptRefs,
+      conflicting_evidence_refs: rejectedRefs,
+      missing_evidence: missing,
+      // Unresolved contradiction caps confidence low; null when no band was ever captured.
+      confidence_band: anyKeptBand ? 'low' : null,
+      uncertainty_notes: [
+        'A contradiction is not resolved by HESTIA — only the owner can say which meaning reflects the venue.',
+        'Confidence is held low because the saved evidence disagrees with itself.',
+      ],
+      suggested_owner_question:
+        'Your saved reviews for this concept conflict — which of these meanings reflects the venue?',
+    }
+  }
+
+  // ── missing_data_signal: a kept meaning that cannot yet be corroborated ──
+  // Within one concept there is no independent corroboration, so a kept meaning is at most a
+  // POSSIBLE signal whose evidence is not yet sufficient to interpret as recurring identity.
+  const missing = [
+    'These saved reviews are one concept thread — within a single concept, repetition is not independent corroboration.',
+    'No second, independent concept corroborates this meaning yet.',
+  ]
+  if (kept.length === 1) missing.push('Saved once — a single saved review is not repeated evidence.')
+  if (sharesOneConversation) missing.push('Supporting reviews share a single saved conversation — independence is weak.')
+  if (held.length >= 1) missing.push(`${held.length} saved review(s) held — the owner has not resolved them.`)
+  if (!anyKeptBand) missing.push('No confidence band was captured on the supporting reviews.')
+
+  return {
+    ...baseCandidate,
+    candidate_type: 'missing_data_signal',
+    // Unresolved held reviews make the concept genuinely await the owner; otherwise it is simply
+    // too thin / non-independent to interpret.
+    status: held.length >= 1 ? 'needs_owner_clarification' : 'insufficient_evidence',
+    interpretation_title: 'Possible signal — evidence not yet sufficient to interpret',
+    interpretation_summary:
+      'This concept has saved meaning the owner kept. Evidence suggests there may be a signal here, ' +
+      'but the saved reviews are a single concept thread and do not provide the independent ' +
+      "corroboration needed to interpret it as part of the venue's identity.",
+    supporting_evidence_refs: keptRefs,
+    conflicting_evidence_refs: [],    // present, empty — no conflicting saved meaning in this concept.
+    missing_evidence: missing,
+    confidence_band: null,            // a gap, not a strength claim → "not captured".
+    uncertainty_notes: [
+      'Evidence-bound suspicion only — this is not a claim that the venue is anything.',
+      'Strength cannot rise from repetition within one concept (floor-only).',
+    ],
+    suggested_owner_question:
+      "Does this concept's saved meaning belong to the venue's identity, or does it need more evidence?",
+  }
+}
