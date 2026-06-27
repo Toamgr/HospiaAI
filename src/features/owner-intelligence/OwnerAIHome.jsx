@@ -21,6 +21,7 @@ import { apiGet } from '../../services/api/client'
 import { parseCandidateSignals } from './candidateSignalParser'
 import CandidateReviewPanel from './CandidateReviewPanel'
 import ConceptDraftsPanel from './ConceptDraftsPanel'
+import EvidenceSummaryPanel from './EvidenceSummaryPanel'
 
 // ── Palette B — Editorial Light tokens (from skills/user/hestia-ui-design) ──────
 const C = {
@@ -433,6 +434,9 @@ export default function OwnerAIHome({ currentUser, venueIntelligence } = {}) {
 
         {/* ── Concept Drafts Workspace (Slice 2a) — read-only re-entry into saved drafts ── */}
         <ConceptDraftsPanel />
+
+        {/* ── Evidence Summary (EAE Slice 2) — read-only memory mirror, never confirmed Venue DNA ── */}
+        <EvidenceSummaryPanel />
 
         {/* ── Backstage intelligence — collapsed by default, never the product ── */}
         <details className="mt-10">
