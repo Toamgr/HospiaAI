@@ -36,7 +36,12 @@ async function apiRequest(method, path, body = null) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `API error ${res.status}`)
+    // Surface the HTTP status on the thrown Error (additive, backward-compatible: the message is
+    // unchanged). Callers that need to distinguish e.g. a 409 conflict from a 403 can read err.status;
+    // callers that only read err.message keep working exactly as before.
+    const error = new Error(err.error || `API error ${res.status}`)
+    error.status = res.status
+    throw error
   }
 
   return res.json()

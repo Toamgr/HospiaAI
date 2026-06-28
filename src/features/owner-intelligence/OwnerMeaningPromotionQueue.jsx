@@ -1,32 +1,43 @@
-// OwnerMeaningPromotionQueue — Owner Meaning Promotion, the first READ-ONLY review surface (Slice 4H).
+// OwnerMeaningPromotionQueue — Owner Meaning Promotion review surface (Slice 4H read + Slice 4M review).
 //
-// Exposes the existing promotion candidate queue to the OWNER as an inspection / review depth layer.
-// It is strictly observational: it shows PROPOSED changes, REFERENCED (never rewritten) owner
-// evidence, and BLOCKED application. It changes no byte of state.
+// Exposes the promotion candidate queue to the OWNER as an inspection + DECISION depth layer. It shows
+// PROPOSED changes, REFERENCED (never rewritten) owner evidence, BLOCKED application, and — new in 4M —
+// lets the owner record a REVIEW DECISION on a reviewable candidate.
 //
-// It uses ONLY the two already-shipped read-only GET routes — it adds NO new backend behavior:
-//   • GET /api/owner-meaning-promotion-candidates              → the paginated candidate queue
-//   • GET /api/owner-meaning-promotion-candidates/:candidateId → one candidate + source captures + events
+// It uses the already-shipped GET read routes plus the already-shipped owner-only review WRITE routes —
+// it adds NO new backend behavior:
+//   • GET  /api/owner-meaning-promotion-candidates                          → the paginated candidate queue
+//   • GET  /api/owner-meaning-promotion-candidates/:candidateId             → one candidate + captures + events
+//   • POST /api/owner-meaning-promotion-candidates/:candidateId/approve-meaning   → owner confirms HESTIA's reading
+//   • POST /api/owner-meaning-promotion-candidates/:candidateId/reject            → owner declines the candidate
+//   • POST /api/owner-meaning-promotion-candidates/:candidateId/request-revision  → owner asks for a reinterpretation
 //
 // CRITICAL PRODUCT TRUTH — stated plainly in the UI, non-removable:
-//   • Nothing here changes Venue DNA. There is NO approve / reject / request-revision / apply-to-DNA
-//     / promote / confirm affordance, for any role. The queue is read-only inspection only.
-//   • allowed_actions are ALL false; application is BLOCKED (application.blocked: true). The UI says so.
-//   • The proposed diff is PROPOSED, not applied — never "updated" / "confirmed" / "HESTIA learned this".
-//   • Candidates are blocked from application until a future, separately-reviewed owner review
-//     workflow exists. None exists in this slice.
+//   • approve_meaning ≠ apply_to_dna. Approving the meaning confirms HESTIA understood the owner intent.
+//     It does NOT change Venue DNA, does NOT apply anything, and does NOT unblock application.
+//   • There is NO control here that applies a candidate to Venue DNA, proposes a DNA patch, files a
+//     candidate as evidence only, promotes, or otherwise mutates Venue DNA — for any role. Application
+//     stays BLOCKED (application.blocked: true) before and after every review decision. The UI says so,
+//     and never implies DNA changed.
+//   • The three review controls call ONLY the three existing owner-only review POST routes above. They
+//     never touch Venue DNA and the component never calls the Venue DNA merge writer (it imports only
+//     apiGet/apiPost).
+//   • A candidate is reviewable ONLY while its status is draft_suggestion | needs_owner_review (mirrors
+//     the server's own guard). A decided/terminal candidate is shown as decided; the server is the
+//     authority and returns a safe 409 if a stale view tries to decide it again.
 //   • OWNER ONLY. The backend blocks every non-owner role (admin included); this surface additionally
 //     refuses to render for any role that is not exactly 'owner'.
 //
 // ACCESSIBILITY (matches the 4E.1/4E.2 bar): every control is a real <button> (no clickable divs);
-// fetch state is announced through a polite live region (role=status, aria-live=polite); opening a
-// candidate moves focus to the detail heading and closing returns focus to the row that opened it;
-// the detail region is labelled.
+// fetch + decision state is announced through polite live regions (role=status, aria-live=polite);
+// opening a candidate moves focus to the detail heading, a successful decision returns focus to the
+// detail heading (the action buttons may disappear), closing returns focus to the row that opened it;
+// the detail region is labelled; the reject/revision text inputs are labelled.
 //
 // Palette B (Editorial Light) — matches the host OwnerAIHome surface (never mix palettes).
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { apiGet } from '../../services/api/client'
+import { apiGet, apiPost } from '../../services/api/client'
 
 const C = {
   card:      '#FFFFFF',
@@ -43,11 +54,22 @@ const C = {
 // Shared keyboard focus-visible ring (premium, calm — a soft burgundy halo, never a neon outline).
 const FOCUS_RING = 'focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_rgba(107,39,55,0.14)]'
 
-// Non-removable honesty framing — present in every non-loading state of this read-only surface.
-const READONLY_NOTE =
-  'Read-only inspection. No Venue DNA changes are made here. These are proposed candidates HESTIA ' +
-  'drew from your saved evidence — nothing is approved, applied, or confirmed, and there is no ' +
-  'control here that could change that.'
+// Non-removable honesty framing — present in every non-loading state of this review surface.
+const REVIEW_NOTE =
+  'Owner review. You can confirm HESTIA understood a meaning, decline a candidate, or ask for a ' +
+  'revision. These are proposed candidates HESTIA drew from your saved evidence — no review decision ' +
+  'changes Venue DNA, nothing is applied, and application stays blocked.'
+
+// The statuses from which an owner decision is legal (mirrors the server's reviewable guard, 4L).
+const REVIEWABLE_STATUSES = new Set(['draft_suggestion', 'needs_owner_review'])
+
+// The three live review actions → their route slugs. apply_to_dna / propose_dna_patch /
+// mark_evidence_only are deliberately ABSENT — no such control exists in this slice.
+const REVIEW_ROUTE_SLUG = {
+  approve_meaning:  'approve-meaning',
+  reject_candidate: 'reject',
+  request_revision: 'request-revision',
+}
 
 // Owner-facing labels for the closed candidate-status vocabulary (4F.1 §5). Word labels only —
 // never invented certainty.
@@ -60,15 +82,6 @@ const STATUS_LABEL = {
   superseded:          'Superseded',
   expired:             'Expired',
   application_blocked: 'Application blocked',
-}
-
-// The four forward-declared actions a future writer slice MAY add. Here every one is unavailable,
-// surfaced as disabled, non-interactive evidence — never as a working control.
-const ACTION_LABEL = {
-  approve:          'Approve',
-  reject:           'Reject',
-  request_revision: 'Request revision',
-  apply_to_dna:     'Apply to DNA',
 }
 
 function shortId(id) {
@@ -126,20 +139,21 @@ function StatusBadge({ status }) {
   )
 }
 
-// A single candidate row in the list — a button that opens the read-only detail. Communicates the
-// status, target, confidence, timing, blocked application, and that actions are unavailable.
+// A single candidate row in the list — a button that opens the review detail. Communicates the
+// status, target, confidence, timing, blocked application, and whether owner review is available.
 function CandidateRow({ candidate, onOpen, rowRef }) {
   const c = candidate || {}
   const created = formatDateTime(c.created_at)
   const updated = formatDateTime(c.updated_at)
   const evidenceCount = c.evidence?.source_capture_count
+  const reviewable = REVIEWABLE_STATUSES.has(c.status)
   return (
     <li>
       <button
         type="button"
         ref={rowRef}
         onClick={() => onOpen(c.id)}
-        aria-label={`Inspect promotion candidate ${shortId(c.id)} — read-only, no Venue DNA changes`}
+        aria-label={`Open promotion candidate ${shortId(c.id)} for owner review — no Venue DNA changes`}
         className={`w-full rounded-xl px-4 py-3 text-left transition hover:border-current ${FOCUS_RING}`}
         style={{ background: C.card, border: `1px solid ${C.borderSub}`, color: C.text2 }}
       >
@@ -169,8 +183,8 @@ function CandidateRow({ candidate, onOpen, rowRef }) {
             application blocked
           </span>
           <span className="rounded-full px-2 py-0.5 text-[10px]"
-            style={{ border: `1px dashed ${C.borderEmp}`, color: C.text3 }}>
-            actions unavailable
+            style={{ border: `1px solid ${C.borderSub}`, color: reviewable ? C.burgundy : C.text3, background: C.card }}>
+            {reviewable ? 'review available' : 'reviewed'}
           </span>
         </div>
       </button>
@@ -231,14 +245,244 @@ function SourceCapture({ capture }) {
   )
 }
 
-// The read-only detail for one candidate: proposed diff, confidence + factors, contradictions,
-// missing evidence, source evidence, audit timeline, allowed_actions (all unavailable), and the
-// blocked-application banner. Honest empty states everywhere — never a fabricated field.
-function CandidateDetail({ detail, loading, error, headingRef, onClose }) {
+// ── Owner review controls (Slice 4M) ────────────────────────────────────────────
+//
+// The owner's three live decisions on a REVIEWABLE candidate. approve_meaning is visually and textually
+// distinct from any DNA application: it confirms interpretation only, never changes Venue DNA, and never
+// unblocks application. There is intentionally no control here that applies a candidate to Venue DNA,
+// proposes a DNA patch, or files it as evidence only. A decided candidate shows its recorded decision
+// instead of controls.
+function OwnerReviewControls({ candidate, busyAction, error, conflict, success, onReview }) {
+  const status = candidate?.status
+  const reviewable = REVIEWABLE_STATUSES.has(status)
+  const decisionNote = candidate?.review?.owner_decision_note
+  const reviewedAt = formatDateTime(candidate?.review?.reviewed_at)
+
+  // Which inline form is open (deliberate, two-step — never an accidental one-tap decision).
+  const [openForm, setOpenForm] = useState(null) // 'approve_meaning' | 'reject_candidate' | 'request_revision' | null
+  const [rejectReason, setRejectReason] = useState('')
+  const [revisionText, setRevisionText] = useState('')
+  const busy = Boolean(busyAction)
+
+  // After a successful decision the candidate is no longer reviewable — close any open form + clear inputs.
+  useEffect(() => {
+    if (success) { setOpenForm(null); setRejectReason(''); setRevisionText('') }
+  }, [success])
+
+  const rejectFieldId = `omp-review-reject-${candidate?.id || 'x'}`
+  const revisionFieldId = `omp-review-revision-${candidate?.id || 'x'}`
+
+  return (
+    <div className="mt-5 border-t pt-4" style={{ borderColor: C.borderSub }}>
+      <Eyebrow>Owner review · this does not change Venue DNA</Eyebrow>
+      <p className="mt-1 text-[11px] leading-relaxed" style={{ color: C.text3 }}>
+        Approving the meaning confirms HESTIA understood the owner intent. It does not apply anything to
+        Venue DNA. Venue DNA remains unchanged, and application remains blocked until a future,
+        separately-reviewed DNA promotion workflow exists.
+      </p>
+
+      {/* Decision outcome — announced politely, never stealing focus. Honest copy only: never implies DNA changed. */}
+      <div role="status" aria-live="polite" aria-atomic="true">
+        {success === 'approve_meaning' && (
+          <div className="mt-3 rounded-xl px-3.5 py-2.5" style={{ background: C.card, border: `1px solid ${C.borderEmp}` }}>
+            <p className="text-[12px] font-medium leading-relaxed" style={{ color: C.burgundy }}>
+              <span aria-hidden="true">✓ </span>
+              Meaning approved. HESTIA recorded that you confirmed its reading. Your Venue DNA is unchanged,
+              and application remains blocked.
+            </p>
+          </div>
+        )}
+        {success === 'reject_candidate' && (
+          <div className="mt-3 rounded-xl px-3.5 py-2.5" style={{ background: C.card, border: `1px solid ${C.borderEmp}` }}>
+            <p className="text-[12px] font-medium leading-relaxed" style={{ color: C.burgundy }}>
+              <span aria-hidden="true">✓ </span>
+              Candidate rejected. It will not advance. Venue DNA is unchanged.
+            </p>
+          </div>
+        )}
+        {success === 'request_revision' && (
+          <div className="mt-3 rounded-xl px-3.5 py-2.5" style={{ background: C.card, border: `1px solid ${C.borderEmp}` }}>
+            <p className="text-[12px] font-medium leading-relaxed" style={{ color: C.burgundy }}>
+              <span aria-hidden="true">✓ </span>
+              Revision requested. HESTIA will reinterpret from your evidence. Venue DNA is unchanged.
+            </p>
+          </div>
+        )}
+        {conflict && (
+          <div className="mt-3 rounded-xl px-3.5 py-2.5" style={{ background: C.inset, border: `1px dashed ${C.borderEmp}` }}>
+            <p className="text-[12px] leading-relaxed" style={{ color: C.text2 }}>
+              This candidate was already decided or is no longer reviewable. Nothing was changed — reopen it to see its current state.
+            </p>
+          </div>
+        )}
+        {error && (
+          <div className="mt-3 rounded-xl px-3.5 py-2.5" style={{ background: 'rgba(107,39,55,0.05)', border: `1px solid ${C.burgundy}` }}>
+            <p className="text-[12px] leading-relaxed" style={{ color: C.burgundy }}>{error}</p>
+          </div>
+        )}
+      </div>
+
+      {reviewable ? (
+        <div className="mt-3">
+          {openForm === null && (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Owner review decisions">
+              <button
+                type="button"
+                onClick={() => setOpenForm('approve_meaning')}
+                disabled={busy}
+                className={`rounded-xl px-4 py-2 text-[12px] font-semibold transition ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-45`}
+                style={{ border: `1px solid ${C.burgundy}`, color: C.burgundy, background: 'rgba(107,39,55,0.06)' }}
+              >
+                Approve meaning
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpenForm('reject_candidate')}
+                disabled={busy}
+                className={`rounded-xl px-4 py-2 text-[12px] font-medium transition ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-45`}
+                style={{ border: `1px solid ${C.borderEmp}`, color: C.text2, background: C.card }}
+              >
+                Reject candidate
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpenForm('request_revision')}
+                disabled={busy}
+                className={`rounded-xl px-4 py-2 text-[12px] font-medium transition ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-45`}
+                style={{ border: `1px solid ${C.borderEmp}`, color: C.text2, background: C.card }}
+              >
+                Request revision
+              </button>
+            </div>
+          )}
+
+          {/* Approve meaning — deliberate confirm. Approving the meaning only; not an application. */}
+          {openForm === 'approve_meaning' && (
+            <div className="mt-1 rounded-xl px-3.5 py-3" role="group" aria-label="Confirm approve meaning"
+              style={{ background: C.card, border: `1px solid ${C.borderEmp}` }}>
+              <p className="text-[12px] leading-relaxed" style={{ color: C.text2 }}>
+                Confirm that HESTIA understood the owner intent. This records your judgement of the reading
+                only — it does not change Venue DNA, and application stays blocked.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => onReview('approve_meaning', {})}
+                  disabled={busy}
+                  aria-busy={busyAction === 'approve_meaning'}
+                  className={`rounded-xl px-4 py-2 text-[12px] font-semibold transition ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-45`}
+                  style={{ border: `1px solid ${C.burgundy}`, color: C.burgundy, background: 'rgba(107,39,55,0.06)' }}
+                >
+                  {busyAction === 'approve_meaning' ? 'Approving…' : 'Approve meaning'}
+                </button>
+                <button type="button" onClick={() => setOpenForm(null)} disabled={busy}
+                  className={`rounded-xl px-3 py-2 text-[12px] transition ${FOCUS_RING} disabled:opacity-45`}
+                  style={{ color: C.text3 }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Reject — optional reason. */}
+          {openForm === 'reject_candidate' && (
+            <div className="mt-1 rounded-xl px-3.5 py-3" role="group" aria-label="Reject candidate"
+              style={{ background: C.card, border: `1px solid ${C.borderEmp}` }}>
+              <label htmlFor={rejectFieldId} className="text-[11px] font-medium" style={{ color: C.text2 }}>
+                Why is this candidate wrong, irrelevant, or not useful? (optional)
+              </label>
+              <textarea
+                id={rejectFieldId}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                disabled={busy}
+                rows={3}
+                placeholder="Optional — a short reason, kept for your audit trail."
+                className="mt-1.5 w-full resize-none rounded-xl border px-3.5 py-2.5 text-[12px] leading-relaxed outline-none transition border-[#E0D8CC] focus:border-[#6B2737] focus:shadow-[0_0_0_3px_rgba(107,39,55,0.10)] disabled:opacity-60"
+                style={{ background: C.card, color: C.text }}
+              />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => onReview('reject_candidate', { reason: rejectReason })}
+                  disabled={busy}
+                  aria-busy={busyAction === 'reject_candidate'}
+                  className={`rounded-xl px-4 py-2 text-[12px] font-semibold transition ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-45`}
+                  style={{ border: `1px solid ${C.burgundy}`, color: C.burgundy, background: 'rgba(107,39,55,0.06)' }}
+                >
+                  {busyAction === 'reject_candidate' ? 'Rejecting…' : 'Reject candidate'}
+                </button>
+                <button type="button" onClick={() => setOpenForm(null)} disabled={busy}
+                  className={`rounded-xl px-3 py-2 text-[12px] transition ${FOCUS_RING} disabled:opacity-45`}
+                  style={{ color: C.text3 }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Request revision — revision text (required). */}
+          {openForm === 'request_revision' && (
+            <div className="mt-1 rounded-xl px-3.5 py-3" role="group" aria-label="Request revision"
+              style={{ background: C.card, border: `1px solid ${C.borderEmp}` }}>
+              <label htmlFor={revisionFieldId} className="text-[11px] font-medium" style={{ color: C.text2 }}>
+                What should HESTIA reinterpret or clarify?
+              </label>
+              <textarea
+                id={revisionFieldId}
+                value={revisionText}
+                onChange={(e) => setRevisionText(e.target.value)}
+                disabled={busy}
+                rows={3}
+                placeholder="Tell HESTIA what to reconsider — it will reinterpret from your evidence."
+                className="mt-1.5 w-full resize-none rounded-xl border px-3.5 py-2.5 text-[12px] leading-relaxed outline-none transition border-[#E0D8CC] focus:border-[#6B2737] focus:shadow-[0_0_0_3px_rgba(107,39,55,0.10)] disabled:opacity-60"
+                style={{ background: C.card, color: C.text }}
+              />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => onReview('request_revision', { revisionRequest: revisionText })}
+                  disabled={busy || revisionText.trim().length === 0}
+                  aria-busy={busyAction === 'request_revision'}
+                  className={`rounded-xl px-4 py-2 text-[12px] font-semibold transition ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-45`}
+                  style={{ border: `1px solid ${C.burgundy}`, color: C.burgundy, background: 'rgba(107,39,55,0.06)' }}
+                >
+                  {busyAction === 'request_revision' ? 'Requesting…' : 'Request revision'}
+                </button>
+                <button type="button" onClick={() => setOpenForm(null)} disabled={busy}
+                  className={`rounded-xl px-3 py-2 text-[12px] transition ${FOCUS_RING} disabled:opacity-45`}
+                  style={{ color: C.text3 }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="mt-3 text-[11px] leading-relaxed" style={{ color: C.text3 }}>
+          This candidate has been decided{STATUS_LABEL[status] ? ` — ${STATUS_LABEL[status].toLowerCase()}` : ''}
+          {reviewedAt ? ` on ${reviewedAt}` : ''}. No further review actions are available. Venue DNA is
+          unchanged and application remains blocked.
+        </p>
+      )}
+
+      {decisionNote && (
+        <p className="mt-3 text-[11px] leading-relaxed" style={{ color: C.text3 }}>
+          <span className="font-semibold" style={{ color: C.text2 }}>Your note: </span>
+          “{decisionNote}”
+        </p>
+      )}
+    </div>
+  )
+}
+
+// The review detail for one candidate: proposed diff, confidence + factors, contradictions, missing
+// evidence, source evidence, audit timeline, owner review controls, and the blocked-application banner.
+// Honest empty states everywhere — never a fabricated field.
+function CandidateDetail({ detail, loading, error, headingRef, onClose, review }) {
   const candidate = detail?.candidate || null
   const sourceCaptures = Array.isArray(detail?.source_captures) ? detail.source_captures : []
   const events = Array.isArray(detail?.events) ? detail.events : []
-  const allowedActions = detail?.allowed_actions || null
   const factors = candidate?.confidence?.factors
   const contradictions = Array.isArray(candidate?.confidence?.contradictions) ? candidate.confidence.contradictions : []
   const missingEvidence = Array.isArray(candidate?.confidence?.missing_evidence) ? candidate.confidence.missing_evidence : []
@@ -247,7 +491,7 @@ function CandidateDetail({ detail, loading, error, headingRef, onClose }) {
   const patch = renderValue(candidate?.proposed_dna_patch_json)
 
   return (
-    <div className="mt-4" role="region" aria-label="Promotion candidate detail — read-only">
+    <div className="mt-4" role="region" aria-label="Promotion candidate detail — owner review">
       <button
         type="button"
         onClick={onClose}
@@ -282,12 +526,12 @@ function CandidateDetail({ detail, loading, error, headingRef, onClose }) {
             {formatDateTime(candidate.created_at) ? ` · proposed ${formatDateTime(candidate.created_at)}` : ''}
           </p>
 
-          {/* Blocked application — the most important read-only truth, stated first. */}
+          {/* Blocked application — the most important truth, stated first and unchanged by any review decision. */}
           <div className="mt-3 rounded-xl px-3.5 py-2.5" style={{ background: 'rgba(107,39,55,0.05)', border: `1px solid ${C.burgundy}` }}>
             <p className="text-[12px] font-medium leading-relaxed" style={{ color: C.burgundy }}>
               <span aria-hidden="true">⊘ </span>
               Application is blocked in this slice. {candidate.application?.block_reason || 'Venue DNA application is not enabled in this contract.'}{' '}
-              This queue is read-only. Venue DNA is unchanged.
+              Reviewing a candidate never changes that. Venue DNA is unchanged.
             </p>
           </div>
 
@@ -353,7 +597,7 @@ function CandidateDetail({ detail, loading, error, headingRef, onClose }) {
             )}
           </div>
 
-          {/* Contradictions — surfaced honestly. */}
+          {/* Contradictions — surfaced honestly, kept visible even after a decision. */}
           <div className="mt-4">
             <Eyebrow>Contradictions</Eyebrow>
             {contradictions.length > 0 ? (
@@ -367,7 +611,7 @@ function CandidateDetail({ detail, loading, error, headingRef, onClose }) {
             )}
           </div>
 
-          {/* Missing evidence — surfaced honestly. */}
+          {/* Missing evidence — surfaced honestly, kept visible even after a decision. */}
           <div className="mt-4">
             <Eyebrow>Missing evidence</Eyebrow>
             {missingEvidence.length > 0 ? (
@@ -405,34 +649,15 @@ function CandidateDetail({ detail, loading, error, headingRef, onClose }) {
             )}
           </div>
 
-          {/* allowed_actions — forward-declared, ALL unavailable. Non-interactive evidence, never controls. */}
-          <div className="mt-4">
-            <Eyebrow>Actions · all unavailable in this read-only slice</Eyebrow>
-            {allowedActions ? (
-              <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Available actions, all unavailable">
-                {Object.keys(ACTION_LABEL).map((key) => {
-                  const enabled = allowedActions[key] === true
-                  return (
-                    <li
-                      key={key}
-                      aria-disabled="true"
-                      className="rounded-full px-2.5 py-1 text-[10px] font-medium"
-                      style={{ border: `1px dashed ${C.borderEmp}`, color: C.text3, opacity: 0.7 }}
-                    >
-                      {ACTION_LABEL[key]} — {enabled ? 'available' : 'unavailable'}
-                    </li>
-                  )
-                })}
-              </ul>
-            ) : (
-              <p className="mt-1.5 text-[11px]" style={{ color: C.text3 }}>No action hints available.</p>
-            )}
-            <p className="mt-2 text-[11px] leading-relaxed" style={{ color: C.text3 }}>
-              These are forward-declared hints only. No approve, reject, request-revision, or apply-to-DNA
-              control exists in this slice. A future owner review workflow — separately reviewed — would be
-              the first place any of these could ever become available, and only for the owner.
-            </p>
-          </div>
+          {/* Owner review controls — approve meaning / reject / request revision. Never a DNA application. */}
+          <OwnerReviewControls
+            candidate={candidate}
+            busyAction={review?.busyAction || null}
+            error={review?.error || null}
+            conflict={Boolean(review?.conflict)}
+            success={review?.success || null}
+            onReview={review?.onReview || (() => {})}
+          />
         </div>
       )}
     </div>
@@ -455,11 +680,18 @@ export default function OwnerMeaningPromotionQueue({ currentUser } = {}) {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState(null)
 
-  // Focus management: remember which row opened the detail so closing returns focus there; move
-  // focus to the detail heading when it lands.
+  // Owner review (4M) decision state for the open candidate.
+  const [reviewBusyAction, setReviewBusyAction] = useState(null) // 'approve_meaning' | 'reject_candidate' | 'request_revision'
+  const [reviewError, setReviewError] = useState(null)
+  const [reviewConflict, setReviewConflict] = useState(false)
+  const [reviewSuccess, setReviewSuccess] = useState(null)        // the succeeded action key
+
+  // Focus management: remember which row opened the detail so closing returns focus there; move focus
+  // to the detail heading when it lands, and again after a successful decision (action buttons may go).
   const rowRefs = useRef(new Map())
   const detailHeadingRef = useRef(null)
   const lastOpenedRef = useRef(null)
+  const pendingHeadingFocusRef = useRef(false)
 
   const loadList = useCallback(() => {
     setLoading(true)
@@ -478,13 +710,13 @@ export default function OwnerMeaningPromotionQueue({ currentUser } = {}) {
 
   useEffect(() => { if (isOwner) loadList() }, [isOwner, loadList])
 
-  const openCandidate = useCallback((candidateId) => {
-    lastOpenedRef.current = candidateId
-    setSelectedId(candidateId)
-    setDetail(null)
+  // Fetch one candidate's detail. keepCurrent=true (a post-decision refresh) keeps the panel mounted
+  // and the prior detail visible until the fresh read resolves; the default (initial open) clears it.
+  const fetchDetail = useCallback((candidateId, { keepCurrent = false } = {}) => {
+    if (!keepCurrent) setDetail(null)
     setDetailError(null)
     setDetailLoading(true)
-    apiGet(`/api/owner-meaning-promotion-candidates/${encodeURIComponent(candidateId)}`)
+    return apiGet(`/api/owner-meaning-promotion-candidates/${encodeURIComponent(candidateId)}`)
       .then((res) => setDetail(res || null))
       .catch((err) => {
         if (import.meta?.env?.DEV) console.error('[OwnerMeaningPromotionQueue] GET detail failed:', err)
@@ -493,11 +725,27 @@ export default function OwnerMeaningPromotionQueue({ currentUser } = {}) {
       .finally(() => setDetailLoading(false))
   }, [])
 
+  const openCandidate = useCallback((candidateId) => {
+    lastOpenedRef.current = candidateId
+    pendingHeadingFocusRef.current = true
+    setSelectedId(candidateId)
+    // Reset review decision state for the newly opened candidate.
+    setReviewBusyAction(null)
+    setReviewError(null)
+    setReviewConflict(false)
+    setReviewSuccess(null)
+    fetchDetail(candidateId)
+  }, [fetchDetail])
+
   const closeCandidate = useCallback(() => {
     const opener = lastOpenedRef.current
     setSelectedId(null)
     setDetail(null)
     setDetailError(null)
+    setReviewBusyAction(null)
+    setReviewError(null)
+    setReviewConflict(false)
+    setReviewSuccess(null)
     // Return focus to the row that opened the detail (predictable, never trapped).
     if (typeof requestAnimationFrame === 'function') {
       requestAnimationFrame(() => rowRefs.current.get(opener)?.focus())
@@ -506,10 +754,52 @@ export default function OwnerMeaningPromotionQueue({ currentUser } = {}) {
     }
   }, [])
 
-  // Move focus to the detail heading once it has rendered (after the detail GET resolves or errors).
+  // Submit ONE owner review decision via the matching existing review POST route. On success: refresh
+  // the candidate detail (updated status + events + review fields) and the list (counts/status). NEVER
+  // touches Venue DNA; the only writes are the three review POST routes.
+  const submitReview = useCallback((action, { reason, revisionRequest } = {}) => {
+    const slug = REVIEW_ROUTE_SLUG[action]
+    if (!selectedId || !slug) return
+    setReviewBusyAction(action)
+    setReviewError(null)
+    setReviewConflict(false)
+    setReviewSuccess(null)
+
+    const body = {}
+    if (action === 'request_revision') {
+      const text = (revisionRequest || '').trim()
+      if (text) { body.reason = text; body.revision_request = text }
+    } else {
+      const note = (reason || '').trim()
+      if (note) body.reason = note
+    }
+
+    return apiPost(`/api/owner-meaning-promotion-candidates/${encodeURIComponent(selectedId)}/${slug}`, body)
+      .then(() => {
+        setReviewSuccess(action)
+        // Action buttons may disappear (candidate becomes non-reviewable) — move focus to the heading.
+        pendingHeadingFocusRef.current = true
+        return Promise.all([fetchDetail(selectedId, { keepCurrent: true }), loadList()])
+      })
+      .catch((err) => {
+        if (import.meta?.env?.DEV) console.error('[OwnerMeaningPromotionQueue] POST review failed:', err)
+        if (err && err.status === 409) { setReviewConflict(true); return }
+        if (err && err.status === 403) {
+          setReviewError('Owner Meaning Promotion review is owner-only. Nothing was changed.')
+          return
+        }
+        setReviewError('HESTIA could not record this review decision right now. Nothing was changed — please try again.')
+      })
+      .finally(() => setReviewBusyAction(null))
+  }, [selectedId, fetchDetail, loadList])
+
+  // Move focus to the detail heading once it has rendered, but ONLY when an open or a successful
+  // decision requested it (consume the flag) — a passive re-fetch must not yank focus.
   useEffect(() => {
     if (!selectedId) return
     if (detailLoading) return
+    if (!pendingHeadingFocusRef.current) return
+    pendingHeadingFocusRef.current = false
     if (typeof requestAnimationFrame === 'function') {
       requestAnimationFrame(() => detailHeadingRef.current?.focus())
     } else {
@@ -530,7 +820,7 @@ export default function OwnerMeaningPromotionQueue({ currentUser } = {}) {
       <summary className={`flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 ${FOCUS_RING}`}
         style={{ border: `1px solid ${C.borderSub}`, background: C.card }}>
         <span className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: C.text3 }}>
-          Meaning Promotion Queue · read-only
+          Meaning Promotion Queue · owner review
         </span>
         <span className="text-[11px]" style={{ color: C.text3 }}>
           {loading ? 'Loading…' : `${rows.length} ${rows.length === 1 ? 'candidate' : 'candidates'}`}
@@ -539,12 +829,12 @@ export default function OwnerMeaningPromotionQueue({ currentUser } = {}) {
 
       <div className="mt-3 rounded-2xl p-5 sm:p-6" style={{ background: C.inset, border: `1px solid ${C.borderSub}` }}>
         {/* Non-removable honesty framing. */}
-        <Eyebrow>Promotion review · read-only inspection — no Venue DNA changes</Eyebrow>
+        <Eyebrow>Promotion review · owner decisions — no Venue DNA changes</Eyebrow>
         <p className="mt-2 text-[12px] font-medium leading-relaxed" style={{ color: C.burgundy }}>
-          {READONLY_NOTE}
+          {REVIEW_NOTE}
         </p>
 
-        {/* ── Detail (read-only) view ── */}
+        {/* ── Detail (review) view ── */}
         {selectedId ? (
           <CandidateDetail
             detail={detail}
@@ -552,6 +842,13 @@ export default function OwnerMeaningPromotionQueue({ currentUser } = {}) {
             error={detailError}
             headingRef={detailHeadingRef}
             onClose={closeCandidate}
+            review={{
+              busyAction: reviewBusyAction,
+              error: reviewError,
+              conflict: reviewConflict,
+              success: reviewSuccess,
+              onReview: submitReview,
+            }}
           />
         ) : (
           /* ── List view ── */
@@ -594,8 +891,8 @@ export default function OwnerMeaningPromotionQueue({ currentUser } = {}) {
                   </div>
                 )}
                 <p className="mt-2 text-[11px]" style={{ color: C.text3 }}>
-                  {totalCount} {totalCount === 1 ? 'candidate' : 'candidates'} in this venue. Select one to inspect
-                  its proposed change, evidence, and audit trail — read-only.
+                  {totalCount} {totalCount === 1 ? 'candidate' : 'candidates'} in this venue. Select one to review
+                  its proposed change, evidence, and audit trail — and record your decision.
                 </p>
                 <ul className="mt-3 space-y-2.5">
                   {rows.map((c, i) => (
@@ -614,9 +911,10 @@ export default function OwnerMeaningPromotionQueue({ currentUser } = {}) {
 
         {/* Footer guardrail — the product truth, stated plainly. */}
         <p className="mt-6 border-t pt-3 text-[11px] leading-relaxed" style={{ borderColor: C.borderSub, color: C.text3 }}>
-          This is a read-only review queue. There is no approve, reject, request-revision, or apply-to-DNA
-          control here. Application is blocked, allowed actions are all unavailable, and nothing in this queue
-          changes Venue DNA. Only a future, separately-reviewed owner workflow could ever act on a candidate.
+          You can approve a meaning, reject a candidate, or request a revision here. None of these changes
+          Venue DNA: approving a meaning confirms HESTIA's reading only, application stays blocked, and there
+          is no control here that applies a candidate to Venue DNA. Only a future, separately-reviewed owner
+          workflow could ever do that.
         </p>
       </div>
     </details>
