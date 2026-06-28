@@ -129,14 +129,27 @@ ok(!/mergeVenueDna/.test(serviceCode), '[service] module never calls mergeVenueD
 ok(!/export\s+function\s+(create|approve|reject|requestRevision|apply|promote|merge)\w*Promotion/i.test(service),
   '[service] no writer/approval/apply function is exported')
 
-// ── No UI file touched by this slice (git working-tree audit) ────────────────
+// ── No UNEXPECTED UI churn (git working-tree audit) ──────────────────────────
+// The 4G.1 BACKEND slice touched no UI at all. Slice 4H deliberately adds the READ-ONLY promotion
+// queue UI surface (OwnerMeaningPromotionQueue + its render test) and mounts it in OwnerAIHome.
+// Those three files are the ALLOWED, intended UI expansion; any OTHER UI file showing up here would
+// be unexpected scope creep and still fails. The read-only guarantee itself is enforced above by the
+// direct source assertions on server.js (the route region) and the service module — not by this
+// working-tree fence.
+const ALLOWED_UI = [
+  'src/features/owner-intelligence/OwnerMeaningPromotionQueue.jsx',
+  'src/features/owner-intelligence/OwnerMeaningPromotionQueue.render.test.jsx',
+  'src/features/owner-intelligence/OwnerAIHome.jsx',
+]
 let changed = []
 try {
   changed = execSync('git -C "' + ROOT + '" status --porcelain', { encoding: 'utf8' })
     .split('\n').map(l => l.slice(3).trim()).filter(Boolean)
 } catch { changed = [] }
-const uiChanged = changed.filter(p => /\.(jsx|tsx|css)$/i.test(p) || /(^|\/)src\/features\//.test(p) || /OwnerMeaningComposer/.test(p) || /PageRenderer/.test(p))
-ok(uiChanged.length === 0, `[no-ui] this slice touches no UI file (offenders: ${uiChanged.join(', ') || 'none'})`)
+const uiChanged = changed
+  .filter(p => /\.(jsx|tsx|css)$/i.test(p) || /(^|\/)src\/features\//.test(p) || /OwnerMeaningComposer/.test(p) || /PageRenderer/.test(p))
+  .filter(p => !ALLOWED_UI.includes(p.replace(/^"|"$/g, '')))
+ok(uiChanged.length === 0, `[no-ui] no UNEXPECTED UI file touched (offenders beyond the 4H queue surface: ${uiChanged.join(', ') || 'none'})`)
 
 console.log(`\n  ${passed} passed, ${failed} failed  (assertions: ${passed + failed})\n`)
 if (failed > 0) process.exit(1)

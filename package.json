@@ -47,7 +47,8 @@
     "test:owner-meaning-capture-composer-render": "vitest run src/features/owner-intelligence/OwnerMeaningComposer.render.test.jsx",
     "test:owner-meaning-promotion-persistence": "node scripts/test-owner-meaning-promotion-persistence.js",
     "test:owner-meaning-promotion-read-route-behavior": "node scripts/test-owner-meaning-promotion-read-route-behavior.js",
-    "test:owner-meaning-promotion-read-route-audit": "node scripts/test-owner-meaning-promotion-read-route-audit.js"
+    "test:owner-meaning-promotion-read-route-audit": "node scripts/test-owner-meaning-promotion-read-route-audit.js",
+    "test:owner-meaning-promotion-queue-render": "vitest run src/features/owner-intelligence/OwnerMeaningPromotionQueue.render.test.jsx"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",

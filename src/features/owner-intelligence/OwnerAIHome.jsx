@@ -24,6 +24,7 @@ import ConceptDraftsPanel from './ConceptDraftsPanel'
 import EvidenceSummaryPanel from './EvidenceSummaryPanel'
 import InterpretedCandidatesPanel from './InterpretedCandidatesPanel'
 import OwnerMeaningComposer from './OwnerMeaningComposer'
+import OwnerMeaningPromotionQueue from './OwnerMeaningPromotionQueue'
 
 // ── Palette B — Editorial Light tokens (from skills/user/hestia-ui-design) ──────
 const C = {
@@ -445,6 +446,9 @@ export default function OwnerAIHome({ currentUser, venueIntelligence } = {}) {
 
         {/* ── Owner Meaning Composer (Slice 4E) — owner-only write: save raw owner evidence, never DNA ── */}
         <OwnerMeaningComposer currentUser={currentUser} />
+
+        {/* ── Owner Meaning Promotion Queue (Slice 4H) — owner-only READ-ONLY review depth layer; no DNA changes ── */}
+        <OwnerMeaningPromotionQueue currentUser={currentUser} />
 
         {/* ── Backstage intelligence — collapsed by default, never the product ── */}
         <details className="mt-10">
