@@ -62,19 +62,25 @@ ok(/app\.get\(\s*['"]\/api\/owner-meaning-promotion-candidates\/:candidateId['"]
 ok(!/app\.get\(\s*['"]\/api\/owner-meaning-promotion-candidates[^)]*requireAuth\(\s*['"]owner['"]\s*,\s*['"]admin['"]/.test(server),
   '[GET] admin not granted via requireAuth allow-list')
 
-// ── The ONLY promotion writer route is the Slice 4J candidate-generation POST ─────────────────
-// 4G.1 was GET-only; Slice 4J adds EXACTLY ONE owner-only POST .../generate (candidate generation —
-// stage 2 proposal). It is the only write verb permitted on this surface. No approve / reject /
-// request-revision / apply writer may exist.
+// ── Promotion writer routes: the Slice 4J generate POST + the Slice 4L owner review POSTs ─────
+// 4G.1 was GET-only; Slice 4J added EXACTLY ONE owner-only POST .../generate (candidate generation —
+// stage 2 proposal); Slice 4L adds THREE owner-only review POSTs (approve-meaning / reject /
+// request-revision — stage 3 approval). Those FOUR are the only write verbs permitted on this
+// surface. No apply-to-dna / propose-dna-patch / mark-evidence-only / promote / confirm writer may
+// exist (DNA-crossing / deferred). The READ routes here remain strictly read-only regardless.
 const promotionWriteVerbs = (server.match(/app\.(post|put|patch|delete)\(\s*['"]\/api\/owner-meaning-promotion-candidates/g) || [])
-ok(promotionWriteVerbs.length === 1, `[writer] exactly ONE promotion write verb exists (the generate POST) (got ${promotionWriteVerbs.length})`)
+ok(promotionWriteVerbs.length === 4, `[writer] exactly FOUR promotion write verbs exist — generate + 3 review (got ${promotionWriteVerbs.length})`)
 ok(/app\.post\(\s*['"]\/api\/owner-meaning-promotion-candidates\/generate['"]\s*,\s*requireAuth\(\s*['"]owner['"]\s*\)/.test(server),
-  '[writer] the one write verb is the owner-only candidate-generation POST .../generate')
+  '[writer] the candidate-generation POST .../generate exists, owner-only')
+for (const action of ['approve-meaning', 'reject', 'request-revision']) {
+  ok(new RegExp(`app\\.post\\(\\s*['"]\\/api\\/owner-meaning-promotion-candidates\\/:candidateId\\/${action}['"]\\s*,\\s*requireAuth\\(\\s*['"]owner['"]\\s*\\)`).test(server),
+    `[writer] the owner review POST .../${action} exists, owner-only`)
+}
 const promotionGets = (server.match(/app\.get\(\s*['"]\/api\/owner-meaning-promotion-candidates/g) || [])
 ok(promotionGets.length === 2, `[GET-only] exactly TWO promotion GET routes (got ${promotionGets.length})`)
-for (const writer of ['approve', 'reject', 'request-revision', 'apply', 'promote', 'confirm']) {
+for (const writer of ['apply', 'apply-to-dna', 'propose-dna-patch', 'mark-evidence-only', 'promote', 'confirm']) {
   ok(!new RegExp(`/api/owner-meaning-promotion-candidates/[^'"\\s]*${writer}`).test(server),
-    `[no-writer] no .../${writer} promotion route introduced`)
+    `[no-writer] no .../${writer} promotion route introduced (deferred / DNA-crossing)`)
 }
 
 // ── 4D capture WRITE route UNCHANGED: still exactly one owner-only POST ───────

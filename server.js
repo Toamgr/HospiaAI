@@ -25,6 +25,7 @@ import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL,
 import { OWNER_MEANING_CAPTURES_DDL, OWNER_MEANING_CAPTURE_EVENTS_DDL, createOwnerMeaningCapture, listOwnerMeaningCaptures, getOwnerMeaningCaptureById, listOwnerMeaningCaptureEvents } from "./src/services/venueIntelligence/ownerMeaningCaptureService.js";
 import { OWNER_MEANING_PROMOTION_CANDIDATES_DDL, OWNER_MEANING_PROMOTION_EVENTS_DDL, OWNER_MEANING_PROMOTION_ALLOWED_ACTIONS, listOwnerMeaningPromotionCandidates, getOwnerMeaningPromotionCandidateById, listOwnerMeaningPromotionEvents, resolveSourceCapturesForPromotionCandidate } from "./src/services/venueIntelligence/ownerMeaningPromotionService.js";
 import { generateOwnerMeaningPromotionCandidate } from "./src/services/venueIntelligence/ownerMeaningPromotionGenerationService.js";
+import { approveOwnerMeaningPromotionCandidateMeaning, rejectOwnerMeaningPromotionCandidate, requestRevisionOwnerMeaningPromotionCandidate } from "./src/services/venueIntelligence/ownerMeaningPromotionReviewService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
 import { ensureStructuredCandidateSignals } from "./src/services/venueIntelligence/ownerCorrectionLoopFormat.js";
@@ -7178,6 +7179,82 @@ app.post('/api/owner-meaning-promotion-candidates/generate', requireAuth('owner'
   }
 });
 // ── Owner Meaning Promotion generation route — END ────────────────────────────
+
+// ── Owner Meaning Promotion — Owner Review Action Runtime (Slice 4L) — OWNER-ONLY DECISIONS ──
+// The FIRST runtime owner DECISION surface for the promotion layer: it records the owner's judgement
+// of an already-generated candidate (stage 3 — approval) and appends its append-only audit event.
+// Three owner-only actions, each mapping to EXISTING 4F.1 status + event vocabulary (no DDL change):
+//   POST .../:candidateId/approve-meaning    → status owner_approved     , event owner_approved
+//   POST .../:candidateId/reject             → status owner_rejected     , event owner_rejected
+//   POST .../:candidateId/request-revision   → status revision_requested , event owner_requested_revision
+//
+// CORE PRINCIPLE: approve_meaning ≠ apply_to_dna. Approving the MEANING records that the owner agrees
+// with HESTIA's reading; it is NOT a DNA write. application.blocked STAYS true after every action;
+// NO mergeVenueDna; NO Venue DNA mutation; NO apply-to-dna / propose-dna-patch / mark-evidence-only
+// here (those are deferred to future DDL slices). The writer touches ONLY the two promotion tables.
+//
+// Auth: OWNER-ONLY, exactly like the capture write + promotion read/generate routes. requireAuth('owner')
+// PLUS the same explicit in-handler re-exclusion of the platform-admin global bypass, so an admin
+// decision writes ZERO rows. Manager / bar_manager / chef / employee are blocked at requireAuth;
+// unauthenticated is 401 there.
+//
+// Venue scope: SERVER-resolved req.venueId only. The client supplies ONLY an optional reason (never a
+// venue subject); a candidate of another venue is unreachable (scoped SELECT → safe 404). Only a
+// REVIEWABLE candidate (draft_suggestion | needs_owner_review) can be decided; a terminal / already-
+// decided / parked candidate → safe 409 (so a repeated decision is a 409, never a duplicate event).
+
+// Shared handler shape for the three owner review actions (owner-only, venue-scoped, audit-first).
+function handleOwnerMeaningPromotionReview(reviewFn, req, res) {
+  try {
+    // OWNER-ONLY by meaning: a Platform Admin is never the author of a venue-identity decision.
+    // requireAuth has a global admin bypass, so re-exclude admin HERE — before any read or write —
+    // so an admin decision writes ZERO rows. (Scoped to THIS route only.)
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'Owner Meaning Promotion is owner-only.' });
+    }
+    const body = req.body || {};
+    const result = reviewFn(db, {
+      venueId: req.venueId,
+      candidateId: req.params.candidateId,
+      actor: req.user ? { id: req.user.id, role: req.user.role } : null,
+      reason: typeof body.reason === 'string' ? body.reason : undefined,
+      revisionRequest: typeof body.revision_request === 'string' ? body.revision_request : undefined,
+    });
+    // A PROPOSED candidate's review state changed; Venue DNA was NOT changed and nothing was applied.
+    return res.json({
+      ok: true,
+      ...result,
+      note: 'Recorded the owner review decision. Venue DNA was not changed, and nothing was applied to DNA.',
+    });
+  } catch (err) {
+    if (err && err.code === 'NOT_FOUND') {
+      return res.status(404).json({ ok: false, error: 'No promotion candidate found for this venue.' });
+    }
+    if (err && err.code === 'CONFLICT') {
+      return res.status(409).json({ ok: false, error: 'This promotion candidate is not in a reviewable state.' });
+    }
+    if (err && err.code === 'BAD_REQUEST') {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+    return res.status(500).json({ ok: false, error: 'Could not record the owner review decision.' });
+  }
+}
+
+// approve-meaning — the owner confirms HESTIA's reading captures their intent. NOT an application.
+app.post('/api/owner-meaning-promotion-candidates/:candidateId/approve-meaning', requireAuth('owner'), (req, res) => {
+  handleOwnerMeaningPromotionReview(approveOwnerMeaningPromotionCandidateMeaning, req, res);
+});
+
+// reject — the owner declines the candidate (wrong / irrelevant / unsafe / not useful).
+app.post('/api/owner-meaning-promotion-candidates/:candidateId/reject', requireAuth('owner'), (req, res) => {
+  handleOwnerMeaningPromotionReview(rejectOwnerMeaningPromotionCandidate, req, res);
+});
+
+// request-revision — the owner asks HESTIA to reinterpret / ask for clarification (parks the candidate).
+app.post('/api/owner-meaning-promotion-candidates/:candidateId/request-revision', requireAuth('owner'), (req, res) => {
+  handleOwnerMeaningPromotionReview(requestRevisionOwnerMeaningPromotionCandidate, req, res);
+});
+// ── Owner Meaning Promotion review routes — END ───────────────────────────────
 
 // ── CI VISUAL MENU ────────────────────────────────────────────────────────────
 

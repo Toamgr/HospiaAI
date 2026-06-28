@@ -77,12 +77,24 @@ ok(!new RegExp(`(INSERT\\s+INTO|UPDATE)\\s+(${DNA_STORES.join('|')})\\b`, 'i').t
   '[isolation] no Venue DNA store write in the generation region')
 ok(!/owner_review_opened/.test(region), '[isolation] no owner_review_opened emitted by the generation route')
 
-// ── Exactly ONE promotion write verb across server.js (the generate POST) ────
+// ── Promotion write verbs across server.js: the generate POST (4J) + the three owner review
+//    decisions (4L: approve-meaning / reject / request-revision). NO apply / promote / propose-dna /
+//    mark-evidence-only writer may exist (those remain deferred to future DDL slices). ───────────
 const writeVerbs = (server.match(/app\.(post|put|patch|delete)\(\s*['"]\/api\/owner-meaning-promotion-candidates/g) || [])
-ok(writeVerbs.length === 1, `[surface] exactly ONE promotion write verb exists (got ${writeVerbs.length})`)
-for (const writer of ['approve', 'reject', 'request-revision', 'apply', 'promote', 'confirm']) {
+ok(writeVerbs.length === 4, `[surface] exactly FOUR promotion write verbs exist — generate + 3 review (got ${writeVerbs.length})`)
+ok(/app\.post\(\s*['"]\/api\/owner-meaning-promotion-candidates\/generate['"]/.test(server), '[surface] the generate write route still exists')
+// The DNA-crossing / deferred writers must NOT exist as routes (apply-to-dna, propose-dna-patch,
+// mark-evidence-only, promote, confirm). 'approve-meaning' / 'reject' / 'request-revision' are now
+// LEGITIMATE 4L review routes and are intentionally NOT in this forbidden list.
+for (const writer of ['apply', 'apply-to-dna', 'propose-dna-patch', 'mark-evidence-only', 'promote', 'confirm']) {
   ok(!new RegExp(`/api/owner-meaning-promotion-candidates/[^'"\\s]*${writer}`).test(server),
     `[no-writer] no .../${writer} promotion route introduced`)
+}
+// The generation REGION itself still introduces no approve/reject/apply writer (those live in the
+// separate 4L review region, never inside the generation region).
+for (const writer of ['approve', 'reject', 'request-revision', 'apply']) {
+  ok(!new RegExp(`/api/owner-meaning-promotion-candidates/[^'"\\s]*${writer}`).test(region),
+    `[no-writer] generation region introduces no .../${writer} route`)
 }
 
 // ── The generation service is a BOUNDED writer ───────────────────────────────

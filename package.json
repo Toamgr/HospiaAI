@@ -51,6 +51,9 @@
     "test:owner-meaning-promotion-generate-persistence": "node scripts/test-owner-meaning-promotion-generate-persistence.js",
     "test:owner-meaning-promotion-generate-route-behavior": "node scripts/test-owner-meaning-promotion-generate-route-behavior.js",
     "test:owner-meaning-promotion-generate-route-audit": "node scripts/test-owner-meaning-promotion-generate-route-audit.js",
+    "test:owner-meaning-promotion-review-persistence": "node scripts/test-owner-meaning-promotion-review-persistence.js",
+    "test:owner-meaning-promotion-review-route-behavior": "node scripts/test-owner-meaning-promotion-review-route-behavior.js",
+    "test:owner-meaning-promotion-review-route-audit": "node scripts/test-owner-meaning-promotion-review-route-audit.js",
     "test:owner-meaning-promotion-queue-render": "vitest run src/features/owner-intelligence/OwnerMeaningPromotionQueue.render.test.jsx"
   },
   "dependencies": {
