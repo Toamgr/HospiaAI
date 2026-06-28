@@ -24,6 +24,7 @@ import { VENUE_INTELLIGENCE_CANDIDATES_DDL, safeRecordVenueIntelligenceCandidate
 import { DISCOVERY_CANDIDATE_REVIEWS_DDL, DISCOVERY_CANDIDATE_REVIEW_EVENTS_DDL, upsertDiscoveryReview, listDiscoveryReviewsForVenue, getDiscoveryReviewById, listConceptDraftsForVenue, getConceptDraftDetail, summarizeDiscoveryEvidenceForVenue, deriveInterpretedCandidatesForVenue } from "./src/services/venueIntelligence/discoveryCandidateReviewService.js";
 import { OWNER_MEANING_CAPTURES_DDL, OWNER_MEANING_CAPTURE_EVENTS_DDL, createOwnerMeaningCapture, listOwnerMeaningCaptures, getOwnerMeaningCaptureById, listOwnerMeaningCaptureEvents } from "./src/services/venueIntelligence/ownerMeaningCaptureService.js";
 import { OWNER_MEANING_PROMOTION_CANDIDATES_DDL, OWNER_MEANING_PROMOTION_EVENTS_DDL, OWNER_MEANING_PROMOTION_ALLOWED_ACTIONS, listOwnerMeaningPromotionCandidates, getOwnerMeaningPromotionCandidateById, listOwnerMeaningPromotionEvents, resolveSourceCapturesForPromotionCandidate } from "./src/services/venueIntelligence/ownerMeaningPromotionService.js";
+import { generateOwnerMeaningPromotionCandidate } from "./src/services/venueIntelligence/ownerMeaningPromotionGenerationService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
 import { ensureStructuredCandidateSignals } from "./src/services/venueIntelligence/ownerCorrectionLoopFormat.js";
@@ -7121,6 +7122,62 @@ app.get('/api/owner-meaning-promotion-candidates/:candidateId', requireAuth('own
   }
 });
 // ── Owner Meaning Promotion routes — END ──────────────────────────────────────
+
+// ── Owner Meaning Promotion — Candidate Generation Runtime Writer (Slice 4J) — OWNER-ONLY WRITE ──
+// The FIRST safe runtime WRITER for the promotion layer: it turns ONE stored owner meaning capture
+// into ONE owner-reviewable promotion candidate (stage 2 — proposal) + its append-only audit event.
+// It NEVER approves, rejects, requests revision, or applies; it NEVER mutates Venue DNA and NEVER
+// calls the single DNA writer. The candidate is created in a safe, NON-APPLIED draft posture
+// (application.blocked stays true, allowed_actions stay false). The proposed value is derived ONLY
+// from the capture's verbatim owner_response_raw — no POS / shift / staff / guest / sales / menu /
+// DNA fact is invented.
+//
+// Auth: OWNER-ONLY, exactly like the capture write + promotion read routes. requireAuth('owner')
+// PLUS the same explicit in-handler re-exclusion of the platform-admin global bypass, so an admin
+// generate creates ZERO candidate rows and ZERO audit rows. Manager / bar_manager are blocked at
+// requireAuth; unauthenticated is 401 there.
+//
+// Venue scope: SERVER-resolved req.venueId only. The client supplies ONLY capture_id (never a
+// venue subject); a capture of another venue is unreachable (scoped SELECT → safe 404). Generation
+// is idempotent: re-running from unchanged evidence returns the existing candidate (skipped), never
+// an uncontrolled duplicate. A thin/too-weak answer is skipped, not promoted as strong truth.
+
+app.post('/api/owner-meaning-promotion-candidates/generate', requireAuth('owner'), (req, res) => {
+  try {
+    // OWNER-ONLY by meaning: a Platform Admin is never the author of venue identity meaning.
+    // requireAuth has a global admin bypass, so re-exclude admin HERE — before any read or write —
+    // so an admin generate creates ZERO candidate and ZERO audit rows. (Scoped to THIS route only.)
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'Owner Meaning Promotion is owner-only.' });
+    }
+    const body = req.body || {};
+    const captureId = body.capture_id;
+    if (!captureId || typeof captureId !== 'string' || captureId.trim().length === 0) {
+      return res.status(400).json({ ok: false, error: 'capture_id is required.' });
+    }
+    const result = generateOwnerMeaningPromotionCandidate(db, {
+      venueId: req.venueId,
+      captureId,
+      triggeredBy: (req.user && (req.user.full_name || req.user.id)) || null,
+    });
+    // 201 when a new candidate was drafted; 200 when generation safely skipped (duplicate / too weak)
+    // — nothing was created. Either way: a PROPOSED, not-applied draft; Venue DNA was not changed.
+    return res.status(result.created ? 201 : 200).json({
+      ok: true,
+      ...result,
+      note: 'Generated a PROPOSED owner-review candidate. Venue DNA was not changed, and nothing was applied or approved.',
+    });
+  } catch (err) {
+    if (err && err.code === 'NOT_FOUND') {
+      return res.status(404).json({ ok: false, error: 'No owner meaning capture found for this venue.' });
+    }
+    if (err && err.code === 'BAD_REQUEST') {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+    return res.status(500).json({ ok: false, error: 'Could not generate the promotion candidate.' });
+  }
+});
+// ── Owner Meaning Promotion generation route — END ────────────────────────────
 
 // ── CI VISUAL MENU ────────────────────────────────────────────────────────────
 

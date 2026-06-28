@@ -62,12 +62,17 @@ ok(/app\.get\(\s*['"]\/api\/owner-meaning-promotion-candidates\/:candidateId['"]
 ok(!/app\.get\(\s*['"]\/api\/owner-meaning-promotion-candidates[^)]*requireAuth\(\s*['"]owner['"]\s*,\s*['"]admin['"]/.test(server),
   '[GET] admin not granted via requireAuth allow-list')
 
-// ── No promotion WRITER route of any kind (GET-only surface) ─────────────────
+// ── The ONLY promotion writer route is the Slice 4J candidate-generation POST ─────────────────
+// 4G.1 was GET-only; Slice 4J adds EXACTLY ONE owner-only POST .../generate (candidate generation —
+// stage 2 proposal). It is the only write verb permitted on this surface. No approve / reject /
+// request-revision / apply writer may exist.
 const promotionWriteVerbs = (server.match(/app\.(post|put|patch|delete)\(\s*['"]\/api\/owner-meaning-promotion-candidates/g) || [])
-ok(promotionWriteVerbs.length === 0, `[GET-only] no POST/PUT/PATCH/DELETE promotion route exists (got ${promotionWriteVerbs.length})`)
+ok(promotionWriteVerbs.length === 1, `[writer] exactly ONE promotion write verb exists (the generate POST) (got ${promotionWriteVerbs.length})`)
+ok(/app\.post\(\s*['"]\/api\/owner-meaning-promotion-candidates\/generate['"]\s*,\s*requireAuth\(\s*['"]owner['"]\s*\)/.test(server),
+  '[writer] the one write verb is the owner-only candidate-generation POST .../generate')
 const promotionGets = (server.match(/app\.get\(\s*['"]\/api\/owner-meaning-promotion-candidates/g) || [])
 ok(promotionGets.length === 2, `[GET-only] exactly TWO promotion GET routes (got ${promotionGets.length})`)
-for (const writer of ['approve', 'reject', 'request-revision', 'apply']) {
+for (const writer of ['approve', 'reject', 'request-revision', 'apply', 'promote', 'confirm']) {
   ok(!new RegExp(`/api/owner-meaning-promotion-candidates/[^'"\\s]*${writer}`).test(server),
     `[no-writer] no .../${writer} promotion route introduced`)
 }
