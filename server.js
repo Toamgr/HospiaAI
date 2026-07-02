@@ -1146,6 +1146,7 @@ db.exec(`
     flavor_charts_json   TEXT,
     output_context       TEXT,
     language_mode        TEXT,
+    spec_json            TEXT,
     generated_at         TEXT    DEFAULT (datetime('now'))
   );
 `);
