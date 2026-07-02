@@ -83,8 +83,11 @@
     "react": "latest",
     "react-dom": "latest",
     "react-router-dom": "^7.17.0",
-    "vite": "latest",
+    "vite": "8.0.10",
     "xlsx": "^0.18.5"
+  },
+  "engines": {
+    "node": ">=20.19.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
