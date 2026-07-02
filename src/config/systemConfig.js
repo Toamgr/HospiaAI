@@ -41,7 +41,11 @@ export const EMAILJS = {
 
 const env = import.meta.env || {}
 
-export const API_BASE = env.VITE_API_BASE || 'http://localhost:3001'
+// In production the frontend is served by the same Express process, so API calls
+// use same-origin relative paths (API_BASE = ''). In dev we target the backend
+// on :3001. VITE_API_BASE can override either (never put a secret in a VITE_ var).
+const isDev = Boolean(env.DEV)
+export const API_BASE = env.VITE_API_BASE || (isDev ? 'http://localhost:3001' : '')
 
 // TODO Phase 2 — remove this frontend code map; access validation must be server-side only.
 // AUDIT FLAG — access codes removed from frontend config. Login is now validated server-side via /api/session/login.

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 
-const API_BASE = import.meta.env?.VITE_API_BASE || 'http://localhost:3001'
+// Same-origin in production (served by Express); localhost:3001 only in dev.
+const API_BASE = import.meta.env?.VITE_API_BASE || (import.meta.env?.DEV ? 'http://localhost:3001' : '')
 
 async function portalGet(token) {
   const res = await fetch(`${API_BASE}/api/guest-portal/${token}`)
