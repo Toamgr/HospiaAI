@@ -1,0 +1,31 @@
+# Render Infrastructure-as-Code reference for HESTIA.
+#
+# NOTE: This file documents the intended Render web-service configuration.
+# If the existing Render service was created manually (not as a Blueprint),
+# Render will NOT automatically apply this file — the Dashboard settings win.
+# In that case, treat this file as the exact reference to mirror in the
+# Dashboard (Settings -> Build & Deploy, and Environment).
+#
+# Secrets are declared with `sync: false` — their VALUES are never stored here.
+# Set the real values only in the Render Dashboard (Environment tab).
+
+services:
+  - type: web
+    name: HospiaAI
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: MODEL
+        value: gemini-2.5-flash-lite
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

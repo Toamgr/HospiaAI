@@ -21,7 +21,7 @@ Node process, and give you one public HTTPS URL. Render is used in the examples.
 | --- | --- |
 | Build command | `npm ci && npm run build` |
 | Start command | `npm start`  (runs `node server.js`) |
-| Node version | 18+ (20 LTS recommended) |
+| Node version | **20.19+ or 22.12+ (Vite 8 requirement)** — pin `NODE_VERSION=22.12.0`. Node 18 / 20.18 **fail the build**. |
 
 `npm run build` produces `/dist`. `npm start` runs the Express server, which in
 production serves `/dist` and falls back to `dist/index.html` for any non-`/api`
