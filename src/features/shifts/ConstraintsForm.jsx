@@ -39,11 +39,17 @@ export default function ConstraintsForm() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState(null)
+  // Whether the signed-in user has a linked employee profile. When false, availability
+  // cannot be saved (no employee_id), so we block submit and show a setup callout
+  // instead of letting the user believe a submission succeeded.
+  const [profileLinked, setProfileLinked] = useState(true)
   const open = isSubmissionOpen()
+  const UNLINKED_MESSAGE = 'Employee profile is not linked to this user. Ask a manager to activate this employee profile.'
 
   useEffect(() => {
     apiGet(`/api/employee-shifts/constraints?week_start=${weekStart}`)
       .then(d => {
+        if (d.profileLinked === false) setProfileLinked(false)
         const row = (d.constraints || [])[0]
         if (row) {
           setExisting(row)
@@ -60,13 +66,21 @@ export default function ConstraintsForm() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!profileLinked) return
     setSubmitting(true)
     setError(null)
     try {
       await apiPost('/api/employee-shifts/constraints', { week_start: weekStart, constraints })
       setSubmitted(true)
     } catch (err) {
-      setError(err.message || 'Submission failed.')
+      // An unlinked employee profile is a setup problem, not a generic failure — flip to
+      // the blocking callout and never show a misleading generic error.
+      if (err.status === 400 && /not linked to this user/i.test(err.message || '')) {
+        setProfileLinked(false)
+        setError(null)
+      } else {
+        setError(err.message || 'Submission failed.')
+      }
     } finally { setSubmitting(false) }
   }
 
@@ -95,6 +109,13 @@ export default function ConstraintsForm() {
         <p className="text-sm text-[#6b705c] mt-1">Week of {weekStart}</p>
       </div>
 
+      {!profileLinked && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-4 text-sm text-amber-300 space-y-1">
+          <p className="font-bold">Availability can’t be submitted yet</p>
+          <p className="text-amber-300/80">{UNLINKED_MESSAGE}</p>
+        </div>
+      )}
+
       {!open && (
         <div className="rounded-xl border border-red-500/20 bg-red-950/20 px-4 py-3 text-sm text-red-400">
           Submission window closed. Open Sunday–Thursday before 23:00.
@@ -116,7 +137,7 @@ export default function ConstraintsForm() {
                 <button
                   key={opt}
                   type="button"
-                  disabled={!open}
+                  disabled={!open || !profileLinked}
                   onClick={() => setDay(day, opt)}
                   className={`flex-1 rounded-xl border py-2 text-xs font-bold capitalize transition ${
                     constraints[day] === opt
@@ -133,7 +154,7 @@ export default function ConstraintsForm() {
 
         {error && <div className="rounded-xl border border-red-500/20 bg-red-950/20 px-4 py-3 text-sm text-red-400">{error}</div>}
 
-        <button type="submit" disabled={!open || submitting}
+        <button type="submit" disabled={!open || submitting || !profileLinked}
           className="w-full rounded-xl border border-[#c9a96e]/40 bg-[#c9a96e]/10 py-3 text-sm font-bold text-[#c9a96e] hover:bg-[#c9a96e]/20 transition disabled:opacity-40 disabled:cursor-not-allowed">
           {submitting ? 'Submitting…' : 'Submit Availability'}
         </button>
