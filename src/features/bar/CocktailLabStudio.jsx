@@ -590,7 +590,7 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
 
   const handleApprove = () => { setApprovedLocal(true); onApprove?.(proposalWithLinks()) }
 
-  const statusLabel = proposal.status === 'approved' ? 'Approved' : proposal.status === 'awaitingApproval' ? 'Pending Review' : proposal.fallbackGenerated ? 'Fallback Draft' : 'Generated'
+  const statusLabel = proposal.status === 'approved' ? 'Approved' : proposal.status === 'awaitingApproval' ? 'Pending Review' : proposal.fallbackGenerated ? 'Manual Draft' : 'Generated'
 
   return (
     <div className="space-y-6">
@@ -600,7 +600,7 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
           {statusLabel}
         </span>
         {proposal.fallbackGenerated && (
-          <span className="rounded-full border border-amber-800/30 bg-amber-950/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">Fallback Mode</span>
+          <span className="rounded-full border border-amber-800/30 bg-amber-950/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">Not AI-Generated</span>
         )}
       </div>
 
