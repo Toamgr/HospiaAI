@@ -7,6 +7,7 @@ import {
   fetchTimeline,
   fetchMessages, sendMessage
 } from '../services/api/eventsApi'
+import { canAccessEvents } from '../config/roleConfig'
 
 export function useEventState({ currentUser, pushNotification }) {
   const [events, setEvents] = useState([])
@@ -35,8 +36,11 @@ export function useEventState({ currentUser, pushNotification }) {
     }
   }, [])
 
+  // Only load events for roles that actually have an events surface. Roles without
+  // events access (e.g. fb_director on Cocktail Lab) would receive a 403 here — an
+  // unrelated failure that used to surface as a console error on every page.
   useEffect(() => {
-    if (currentUser) loadEvents()
+    if (currentUser && canAccessEvents(currentUser)) loadEvents()
   }, [currentUser, loadEvents])
 
   const loadEventDetail = useCallback(async (eventId) => {

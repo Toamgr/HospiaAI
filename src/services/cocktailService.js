@@ -1,4 +1,4 @@
-import { generateGeminiCocktailProposal } from './geminiCocktailAgent.js'
+import { generateCocktailProposal } from './ai/cocktailProposalAgent.js'
 
 function includesAny(text, terms) {
   const source = String(text || '').toLowerCase()
@@ -163,22 +163,69 @@ export function createFallbackCocktailProposal({ agentPrompt = '', form = {}, ap
   }
 }
 
+// Error categories surfaced to the UI. Kept deliberately narrow so the Cocktail Lab
+// can distinguish an authorization/config problem from an AI-provider failure from a
+// bad user brief, instead of collapsing everything into a misleading "AI unavailable".
+export const COCKTAIL_ERROR_KIND = {
+  VALIDATION: 'validation',     // user-input problem (empty/short brief)
+  AUTHORIZATION: 'authorization', // 401/403 — auth, role, or venue/config problem
+  PROVIDER: 'provider'          // AI provider / model / parsing failure
+}
+
+function classifyGenerationError(error) {
+  const status = error?.status
+  if (status === 401 || status === 403) {
+    const e = new Error('AI generation failed. No draft was created. Check API route, authorization, or provider configuration.')
+    e.kind = COCKTAIL_ERROR_KIND.AUTHORIZATION
+    e.status = status
+    e.cause = error
+    return e
+  }
+  const e = new Error(error?.message || 'AI generation failed. No draft was created. The AI provider did not return a usable proposal.')
+  e.kind = COCKTAIL_ERROR_KIND.PROVIDER
+  if (status) e.status = status
+  e.cause = error
+  return e
+}
+
+// Requests a real AI-generated proposal. On any failure this THROWS a classified
+// error and never fabricates a draft — the caller decides whether to surface an error
+// or offer explicit manual-draft mode. It must not silently create fake content.
 export async function requestCocktailProposal(payload) {
   const validationError = validateCocktailBrief(payload?.agentPrompt)
-  if (validationError) throw new Error(validationError)
+  if (validationError) {
+    const e = new Error(validationError)
+    e.kind = COCKTAIL_ERROR_KIND.VALIDATION
+    throw e
+  }
 
   try {
-    const proposal = await generateGeminiCocktailProposal(payload)
+    // Provider-agnostic task service — returns the proposal plus internal metadata
+    // (provider/task/source/repaired). The service is unaware of which AI provider or
+    // endpoint is used; that lives behind src/services/ai/providers/*.
+    const { proposal, metadata } = await generateCocktailProposal(payload)
     if (!hasCompleteProposal(proposal)) {
-      throw new Error('Gemini returned an incomplete cocktail proposal.')
+      const e = new Error('The AI provider returned an incomplete cocktail proposal. No draft was created.')
+      e.kind = COCKTAIL_ERROR_KIND.PROVIDER
+      throw e
     }
-    return { proposal, source: 'gemini' }
+    return { proposal, source: 'gemini', metadata }
   } catch (error) {
-    const proposal = createFallbackCocktailProposal(payload)
-    return {
-      proposal,
-      source: 'fallback',
-      error
-    }
+    if (error?.kind) throw error // already classified (incomplete proposal / validation)
+    throw classifyGenerationError(error)
   }
+}
+
+// Explicit, user-initiated manual draft. This is the ONLY sanctioned path to a
+// non-AI draft; it is never triggered automatically on failure. The returned proposal
+// is clearly marked (fallbackGenerated / manualDraft) so the UI can label it.
+export function requestManualCocktailDraft(payload) {
+  const validationError = validateCocktailBrief(payload?.agentPrompt)
+  if (validationError) {
+    const e = new Error(validationError)
+    e.kind = COCKTAIL_ERROR_KIND.VALIDATION
+    throw e
+  }
+  const proposal = createFallbackCocktailProposal(payload)
+  return { proposal, source: 'manual', manualDraft: true }
 }

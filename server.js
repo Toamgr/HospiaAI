@@ -1260,6 +1260,7 @@ seedDatabase();
 migrateAcademyExternalIds();
 migrateUserCredentials();
 seedNewUsers();
+backfillEmployeeRecords(); // idempotent demo/seed repair — links employee users missing an employees row
 seedCocktailIntelligence(); // CI MODULE ADDITION — idempotent, skips if already seeded
 
 // Startup role audit — confirms migration ran and shows runtime roles for auth debugging.
@@ -1683,21 +1684,54 @@ async function askGemini(prompt, { jsonMode = false } = {}) {
   return text || "No answer generated.";
 }
 
-app.post("/api/gemini", requireAuth("manager", "bar_manager", "owner", "admin", "events_manager"), async (req, res) => {
+// Internal provider identifier reported in AI response metadata. NOT a product-facing
+// name — HESTIA is provider-agnostic. Today the server-side provider ("gemini" adapter)
+// is implemented via askGemini(); swapping providers is a server-only change.
+const AI_PROVIDER_ID = "gemini";
+
+// AI generation allow-list. Must stay in sync with the frontend surfaces that call the
+// AI routes: Cocktail Lab (bar_manager, fb_director — see PAGE_META.cocktailLab in
+// src/config/navigationConfig.js) and the events cocktail menu builder (events_manager).
+// fb_director is a senior beverage/F&B role that owns Cocktail Lab R&D, so it must be
+// authorized; omitting it caused the 403 that silently degraded to a fake fallback draft.
+const AI_GENERATION_ROLES = ["manager", "bar_manager", "fb_director", "owner", "admin", "events_manager"];
+
+// Shared AI completion core used by the neutral task route and the deprecated alias.
+// `taskMeta`, when provided, adds provider-agnostic metadata (provider/task/source) to
+// the response. The alias omits it to stay byte-compatible for existing callers.
+async function handleAiCompletion(req, res, taskMeta = null) {
   try {
     const prompt = String(req.body?.prompt || "").trim();
     const jsonMode = Boolean(req.body?.json_mode);
     if (!prompt) {
       return res.status(400).json({ error: "Prompt is required." });
     }
-
     const answer = await askGemini(prompt, { jsonMode });
+    // Provider/key failures throw inside askGemini and surface as 500 below, which the
+    // client classifies as a provider error (never an auth error).
+    if (taskMeta) {
+      return res.json({ answer, provider: AI_PROVIDER_ID, task: taskMeta.task, source: "ai_provider" });
+    }
     res.json({ answer });
   } catch (error) {
-    console.log("GEMINI PROXY ERROR:", error);
-    res.status(500).json({ error: error.message || "Gemini request failed." });
+    console.log("AI COMPLETION ERROR:", error?.message || error);
+    res.status(500).json({ error: error.message || "AI request failed." });
   }
-});
+}
+
+// Neutral, task-named AI route (provider-agnostic). The Cocktail Lab frontend calls this
+// — not /api/gemini — so the product is not visibly bound to any single AI provider.
+app.post("/api/ai/cocktail-proposal", requireAuth(...AI_GENERATION_ROLES), (req, res) =>
+  handleAiCompletion(req, res, { task: "cocktail_proposal" })
+);
+
+// DEPRECATED ALIAS. Retained so the working provider integration and the events cocktail
+// menu builder (which still posts here) keep functioning unchanged. New task surfaces
+// must use /api/ai/* routes. Behavior and response shape ({ answer }) are intentionally
+// identical to the original proxy.
+app.post("/api/gemini", requireAuth(...AI_GENERATION_ROLES), (req, res) =>
+  handleAiCompletion(req, res, null)
+);
 
 app.post("/api/auth/login", (req, res) => {
   const username = String(req.body?.username || "").trim().toLowerCase();
@@ -8265,6 +8299,41 @@ function seedNewUsers() {
   }
 }
 
+// Demo/seed data repair. Every authenticated EMPLOYEE user must have a linked
+// employees row (canonical link: employees.user_id = auth_users.id) so availability
+// submission can resolve their staff identity. seedDatabase() seeds the original
+// employee auth accounts (e.g. Hadar Vaknin) but historically did NOT create their
+// employees rows, while seedNewUsers() only covers the later staff batch — leaving a
+// gap that surfaced as "Employee record not found for this user." on submit.
+//
+// This backfill is idempotent and fills ONLY genuine gaps (never overwrites or
+// duplicates). It is role-scoped and identity-linked (by user_id) — not hardcoded to
+// any person — and uses the employees table's own column defaults for gender/sub_role
+// rather than guessing per-user attributes. joined_date is taken from the auth account.
+function backfillEmployeeRecords() {
+  let orphans;
+  try {
+    orphans = db.prepare(`
+      SELECT u.id, u.full_name, u.created_at
+      FROM auth_users u
+      WHERE u.role = 'employee' AND u.is_active = 1
+        AND NOT EXISTS (SELECT 1 FROM employees e WHERE e.user_id = u.id)
+    `).all();
+  } catch (e) {
+    console.warn("[HESTIA seed] employee backfill skipped:", e.message);
+    return;
+  }
+  if (!orphans.length) return;
+  const insertEmployee = db.prepare(
+    "INSERT INTO employees (user_id, display_name, joined_date) VALUES (?,?,?)"
+  );
+  for (const u of orphans) {
+    const joined = (u.created_at && String(u.created_at).slice(0, 10)) || nowIso().slice(0, 10);
+    insertEmployee.run(u.id, u.full_name || `Employee ${u.id}`, joined);
+    console.log(`[HESTIA seed] linked employees record for employee user ${u.id} (${u.full_name})`);
+  }
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // EMAIL SERVICE
 // ════════════════════════════════════════════════════════════════════════════
@@ -8533,7 +8602,9 @@ app.get('/api/employee-shifts/constraints', requireAuth('employee', 'bar_manager
   let rows;
   if (role === 'employee') {
     const emp = getEmployeeForUser(req.user.id);
-    if (!emp) return res.json({ constraints: [] });
+    // Signal an unlinked profile so the client can show a setup callout and block the
+    // submit BEFORE the user fills the form, instead of failing only on submit.
+    if (!emp) return res.json({ constraints: [], profileLinked: false });
     rows = week_start
       ? db.prepare('SELECT * FROM employee_shift_constraints WHERE employee_id=? AND week_start=?').all(emp.id, week_start)
       : db.prepare('SELECT * FROM employee_shift_constraints WHERE employee_id=? ORDER BY submitted_at DESC LIMIT 10').all(emp.id);
@@ -8555,6 +8626,7 @@ app.get('/api/employee-shifts/constraints', requireAuth('employee', 'bar_manager
         `).all();
   }
   res.json({
+    profileLinked: true,
     constraints: rows.map(r => ({
       ...r,
       constraints: r.constraints_json ? JSON.parse(r.constraints_json) : {},
@@ -8564,8 +8636,14 @@ app.get('/api/employee-shifts/constraints', requireAuth('employee', 'bar_manager
 
 // POST /api/employee-shifts/constraints — employee submits availability
 app.post('/api/employee-shifts/constraints', requireAuth('employee', 'admin'), (req, res) => {
+  // Identity is resolved strictly from the authenticated user (employees.user_id),
+  // never from the request body — an employee can only ever write their own
+  // availability, so this cannot be used to submit for another employee.
   const emp = getEmployeeForUser(req.user.id);
-  if (!emp) return res.status(400).json({ error: 'Employee record not found for this user.' });
+  if (!emp) return res.status(400).json({
+    error: 'Employee profile is not linked to this user. Ask a manager to activate this employee profile.',
+    code: 'employee_profile_unlinked',
+  });
 
   // Submission window: Sunday–Thursday before 23:00
   const now = new Date();

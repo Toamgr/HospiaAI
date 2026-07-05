@@ -3,7 +3,9 @@ import { buildKnowledgeContext } from '../domain/hospitality/bar/cocktailKnowled
 import { getPricingContextSummary } from '../domain/hospitality/bar/cocktailLabPricingAdapter.js'
 import { buildVenueBeverageContext, formatVenueBeveragePromptBlock } from './venueBridge/beverageContextService.js'
 import { isVenueBeverageContextEnabled } from '../config/featureFlags.js'
-import { apiPost } from './api/client.js' // CI MODULE ADDITION - auth fix
+// Transport + provider-specific response parsing live behind the provider-agnostic
+// AI adapter. This agent no longer knows the endpoint or the provider response shape.
+import { requestCocktailCompletion } from './ai/providers/geminiProvider.js'
 
 // Read-only, feature-flagged Venue Beverage Context for the bar/restaurant
 // Cocktail Lab first-pass prompt. When the flag is OFF, or no venue data is
@@ -35,7 +37,7 @@ function normalizeValue(value) {
   return typeof value === 'string' ? value.trim() : value;
 }
 
-function parseStrictJson(raw) {
+export function parseStrictJson(raw) {
   const cleaned = stripMarkdownFences(raw);
 
   if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) {
@@ -49,27 +51,8 @@ function parseStrictJson(raw) {
   }
 }
 
-function getResponseText(responseBody) {
-  if (!responseBody) return '';
-  if (typeof responseBody === 'string') return responseBody;
-
-  if (Array.isArray(responseBody.candidates) && responseBody.candidates.length) {
-    const candidate = responseBody.candidates[0];
-    if (candidate?.content) {
-      if (Array.isArray(candidate.content)) {
-        return candidate.content.map(part => part?.text || '').join('\n');
-      }
-      return candidate.content?.parts?.map(part => part.text || '').join('\n') || '';
-    }
-    return candidate.output || candidate.message?.content || '';
-  }
-
-  if (typeof responseBody.output?.text === 'string') {
-    return responseBody.output.text;
-  }
-
-  return '';
-}
+// getResponseText moved to src/services/ai/providers/geminiProvider.js as
+// extractProviderText — response-shape parsing is now a provider concern.
 
 function formatObjectValue(item) {
   if (!item || typeof item !== 'object') return normalizeValue(item)
@@ -438,7 +421,7 @@ function critiqueManagerRequest(managerPrompt, form, menuEngineering) {
   }
 }
 
-function normalizeCocktailProposal(parsed) {
+export function normalizeCocktailProposal(parsed) {
   const normalized = {
     directorConversationReply: normalizeValue(parsed.directorConversationReply || parsed.director_conversation_reply || parsed.consultantReply || parsed.reply),
     requestAssessment: normalizeAssessment(parsed.requestAssessment || parsed.request_assessment),
@@ -485,7 +468,7 @@ function hasMeaningfulValue(value) {
   return Boolean(value)
 }
 
-function hasCompleteProposalShape(normalized) {
+export function hasCompleteProposalShape(normalized) {
   return Boolean(
     normalized.cocktailName &&
     normalized.concept &&
@@ -651,14 +634,14 @@ function repairIncompleteIngredientPayload(parsed, context) {
   }
 }
 
-function ensureFullProposalPayload(parsed, context) {
+export function ensureFullProposalPayload(parsed, context) {
   const ingredientRepaired = repairIncompleteIngredientPayload(parsed, context)
   const normalized = normalizeCocktailProposal(ingredientRepaired || {})
   if (hasCompleteProposalShape(normalized)) return ingredientRepaired
   return buildFallbackFullProposal({ ...context, parsed: ingredientRepaired })
 }
 
-function validateResponseSchema(parsed) {
+export function validateResponseSchema(parsed) {
   const missing = EXPECTED_FIELDS.filter(field => parsed[field] === undefined)
   if (missing.length) {
     throw new Error(`Gemini response is missing required JSON fields: ${missing.join(', ')}`)
@@ -939,7 +922,7 @@ function compactResponseSchema() {
 }`
 }
 
-function buildCompactRevisionPrompt({ agentPrompt, form, menuAnalysis, variation = '', previousProposal = null }) {
+export function buildCompactRevisionPrompt({ agentPrompt, form, menuAnalysis, variation = '', previousProposal = null }) {
   const changeRequest = normalizeValue(variation || agentPrompt || 'Improve the previous proposal.')
   const menuGaps = menuAnalysis?.menuGapNotes?.slice(0, 5).join('; ') || 'None supplied'
   const menuWarnings = menuAnalysis?.warnings?.slice(0, 5).join('; ') || 'None supplied'
@@ -1010,7 +993,7 @@ function formatGeminiServiceError(data, fallbackMessage) {
   return fallbackMessage
 }
 
-function mapGeminiResponseToProposal(parsed, { agentPrompt, form, menuAnalysis }) {
+export function mapGeminiResponseToProposal(parsed, { agentPrompt, form, menuAnalysis }) {
   return {
     id: `cocktail-draft-${Date.now()}`,
     name: normalizeValue(parsed.cocktailName) || 'Unnamed Cocktail',
@@ -1159,10 +1142,9 @@ function normalizeConsultationDecision(parsed) {
 export async function consultGeminiCocktailDirection({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, conversationHistory = [], previousProposal = null }) {
   const prompt = buildDirectorConsultationPrompt({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, conversationHistory, previousProposal })
 
-  // CI MODULE ADDITION - auth fix: apiPost sends Authorization header automatically
-  const data = await apiPost('/api/gemini', { prompt })
-  const rawText = getResponseText(data.answer || data)
-  const parsed = parseStrictJson(rawText)
+  // Provider-agnostic transport: the adapter sends auth/venue headers and hides the route.
+  const { text } = await requestCocktailCompletion({ prompt })
+  const parsed = parseStrictJson(text)
   return normalizeConsultationDecision(parsed)
 }
 
@@ -1174,10 +1156,11 @@ export async function generateGeminiCocktailProposal({ agentPrompt, form, approv
     ? buildCompactRevisionPrompt({ agentPrompt, form, menuAnalysis, variation, previousProposal })
     : buildCocktailPrompt({ agentPrompt, form, approvedCocktails, cocktailDrafts, menuAnalysis, variation, previousProposal, venueDNA, venueProfile, venueBeverageContext });
 
-  // CI MODULE ADDITION - auth fix: apiPost sends Authorization header automatically
-  const data = await apiPost('/api/gemini', { prompt })
-  const rawText = getResponseText(data.answer || data)
-  const parsed = parseStrictJson(rawText);
+  // Legacy entry point (returns the proposal only). New callers should use
+  // src/services/ai/cocktailProposalAgent.js, which adds provider/task/source/repaired
+  // metadata. Transport goes through the provider-agnostic adapter.
+  const { text } = await requestCocktailCompletion({ prompt })
+  const parsed = parseStrictJson(text);
   const proposalPayload = ensureFullProposalPayload(parsed, { agentPrompt, form, menuAnalysis });
   const normalized = normalizeCocktailProposal(proposalPayload);
   validateResponseSchema(normalized);

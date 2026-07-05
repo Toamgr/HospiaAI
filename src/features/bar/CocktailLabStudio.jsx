@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { apiPatch } from '../../services/api/client'
-import { requestCocktailProposal } from '../../services/cocktailService'
+import { requestCocktailProposal, requestManualCocktailDraft, COCKTAIL_ERROR_KIND } from '../../services/cocktailService'
 import { buildCostSheet, getProductsForIngredient, getIngredientFallbackCpm } from '../../domain/hospitality/bar/cocktailLabPricingAdapter.js'
 import { getEffectiveProduct } from '../../domain/hospitality/bar/verifiedPriceStorage.js'
 import { computeFlavorProfile, FLAVOR_DIMS } from '../../domain/hospitality/bar/cocktailFlavorProfileUtils.js'
@@ -590,7 +590,7 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
 
   const handleApprove = () => { setApprovedLocal(true); onApprove?.(proposalWithLinks()) }
 
-  const statusLabel = proposal.status === 'approved' ? 'Approved' : proposal.status === 'awaitingApproval' ? 'Pending Review' : proposal.fallbackGenerated ? 'Fallback Draft' : 'Generated'
+  const statusLabel = proposal.status === 'approved' ? 'Approved' : proposal.status === 'awaitingApproval' ? 'Pending Review' : proposal.fallbackGenerated ? 'Manual Draft' : 'Generated'
 
   return (
     <div className="space-y-6">
@@ -600,7 +600,7 @@ function CocktailResultView({ proposal, onApprove, onSaveDraft, onSubmitApproval
           {statusLabel}
         </span>
         {proposal.fallbackGenerated && (
-          <span className="rounded-full border border-amber-800/30 bg-amber-950/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">Fallback Mode</span>
+          <span className="rounded-full border border-amber-800/30 bg-amber-950/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">Not AI-Generated</span>
         )}
       </div>
 
@@ -898,6 +898,9 @@ export default function CocktailLabStudio({ cocktailDrafts = [], approvedCocktai
   const [proposal, setProposal] = useState(null)
   const [generating, setGenerating] = useState(false)
   const [status, setStatus] = useState(null)
+  // Holds the last failed brief so the user can EXPLICITLY choose a manual draft.
+  // Never auto-generates a draft on failure. Cleared on success or new attempt.
+  const [manualOffer, setManualOffer] = useState(null)
   const [markingDone, setMarkingDone] = useState(false)
   const [taskCompleted, setTaskCompleted] = useState(false)
   const textareaRef = useRef(null)
@@ -924,8 +927,12 @@ export default function CocktailLabStudio({ cocktailDrafts = [], approvedCocktai
     const p = (overridePrompt || prompt).trim()
     if (!p || p.length < 6) { setStatus({ type: 'error', message: 'Describe your cocktail idea before generating.' }); return }
     setGenerating(true)
+    setManualOffer(null)
     setStatus({ type: 'info', message: 'Building your cocktail...' })
     try {
+      // On success this returns a real AI proposal. On failure it THROWS a classified
+      // error — it never returns a fake fallback draft, so a failed request never
+      // reaches onSaveDraft and never changes the draft/pending/approved counters.
       const result = await requestCocktailProposal({
         agentPrompt: p,
         form: {},
@@ -937,15 +944,42 @@ export default function CocktailLabStudio({ cocktailDrafts = [], approvedCocktai
       })
       const saved = onSaveDraft ? onSaveDraft(result.proposal) : result.proposal
       setProposal(saved)
-      setStatus(result.source === 'fallback'
-        ? { type: 'info', message: 'AI was unavailable — fallback draft generated. Taste and revise before approving.' }
-        : { type: 'success', message: `${saved.name} is ready. Review, adjust, and approve when satisfied.` })
+      setStatus({ type: 'success', message: `${saved.name} is ready. Review, adjust, and approve when satisfied.` })
     } catch (err) {
-      setStatus({ type: 'error', message: err?.message || 'Generation failed. Please try again.' })
+      // Separate authorization/config failures from AI-provider failures from bad input.
+      const kind = err?.kind
+      const message = err?.message || 'Generation failed. Please try again.'
+      setStatus({ type: 'error', message })
+      // Only offer an explicit manual draft when the AI path itself failed
+      // (auth/config or provider) — not for a user-input validation error.
+      if (kind === COCKTAIL_ERROR_KIND.AUTHORIZATION || kind === COCKTAIL_ERROR_KIND.PROVIDER) {
+        setManualOffer({ prompt: p })
+      }
     } finally {
       setGenerating(false)
     }
   }, [prompt, approvedCocktails, cocktailDrafts, onSaveDraft, proposal])
+
+  // Explicit, user-initiated manual draft. Only reachable after an AI failure and only
+  // when the user clicks — it is the single sanctioned path to a non-AI draft.
+  const createManualDraft = useCallback(() => {
+    if (!manualOffer?.prompt) return
+    try {
+      const result = requestManualCocktailDraft({
+        agentPrompt: manualOffer.prompt,
+        form: {},
+        approvedCocktails,
+        variation: '',
+        previousProposal: proposal,
+      })
+      const saved = onSaveDraft ? onSaveDraft(result.proposal) : result.proposal
+      setProposal(saved)
+      setManualOffer(null)
+      setStatus({ type: 'info', message: `${saved.name} created as a manual draft (not AI-generated). Taste and revise before approving.` })
+    } catch (err) {
+      setStatus({ type: 'error', message: err?.message || 'Could not create a manual draft.' })
+    }
+  }, [manualOffer, approvedCocktails, proposal, onSaveDraft])
 
   const handleRegenerate = useCallback((variation) => {
     if (variation) generate(variation)
@@ -1054,13 +1088,29 @@ export default function CocktailLabStudio({ cocktailDrafts = [], approvedCocktai
                 </>
               ) : 'Generate Cocktail'}
             </button>
-            <button onClick={() => { setPrompt(''); setStatus(null) }}
+            <button onClick={() => { setPrompt(''); setStatus(null); setManualOffer(null) }}
               className="rounded-[1.35rem] border border-[#6b705c]/20 bg-transparent px-6 py-3.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#e8dcc0]/50 transition hover:border-[#c9a96e]/20 hover:text-[#e8dcc0]/80">
               Clear
             </button>
           </div>
 
           {status && <div className="mt-4"><StatusBadge type={status.type}>{status.message}</StatusBadge></div>}
+
+          {/* Explicit manual-draft opt-in — shown only after an AI failure. No draft is
+              created unless the user clicks this. */}
+          {manualOffer && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-[#6b705c]/25 bg-black/20 px-5 py-3">
+              <span className="text-[11px] leading-6 text-[#e8dcc0]/60">
+                Want to keep working without AI? You can build a manual starting draft and edit it by hand.
+              </span>
+              <button
+                onClick={createManualDraft}
+                className="rounded-[1rem] border border-[#c9a96e]/30 bg-[#c9a96e]/10 px-5 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#c9a96e] transition hover:bg-[#c9a96e]/20"
+              >
+                Create manual draft
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

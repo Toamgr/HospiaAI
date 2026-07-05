@@ -49,6 +49,16 @@ export function canAccessBottlePrices(userOrRole) {
   return ['admin', 'owner', 'bar_manager', 'fb_director'].includes(role)
 }
 
+// True when the user can reach any events surface. Used to avoid firing the global
+// GET /api/events load for roles that have no events UI (e.g. fb_director, chef,
+// employee) — that call would 403 and pollute the console. Derived from the events
+// pages' own role gates so it stays in sync with navigation and the backend
+// requireAuth('manager','bar_manager','owner','admin','events_manager') allow-list.
+const EVENT_PAGES = ['eventCRM', 'eventOrchestrator', 'eventCalendar', 'eventBrain']
+export function canAccessEvents(userOrRole) {
+  return EVENT_PAGES.some(page => canAccessPage(userOrRole, page))
+}
+
 export function canAccessPage(userOrRole, page) {
   const meta = PAGE_META[page]
   const role = getRole(userOrRole)
