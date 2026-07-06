@@ -440,7 +440,7 @@ function validateMenuResponse(parsed, expectedCount) {
 // ─── Exported service functions ───────────────────────────────────────────────
 
 async function attemptMenuGeneration(prompt, expectedCount) {
-  const data = await apiPost('/api/gemini', { prompt, json_mode: true })
+  const data = await apiPost('/api/ai/cocktail-proposal', { prompt, json_mode: true })
   const rawText = getResponseText(data)
   const parsed = parseStrictJson(rawText)
   validateMenuResponse(parsed, expectedCount)
@@ -505,7 +505,7 @@ export async function replaceEventCocktail({ event, menu, index, replaceInstruct
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const data = await apiPost('/api/gemini', { prompt: currentPrompt, json_mode: true })
+      const data = await apiPost('/api/ai/cocktail-proposal', { prompt: currentPrompt, json_mode: true })
       const rawText = getResponseText(data)
       const parsed = parseStrictJson(rawText)
       if (!parsed.name) throw new Error('AI returned an invalid replacement. Please try again.')

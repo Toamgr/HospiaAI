@@ -1712,6 +1712,7 @@ async function handleAiCompletion(req, res, taskMeta = null) {
     if (taskMeta) {
       return res.json({ answer, provider: AI_PROVIDER_ID, task: taskMeta.task, source: "ai_provider" });
     }
+    console.warn("[DEPRECATED] /api/gemini hit — migrate caller to /api/ai/*");
     res.json({ answer });
   } catch (error) {
     console.log("AI COMPLETION ERROR:", error?.message || error);
