@@ -47,6 +47,16 @@ function goodReplacementResponse() {
   }
 }
 
+function wrongSpiritReplacementResponse() {
+  return {
+    answer: JSON.stringify({
+      name: 'Replacement Cocktail',
+      base_spirit: 'Vodka',
+      ingredients: [{ name: 'Vodka', amount_ml: 45, unit: 'ml' }],
+    }),
+  }
+}
+
 beforeEach(() => {
   apiPost.mockReset()
 })
@@ -180,5 +190,46 @@ describe('replaceEventCocktail — failures never fabricate a replacement', () =
     const p = replaceEventCocktail({ event: EVENT, menu, index: 0, replaceInstruction: 'more herbal', form: FORM })
     await expect(p).rejects.toMatchObject({ kind: EVENT_MENU_ERROR_KIND.PROVIDER, status: 429 })
     expect(apiPost).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries a spirit-mismatched replacement once, then succeeds with a matching spirit on the second attempt', async () => {
+    apiPost
+      .mockResolvedValueOnce(wrongSpiritReplacementResponse())
+      .mockResolvedValueOnce(goodReplacementResponse())
+    const menu = { cocktails: [{ name: 'Old Cocktail', base_spirit: 'Vodka', ingredients: [] }] }
+
+    const result = await replaceEventCocktail({
+      event: EVENT, menu, index: 0, replaceInstruction: 'make it a gin cocktail', form: FORM,
+    })
+
+    expect(result.cocktail.name).toBe('Replacement Cocktail')
+    expect(result.cocktail.base_spirit).toBe('Gin')
+    expect(apiPost).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws an honest error — never the wrong-spirit cocktail — when the spirit still mismatches on the final attempt', async () => {
+    apiPost.mockResolvedValue(wrongSpiritReplacementResponse())
+    const menu = { cocktails: [{ name: 'Old Cocktail', base_spirit: 'Vodka', ingredients: [] }] }
+
+    const p = replaceEventCocktail({
+      event: EVENT, menu, index: 0, replaceInstruction: 'make it a gin cocktail', form: FORM,
+    })
+
+    await expect(p).rejects.toMatchObject({ kind: EVENT_MENU_ERROR_KIND.PROVIDER })
+    await expect(p).rejects.toThrow(/did not match the requested constraints/i)
+    expect(apiPost).toHaveBeenCalledTimes(2)
+
+    let caught = null
+    let result = null
+    try {
+      result = await replaceEventCocktail({
+        event: EVENT, menu, index: 0, replaceInstruction: 'make it a gin cocktail', form: FORM,
+      })
+    } catch (e) { caught = e }
+
+    expect(caught).toBeTruthy()
+    expect(result).toBeNull()
+    expect(caught.cocktail).toBeUndefined()
+    expect(caught._fallback).toBeUndefined()
   })
 })

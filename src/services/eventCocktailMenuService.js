@@ -470,9 +470,14 @@ export async function replaceEventCocktail({ event, menu, index, replaceInstruct
       if (!parsed.name) throw new Error('AI returned an invalid replacement. Please try again.')
 
       const validationError = validateReplacement(parsed, replaceInstruction)
-      if (validationError && attempt === 1) {
-        currentPrompt = basePrompt + `\n\nCORRECTION REQUIRED: ${validationError} Fix this now — you MUST obey the user's change request.`
-        throw new Error(validationError)
+      if (validationError) {
+        if (attempt === 1) {
+          currentPrompt = basePrompt + `\n\nCORRECTION REQUIRED: ${validationError} Fix this now — you MUST obey the user's change request.`
+          throw new Error(validationError)
+        }
+        // Final attempt still mismatched: never return the wrong-spirit cocktail as a
+        // success — throw an honest error instead of silently ignoring the user's constraint.
+        throw new Error('AI returned a replacement that did not match the requested constraints. No replacement was created. Please try again.')
       }
 
       return { cocktail: { ...parsed, number: index + 1, _cost: computeEventCocktailCost(parsed) } }
