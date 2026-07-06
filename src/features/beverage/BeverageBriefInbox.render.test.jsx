@@ -46,6 +46,12 @@ test('refuses to render for a role without inbox access', () => {
   expect(apiGet).not.toHaveBeenCalled()
 })
 
+test('refuses to render for admin — admin must not see or access the inbox', () => {
+  render(<BeverageBriefInbox currentUser={{ id: 'admin-1', role: 'admin' }} />)
+  expect(screen.getByText(/belongs to the f&b director/i)).toBeInTheDocument()
+  expect(apiGet).not.toHaveBeenCalled()
+})
+
 test('shows the honest empty state when no briefs are waiting — no sample cards', async () => {
   apiGet.mockResolvedValueOnce({ ok: true, briefs: [] })
   render(<BeverageBriefInbox currentUser={{ id: 'fnb-1', role: 'fb_director' }} />)

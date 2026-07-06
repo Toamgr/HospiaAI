@@ -11,8 +11,9 @@
 //     no fake data, no fake success states.
 //   • Uses ONLY the Slice 1A F&B routes via beverageBriefApi. Zero AI, zero generation,
 //     zero Venue DNA contact.
-//   • F&B-DIRECTOR surface: refuses to render for roles without inbox access (backend
-//     enforces this too — requireAuth('fb_director'); admin passes per repo convention).
+//   • F&B-DIRECTOR-ONLY surface: refuses to render for any role other than fb_director,
+//     including admin (backend enforces this too — requireAuth('fb_director') plus an explicit
+//     admin re-exclusion on every F&B route; admin must not see or access this page at all).
 //
 // Palette A (Operational Dark). Primary action inside an open brief: the review decision.
 
@@ -139,7 +140,7 @@ function BriefField({ def, ownerValue, adjustment, canAdjust, draft, onDraftChan
 
 export default function BeverageBriefInbox({ currentUser }) {
   const role = currentUser?.role
-  const allowed = role === 'fb_director' || role === 'admin'
+  const allowed = role === 'fb_director'
 
   const [loadState, setLoadState] = useState('loading') // loading | ready | error
   const [loadError, setLoadError] = useState(null)

@@ -8,7 +8,8 @@
  *
  * No DB, no server boot, no network, no AI. Verifies by reading source:
  *   • role gates: owner routes are owner-gated (writes exclude admin BEFORE the writer);
- *     F&B routes are fb_director-gated; unauthorized roles never reach the inbox;
+ *     F&B routes are fb_director-gated AND explicitly re-exclude admin before their real work
+ *     (admin must not see or access the inbox at all); unauthorized roles never reach the inbox;
  *   • venue scoping: handlers use req.venueId only; venue_id is never read from the client body;
  *   • isolation: no Venue DNA store contact, no AI/generation call, no fallback content;
  *   • honesty: the inbox UI carries the honest empty state and NO static sample brief data;
@@ -61,6 +62,8 @@ ok(/app\.get\(\s*['"]\/api\/owner-beverage-briefs['"]\s*,\s*requireAuth\(\s*['"]
   '[owner GET list] is owner-gated')
 ok(/app\.get\(\s*['"]\/api\/fnb-beverage-brief-inbox['"]\s*,\s*requireAuth\(\s*['"]fb_director['"]\s*\)/.test(server),
   '[inbox GET] is fb_director-gated (owner/manager/bar_manager blocked at requireAuth)')
+ok(/app\.get\(\s*['"]\/api\/fnb-beverage-brief-inbox\/:briefId['"]\s*,\s*requireAuth\(\s*['"]fb_director['"]\s*\)/.test(server),
+  '[inbox GET one] is fb_director-gated')
 ok(/app\.post\(\s*['"]\/api\/fnb-brief-reviews['"]\s*,\s*requireAuth\(\s*['"]fb_director['"]\s*\)/.test(server),
   '[review POST] is fb_director-gated')
 ok(/app\.patch\(\s*['"]\/api\/fnb-brief-reviews\/:reviewId['"]\s*,\s*requireAuth\(\s*['"]fb_director['"]\s*\)/.test(server),
@@ -85,6 +88,25 @@ for (const writer of ['createOwnerBeverageBrief(', 'updateOwnerBeverageBriefDraf
   const before = region.slice(0, wIdx)
   const lastGuard = before.lastIndexOf("req.user.role === 'admin'")
   ok(lastGuard !== -1, `[admin] admin re-exclusion precedes ${writer.slice(0, -1)} (zero rows on admin write)`)
+}
+
+// F&B routes explicitly re-exclude admin BEFORE the handler's real work — the requireAuth
+// platform-admin bypass is not enough on its own (product decision: admin must not see or
+// access the F&B Beverage Brief Inbox at all, not even read-only).
+const FNB_ROUTE_ANCHORS = [
+  ["app.get('/api/fnb-beverage-brief-inbox',", 'listFnbBriefInbox('],
+  ["app.get('/api/fnb-beverage-brief-inbox/:briefId',", 'getOwnerBeverageBriefById('],
+  ["app.post('/api/fnb-brief-reviews',", 'createFnbBriefReview('],
+  ["app.patch('/api/fnb-brief-reviews/:reviewId',", 'updateFnbBriefReview('],
+]
+for (const [anchor, call] of FNB_ROUTE_ANCHORS) {
+  const aIdx = region.indexOf(anchor)
+  ok(aIdx !== -1, `[admin] region registers ${anchor}`)
+  const cIdx = aIdx !== -1 ? region.indexOf(call, aIdx) : -1
+  ok(cIdx !== -1 && cIdx > aIdx, `[admin] region calls ${call.slice(0, -1)} after route registration`)
+  const between = aIdx !== -1 && cIdx !== -1 ? region.slice(aIdx, cIdx) : ''
+  ok(/role\s*===\s*['"]admin['"]/.test(between),
+    `[admin] admin re-exclusion precedes ${call.slice(0, -1)} in the F&B route (403 before real work)`)
 }
 
 // Venue scoping — server-resolved only, never the client body.

@@ -7314,8 +7314,11 @@ app.post('/api/owner-meaning-promotion-candidates/:candidateId/request-revision'
 //   • Venue-scoped via req.venueId ONLY; venue_id is never read from the client body.
 //   • Owner WRITE routes exclude the platform-admin global bypass explicitly (the owner is the
 //     author of direction — same posture as POST /api/owner-meaning-captures), so an admin
-//     write creates ZERO brief rows and ZERO audit rows. Owner READ routes and all F&B routes
-//     follow the standard requireAuth pattern (admin bypass per repo convention).
+//     write creates ZERO brief rows and ZERO audit rows. Owner READ routes follow the standard
+//     requireAuth pattern (admin bypass per repo convention).
+//   • The F&B Beverage Brief Inbox (GET inbox, GET one, POST review, PATCH review) is
+//     fb_director-ONLY. Admin is explicitly re-excluded on every one of these four routes
+//     (product decision: admin must not see or access this surface at all, not even read-only).
 //   • Zero AI, zero generation, zero Venue DNA contact. Honest empty states ([]), honest
 //     errors — no fallback content anywhere.
 
@@ -7402,6 +7405,9 @@ app.get('/api/owner-beverage-briefs/:briefId', requireAuth('owner'), (req, res) 
 // GET inbox — SUBMITTED briefs only, newest submission first. F&B Director surface.
 app.get('/api/fnb-beverage-brief-inbox', requireAuth('fb_director'), (req, res) => {
   try {
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'The beverage brief inbox belongs to the F&B Director; admin cannot access it.' });
+    }
     res.json({ ok: true, briefs: listFnbBriefInbox(db, req.venueId) });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message || 'Could not read the beverage brief inbox.' });
@@ -7412,6 +7418,9 @@ app.get('/api/fnb-beverage-brief-inbox', requireAuth('fb_director'), (req, res) 
 // cross-venue id is a safe 404 (the F&B Director never sees unsubmitted owner work).
 app.get('/api/fnb-beverage-brief-inbox/:briefId', requireAuth('fb_director'), (req, res) => {
   try {
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'The beverage brief inbox belongs to the F&B Director; admin cannot access it.' });
+    }
     const brief = getOwnerBeverageBriefById(db, req.venueId, req.params.briefId);
     if (!brief || brief.status !== 'submitted') {
       return res.status(404).json({ ok: false, error: 'No submitted beverage brief found for this venue.' });
@@ -7430,6 +7439,9 @@ app.get('/api/fnb-beverage-brief-inbox/:briefId', requireAuth('fb_director'), (r
 // POST open a review (in_review) on a submitted brief. One review per brief (409 on second).
 app.post('/api/fnb-brief-reviews', requireAuth('fb_director'), (req, res) => {
   try {
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'The beverage brief inbox belongs to the F&B Director; admin cannot access it.' });
+    }
     const review = createFnbBriefReview(db, {
       venueId: req.venueId,
       briefId: (req.body || {}).brief_id,
@@ -7445,6 +7457,9 @@ app.post('/api/fnb-brief-reviews', requireAuth('fb_director'), (req, res) => {
 // them) and/or a decision: approved | declined | clarification_requested. Closed once decided.
 app.patch('/api/fnb-brief-reviews/:reviewId', requireAuth('fb_director'), (req, res) => {
   try {
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'The beverage brief inbox belongs to the F&B Director; admin cannot access it.' });
+    }
     const body = req.body || {};
     const review = updateFnbBriefReview(db, {
       venueId: req.venueId,

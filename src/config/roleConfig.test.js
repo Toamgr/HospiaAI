@@ -25,6 +25,27 @@ describe('Cocktail Lab access — frontend/backend must agree', () => {
   })
 })
 
+describe('Beverage Brief Inbox access — admin must not see or access it', () => {
+  it('allows fb_director to reach beverageBriefInbox', () => {
+    expect(canAccessPage('fb_director', 'beverageBriefInbox')).toBe(true)
+  })
+
+  it('does NOT allow admin to reach beverageBriefInbox, despite the global admin bypass', () => {
+    expect(canAccessPage('admin', 'beverageBriefInbox')).toBe(false)
+  })
+
+  it('does not allow unrelated roles (bar_manager, employee) into beverageBriefInbox', () => {
+    expect(canAccessPage('bar_manager', 'beverageBriefInbox')).toBe(false)
+    expect(canAccessPage('employee', 'beverageBriefInbox')).toBe(false)
+  })
+
+  it('does not globally break admin access to unrelated pages', () => {
+    expect(canAccessPage('admin', 'cocktailLab')).toBe(true)
+    expect(canAccessPage('admin', 'operationalPulse')).toBe(true)
+    expect(canAccessPage('admin', 'beverageBrief')).toBe(true)
+  })
+})
+
 describe('canAccessEvents — gates the global /api/events load', () => {
   it('is true for events-capable roles', () => {
     expect(canAccessEvents('events_manager')).toBe(true)
