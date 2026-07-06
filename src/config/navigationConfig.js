@@ -9,6 +9,7 @@ export const NAV_GROUPS = {
     pages: [
       'ownerHome',
       'operationalPulse',
+      'beverageBrief',
       'settings'
     ]
   },
@@ -60,7 +61,9 @@ export const NAV_GROUPS = {
   // owner nav tab. See the 2026-06-21 roadmap + audit referenced above.
   barManagement: {
     roles: ['bar_manager', 'fb_director', 'admin'],
-    pages: ['cocktailLab', 'foodCostTables', 'approvedCocktailsBar', 'cocktailLibrary', 'inventoryOverview', 'barReports', 'bottlePrices']
+    // beverageBriefInbox is page-gated to fb_director/admin via PAGE_META.roles — bar_manager
+    // shares this nav group but never sees or reaches the inbox.
+    pages: ['beverageBriefInbox', 'cocktailLab', 'foodCostTables', 'approvedCocktailsBar', 'cocktailLibrary', 'inventoryOverview', 'barReports', 'bottlePrices']
   },
   ownerIntelligence: {
     roles: ['owner', 'admin'],
@@ -340,6 +343,15 @@ export const PAGE_META = {
   },
 
   // ── Bar Management ─────────────────────────────────────────────────────────
+  // Beverage Slice 1A — F&B Director's inbox for submitted owner beverage briefs.
+  // fb_director + admin ONLY (bar_manager shares the nav group but is page-gated out).
+  beverageBriefInbox: {
+    area: 'barManagement',
+    roles: ['fb_director', 'admin'],
+    code: 'BI',
+    section: 'Beverage Program',
+    description: 'Review submitted owner beverage direction briefs'
+  },
   cocktailLab: {
     area: 'barManagement',
     roles: ['manager', 'bar_manager', 'fb_director', 'admin'],
@@ -416,6 +428,15 @@ export const PAGE_META = {
     code: 'AI',
     section: 'Intelligence',
     description: 'Calm AI-first owner home — read-only Venue DNA foundation (Build Mode shell)'
+  },
+  // Beverage Slice 1A — the owner writes beverage direction; write routes are owner-only
+  // (admin is nav-visible but the backend refuses admin writes).
+  beverageBrief: {
+    area: 'command',
+    roles: ['owner', 'admin'],
+    code: 'BB',
+    section: 'Beverage',
+    description: 'State the beverage direction in your own words and submit it to the F&B Director'
   },
   budgetApprovals: {
     area: 'command',

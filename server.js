@@ -26,6 +26,8 @@ import { OWNER_MEANING_CAPTURES_DDL, OWNER_MEANING_CAPTURE_EVENTS_DDL, createOwn
 import { OWNER_MEANING_PROMOTION_CANDIDATES_DDL, OWNER_MEANING_PROMOTION_EVENTS_DDL, OWNER_MEANING_PROMOTION_ALLOWED_ACTIONS, listOwnerMeaningPromotionCandidates, getOwnerMeaningPromotionCandidateById, listOwnerMeaningPromotionEvents, resolveSourceCapturesForPromotionCandidate } from "./src/services/venueIntelligence/ownerMeaningPromotionService.js";
 import { generateOwnerMeaningPromotionCandidate } from "./src/services/venueIntelligence/ownerMeaningPromotionGenerationService.js";
 import { approveOwnerMeaningPromotionCandidateMeaning, rejectOwnerMeaningPromotionCandidate, requestRevisionOwnerMeaningPromotionCandidate } from "./src/services/venueIntelligence/ownerMeaningPromotionReviewService.js";
+import { OWNER_BEVERAGE_BRIEFS_DDL, BEVERAGE_BRIEF_EVENTS_DDL, createOwnerBeverageBrief, updateOwnerBeverageBriefDraft, submitOwnerBeverageBrief, getOwnerBeverageBriefById, listOwnerBeverageBriefsForVenue, listBeverageBriefEvents } from "./src/services/beverage/ownerBeverageBriefService.js";
+import { FNB_BRIEF_REVIEWS_DDL, createFnbBriefReview, updateFnbBriefReview, getFnbBriefReviewById, getFnbBriefReviewForBrief, listFnbBriefInbox } from "./src/services/beverage/fnbBriefReviewService.js";
 import { buildVenueDnaCompleteness } from "./src/services/venueIntelligence/venueDnaCompletenessEvaluator.js";
 import { classifyVenueIntelligenceIntent } from "./src/services/venueIntelligence/venueIntelligenceIntent.js";
 import { ensureStructuredCandidateSignals } from "./src/services/venueIntelligence/ownerCorrectionLoopFormat.js";
@@ -1233,6 +1235,17 @@ db.exec(OWNER_MEANING_CAPTURE_EVENTS_DDL);
 // writer is audit-first); the DDL declares no FOREIGN KEY on these tables — do not add one.
 db.exec(OWNER_MEANING_PROMOTION_CANDIDATES_DDL);
 db.exec(OWNER_MEANING_PROMOTION_EVENTS_DDL);
+
+// Beverage Slice 1A — Owner Beverage Direction Brief → F&B review. Three ISOLATED tables:
+// the owner's brief (owner_beverage_briefs), the F&B review layer (fnb_brief_reviews), and a
+// shared append-only audit (beverage_brief_events). Additive, venue-scoped, idempotent,
+// deterministic — zero AI. ISOLATED from Venue DNA: no mergeVenueDna, never writes
+// venue_intelligence/venue_dna_json/venue_briefs/venue_dna_enrichment. NOTE: brief_id/review_id
+// in the events table and owner_beverage_brief_id on reviews are LOGICAL references, NOT
+// enforced FKs (writers are audit-first); the DDLs declare no FOREIGN KEY — do not add one.
+db.exec(OWNER_BEVERAGE_BRIEFS_DDL);
+db.exec(BEVERAGE_BRIEF_EVENTS_DDL);
+db.exec(FNB_BRIEF_REVIEWS_DDL);
 
 // shift_reports extended fields
 for (const [col, def] of [
@@ -7291,6 +7304,162 @@ app.post('/api/owner-meaning-promotion-candidates/:candidateId/request-revision'
   handleOwnerMeaningPromotionReview(requestRevisionOwnerMeaningPromotionCandidate, req, res);
 });
 // ── Owner Meaning Promotion review routes — END ───────────────────────────────
+
+// ── Beverage Slice 1A — Owner Beverage Direction Brief → F&B Inbox ────────────
+//
+// Doctrine (docs/architecture/BEVERAGE_UX_SYSTEM_OWNER_BRIEF_AND_REPORT_MEMORY_2026_07.md):
+//   • The owner AUTHORS beverage direction; F&B REVIEWS it as a layer. F&B adjustments are a
+//     diff on the review row — no route here ever writes owner brief content from a review.
+//   • After submit, the owner version is IMMUTABLE (service enforces CONFLICT → 409).
+//   • Venue-scoped via req.venueId ONLY; venue_id is never read from the client body.
+//   • Owner WRITE routes exclude the platform-admin global bypass explicitly (the owner is the
+//     author of direction — same posture as POST /api/owner-meaning-captures), so an admin
+//     write creates ZERO brief rows and ZERO audit rows. Owner READ routes and all F&B routes
+//     follow the standard requireAuth pattern (admin bypass per repo convention).
+//   • Zero AI, zero generation, zero Venue DNA contact. Honest empty states ([]), honest
+//     errors — no fallback content anywhere.
+
+// Map service error codes onto HTTP statuses (shared by all Slice 1A handlers).
+function beverageBriefErrorStatus(err) {
+  if (err && err.code === 'NOT_FOUND') return 404;
+  if (err && err.code === 'CONFLICT') return 409;
+  if (err && err.code === 'FORBIDDEN') return 403;
+  return 400;
+}
+
+// POST create a DRAFT brief — OWNER-ONLY write (admin re-excluded before the sole writer).
+app.post('/api/owner-beverage-briefs', requireAuth('owner'), (req, res) => {
+  try {
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'The beverage brief is owner-authored; admin cannot write one.' });
+    }
+    const brief = createOwnerBeverageBrief(db, {
+      venueId: req.venueId,
+      ownerUserId: String(req.user.id),
+      fields: (req.body || {}).fields,
+    });
+    res.status(201).json({ ok: true, brief });
+  } catch (err) {
+    res.status(beverageBriefErrorStatus(err)).json({ ok: false, error: err.message || 'Could not create the beverage brief.' });
+  }
+});
+
+// PUT edit a DRAFT brief — OWNER-ONLY, AUTHOR-ONLY. A submitted brief is immutable (409).
+app.put('/api/owner-beverage-briefs/:briefId', requireAuth('owner'), (req, res) => {
+  try {
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'The beverage brief is owner-authored; admin cannot edit one.' });
+    }
+    const brief = updateOwnerBeverageBriefDraft(db, {
+      venueId: req.venueId,
+      briefId: req.params.briefId,
+      ownerUserId: String(req.user.id),
+      fields: (req.body || {}).fields,
+    });
+    res.json({ ok: true, brief });
+  } catch (err) {
+    res.status(beverageBriefErrorStatus(err)).json({ ok: false, error: err.message || 'Could not update the beverage brief.' });
+  }
+});
+
+// POST submit — draft → submitted, one-way. OWNER-ONLY, AUTHOR-ONLY.
+app.post('/api/owner-beverage-briefs/:briefId/submit', requireAuth('owner'), (req, res) => {
+  try {
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({ ok: false, error: 'The beverage brief is owner-authored; admin cannot submit one.' });
+    }
+    const brief = submitOwnerBeverageBrief(db, {
+      venueId: req.venueId,
+      briefId: req.params.briefId,
+      ownerUserId: String(req.user.id),
+    });
+    res.json({ ok: true, brief, note: 'Submitted to the F&B Director. Your version is now read-only.' });
+  } catch (err) {
+    res.status(beverageBriefErrorStatus(err)).json({ ok: false, error: err.message || 'Could not submit the beverage brief.' });
+  }
+});
+
+// GET list — the venue's briefs with review state, newest first. Owner read.
+app.get('/api/owner-beverage-briefs', requireAuth('owner'), (req, res) => {
+  try {
+    res.json({ ok: true, briefs: listOwnerBeverageBriefsForVenue(db, req.venueId) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message || 'Could not list beverage briefs.' });
+  }
+});
+
+// GET one — a brief plus its append-only audit trail, venue-scoped. Cross-venue id → safe 404.
+app.get('/api/owner-beverage-briefs/:briefId', requireAuth('owner'), (req, res) => {
+  try {
+    const brief = getOwnerBeverageBriefById(db, req.venueId, req.params.briefId);
+    if (!brief) return res.status(404).json({ ok: false, error: 'No beverage brief found for this venue.' });
+    res.json({ ok: true, brief, events: listBeverageBriefEvents(db, req.venueId, req.params.briefId) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message || 'Could not read the beverage brief.' });
+  }
+});
+
+// GET inbox — SUBMITTED briefs only, newest submission first. F&B Director surface.
+app.get('/api/fnb-beverage-brief-inbox', requireAuth('fb_director'), (req, res) => {
+  try {
+    res.json({ ok: true, briefs: listFnbBriefInbox(db, req.venueId) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message || 'Could not read the beverage brief inbox.' });
+  }
+});
+
+// GET one inbox brief — the submitted brief + its review (or null) + audit trail. A draft or
+// cross-venue id is a safe 404 (the F&B Director never sees unsubmitted owner work).
+app.get('/api/fnb-beverage-brief-inbox/:briefId', requireAuth('fb_director'), (req, res) => {
+  try {
+    const brief = getOwnerBeverageBriefById(db, req.venueId, req.params.briefId);
+    if (!brief || brief.status !== 'submitted') {
+      return res.status(404).json({ ok: false, error: 'No submitted beverage brief found for this venue.' });
+    }
+    res.json({
+      ok: true,
+      brief,
+      review: getFnbBriefReviewForBrief(db, req.venueId, req.params.briefId),
+      events: listBeverageBriefEvents(db, req.venueId, req.params.briefId),
+    });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message || 'Could not read the beverage brief.' });
+  }
+});
+
+// POST open a review (in_review) on a submitted brief. One review per brief (409 on second).
+app.post('/api/fnb-brief-reviews', requireAuth('fb_director'), (req, res) => {
+  try {
+    const review = createFnbBriefReview(db, {
+      venueId: req.venueId,
+      briefId: (req.body || {}).brief_id,
+      reviewerUserId: String(req.user.id),
+    });
+    res.status(201).json({ ok: true, review });
+  } catch (err) {
+    res.status(beverageBriefErrorStatus(err)).json({ ok: false, error: err.message || 'Could not open the brief review.' });
+  }
+});
+
+// PATCH a review — notes / field adjustments (a diff beside the owner's values, never over
+// them) and/or a decision: approved | declined | clarification_requested. Closed once decided.
+app.patch('/api/fnb-brief-reviews/:reviewId', requireAuth('fb_director'), (req, res) => {
+  try {
+    const body = req.body || {};
+    const review = updateFnbBriefReview(db, {
+      venueId: req.venueId,
+      reviewId: req.params.reviewId,
+      reviewerUserId: String(req.user.id),
+      notes: body.notes,
+      adjustments: body.adjustments,
+      status: body.status,
+    });
+    res.json({ ok: true, review });
+  } catch (err) {
+    res.status(beverageBriefErrorStatus(err)).json({ ok: false, error: err.message || 'Could not update the brief review.' });
+  }
+});
+// ── Beverage Slice 1A routes — END ─────────────────────────────────────────────
 
 // ── CI VISUAL MENU ────────────────────────────────────────────────────────────
 
