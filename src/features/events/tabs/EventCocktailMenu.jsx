@@ -648,32 +648,27 @@ function ProgrammeView({ menuInfo, event, brief, designContext, onMenuStatusChan
     }
 
     try {
-      const { menu: generatedMenu, isFallback, fallbackReason } = await generateEventMenu({
+      const { menu: generatedMenu } = await generateEventMenu({
         event, form: generationForm, designContext, menuDNA,
       })
 
-      if (isFallback) {
-        setError(fallbackReason || 'AI was unavailable. A placeholder draft is shown — review and regenerate when the service recovers.')
-        onMenuStatusChange?.({ status: 'draft', menuName: generatedMenu.menu_name || null, cocktails: null })
-      } else {
-        const saved = await apiPost(`/api/events/${event.id}/cocktail-menu`, {
-          menu_name: generatedMenu.menu_name,
-          cocktails: generatedMenu.cocktails,
-          programme_brief: form,
-        })
-        // Brief is now server-persisted — update parent state and clear local cache
-        onBriefUpdated?.(form)
-        try { localStorage.removeItem(`hestia.programme_brief.${event.id}`) } catch {}
-        briefLoadedRef.current = true
-        setHasChanges(false)
-        onMenuStatusChange?.({
-          status: 'draft',
-          menuName: saved.menu.menu_name || null,
-          cocktails: null,
-        })
-      }
+      const saved = await apiPost(`/api/events/${event.id}/cocktail-menu`, {
+        menu_name: generatedMenu.menu_name,
+        cocktails: generatedMenu.cocktails,
+        programme_brief: form,
+      })
+      // Brief is now server-persisted — update parent state and clear local cache
+      onBriefUpdated?.(form)
+      try { localStorage.removeItem(`hestia.programme_brief.${event.id}`) } catch {}
+      briefLoadedRef.current = true
+      setHasChanges(false)
+      onMenuStatusChange?.({
+        status: 'draft',
+        menuName: saved.menu.menu_name || null,
+        cocktails: null,
+      })
     } catch (err) {
-      setError(err.message || 'Failed to generate programme. Please try again.')
+      setError(err.message || 'AI generation unavailable. No menu was created. Try again, or check back shortly.')
     } finally {
       setGenerating(false)
     }

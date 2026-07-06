@@ -339,85 +339,30 @@ function buildReplacementPrompt({ event, cocktail, index, otherNames, replaceIns
   return parts.filter(p => p !== null).join('\n')
 }
 
-// ─── Fallback generators ──────────────────────────────────────────────────────
-// Used when Gemini is unavailable or returns invalid JSON.
-// Fallbacks never include invented cost data.
-
-const FALLBACK_SPIRIT_BY_FLAVOR = {
-  Citrus: 'Blanco tequila', Floral: 'London dry gin', Tropical: 'Aged rum',
-  Herbal: 'London dry gin', Spicy: 'Reposado tequila', Smoky: 'Espadin mezcal',
-  Sweet: 'Aged rum', Bitter: 'Campari',
+// ─── Error classification ─────────────────────────────────────────────────────
+// Mirrors the Cocktail Lab convention (cocktailService.js COCKTAIL_ERROR_KIND): callers
+// can distinguish an authorization/config problem from an AI-provider failure instead of
+// a misleading generic message. No fabricated draft is ever returned on failure — every
+// failure path here throws.
+export const EVENT_MENU_ERROR_KIND = {
+  AUTHORIZATION: 'authorization', // 401/403 — auth, role, or venue/config problem
+  PROVIDER: 'provider',           // AI provider / model / parsing failure
 }
 
-function buildFallbackEventMenu(form, event, designContext) {
-  const spirit = form.flavors.length
-    ? (FALLBACK_SPIRIT_BY_FLAVOR[form.flavors[0]] || 'London dry gin')
-    : 'London dry gin'
-  const eventLabel = EVENT_TYPE_LABELS[event.event_type] || 'Event'
-  const menuName = designContext?.menuTitle || `${eventLabel} Menu`
-
-  return {
-    menu_name: menuName,
-    _fallback: true,
-    _fallback_reason: 'HESTIA AI was unavailable. This is a placeholder draft — review, revise, and regenerate when the service recovers.',
-    cocktails: [
-      {
-        number: 1,
-        name: 'House Signature',
-        tagline: 'A crowd-pleasing opener for the occasion.',
-        base_spirit: spirit,
-        ingredients: [
-          { name: spirit, amount_ml: 45, unit: 'ml' },
-          { name: 'Fresh lemon juice', amount_ml: 20, unit: 'ml' },
-          { name: 'Simple syrup', amount_ml: 15, unit: 'ml' },
-          { name: 'Egg white', amount_ml: 30, unit: 'ml' },
-        ],
-        method: 'Dry shake, then shake with ice. Fine strain into a chilled coupe.',
-        garnish: 'Lemon twist',
-        glassware: 'Coupe',
-        flavor_map: { sweet: 5, sour: 6, bitter: 2, salty: 1, smoky: 0, spicy: 0, creamy: 3, savory: 0 },
-        flavor_notes: 'Bright, citrus, smooth',
-        allergen_notes: 'Contains egg white',
-        liquid_color_hex: '#F5F5DC',
-        batch_notes: 'Batch spirit and syrup ahead. Add citrus and egg white per order.',
-        service_speed: 'fast',
-        operational_difficulty: 2,
-        why_fits_event: 'Approachable, batchable, and easy to explain to guests.',
-        zero_proof_alternative: null,
-        _fallback: true,
-        _cost: UNAVAILABLE_COST,
-      },
-    ],
+function classifyGenerationError(error) {
+  const status = error?.status
+  if (status === 401 || status === 403) {
+    const e = new Error('AI generation failed. No menu was created. Check authorization or provider configuration.')
+    e.kind = EVENT_MENU_ERROR_KIND.AUTHORIZATION
+    e.status = status
+    e.cause = error
+    return e
   }
-}
-
-function buildFallbackReplacement(index) {
-  return {
-    number: index + 1,
-    name: 'Seasonal Reserve',
-    tagline: 'A balanced crowd-pleaser for this position.',
-    base_spirit: 'London dry gin',
-    ingredients: [
-      { name: 'London dry gin', amount_ml: 45, unit: 'ml' },
-      { name: 'Elderflower cordial', amount_ml: 15, unit: 'ml' },
-      { name: 'Fresh lemon juice', amount_ml: 20, unit: 'ml' },
-      { name: 'Chilled soda water', amount_ml: 60, unit: 'ml' },
-    ],
-    method: 'Build over ice, stir gently, top with soda.',
-    garnish: 'Lemon wheel and fresh mint',
-    glassware: 'Highball',
-    flavor_map: { sweet: 4, sour: 5, bitter: 2, salty: 0, smoky: 0, spicy: 0, creamy: 0, savory: 0 },
-    flavor_notes: 'Floral, citrus, refreshing',
-    allergen_notes: null,
-    liquid_color_hex: '#F0F0E8',
-    batch_notes: 'Pre-batch gin and elderflower. Add citrus and soda per order.',
-    service_speed: 'fast',
-    operational_difficulty: 1,
-    why_fits_event: null,
-    zero_proof_alternative: null,
-    _fallback: true,
-    _cost: UNAVAILABLE_COST,
-  }
+  const e = new Error(error?.message || 'AI generation failed. No menu was created.')
+  e.kind = EVENT_MENU_ERROR_KIND.PROVIDER
+  if (status) e.status = status
+  e.cause = error
+  return e
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -465,25 +410,16 @@ export async function generateEventMenu({ event, form, designContext, menuDNA })
 
   const prompt = buildEventMenuPrompt({ event, form, knowledgeContext, pricingContext, designContext, menuDNA })
 
-  // Try up to 2 times before falling back to the placeholder menu.
+  // Try up to 2 times. On exhausted retries or a network/provider failure, throw an
+  // honest classified error — never fabricate a placeholder menu.
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const parsed = await attemptMenuGeneration(prompt, form.cocktailCount)
-      return {
-        menu: { ...parsed, cocktails: enrichCocktailsWithCost(parsed.cocktails) },
-        isFallback: false,
-        fallbackReason: null,
-      }
+      return { menu: { ...parsed, cocktails: enrichCocktailsWithCost(parsed.cocktails) } }
     } catch (err) {
       const isLastAttempt = attempt === 2
       const isNetworkError = /request failed|rate.limit|quota/i.test(err.message || '')
-      if (isLastAttempt || isNetworkError) {
-        return {
-          menu: buildFallbackEventMenu(form, event, designContext),
-          isFallback: true,
-          fallbackReason: err.message || 'AI generation failed.',
-        }
-      }
+      if (isLastAttempt || isNetworkError) throw classifyGenerationError(err)
       // Wait briefly before retrying a parse failure
       await new Promise(r => setTimeout(r, 800))
     }
@@ -516,21 +452,11 @@ export async function replaceEventCocktail({ event, menu, index, replaceInstruct
         throw new Error(validationError)
       }
 
-      return {
-        cocktail: { ...parsed, number: index + 1, _cost: computeEventCocktailCost(parsed) },
-        isFallback: false,
-        fallbackReason: null,
-      }
+      return { cocktail: { ...parsed, number: index + 1, _cost: computeEventCocktailCost(parsed) } }
     } catch (err) {
       const isLastAttempt = attempt === 2
       const isNetworkError = /request failed|rate.limit|quota/i.test(err.message || '')
-      if (isLastAttempt || isNetworkError) {
-        return {
-          cocktail: buildFallbackReplacement(index),
-          isFallback: true,
-          fallbackReason: err.message || 'AI replacement failed.',
-        }
-      }
+      if (isLastAttempt || isNetworkError) throw classifyGenerationError(err)
       await new Promise(r => setTimeout(r, 800))
     }
   }
