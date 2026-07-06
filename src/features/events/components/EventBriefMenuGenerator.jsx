@@ -631,33 +631,24 @@ export default function EventBriefMenuGenerator({
     setShowForm(false)
 
     try {
-      const { menu: generatedMenu, isFallback, fallbackReason } = await generateEventMenu({
+      const { menu: generatedMenu } = await generateEventMenu({
         event,
         form,
         designContext,
         menuDNA,
       })
 
-      if (isFallback) {
-        setMenu(generatedMenu)
-        onMenuStatusChange?.({ status: 'draft', menuName: generatedMenu.menu_name || null })
-        setError(
-          fallbackReason ||
-          'AI was unavailable. A placeholder draft is shown below — review and regenerate when the service recovers.'
-        )
-      } else {
-        const saved = await apiPost(`/api/events/${event.id}/cocktail-menu`, {
-          menu_name: generatedMenu.menu_name,
-          cocktails: generatedMenu.cocktails,
-        })
-        setMenu({
-          ...saved.menu,
-          cocktails: enrichCocktailsWithCost(saved.menu.cocktails || []),
-        })
-        onMenuStatusChange?.({ status: 'draft', menuName: saved.menu.menu_name || null })
-      }
+      const saved = await apiPost(`/api/events/${event.id}/cocktail-menu`, {
+        menu_name: generatedMenu.menu_name,
+        cocktails: generatedMenu.cocktails,
+      })
+      setMenu({
+        ...saved.menu,
+        cocktails: enrichCocktailsWithCost(saved.menu.cocktails || []),
+      })
+      onMenuStatusChange?.({ status: 'draft', menuName: saved.menu.menu_name || null })
     } catch (err) {
-      setError(err.message || 'Failed to generate menu. Please try again.')
+      setError(err.message || 'AI generation unavailable. No menu was created. Try again, or check back shortly.')
       setShowForm(true)
     } finally {
       setGenerating(false)
@@ -665,7 +656,6 @@ export default function EventBriefMenuGenerator({
   }
 
   async function handleApprove() {
-    if (menu?._fallback) return
     setApproving(true)
     setError(null)
     try {
@@ -708,14 +698,9 @@ export default function EventBriefMenuGenerator({
     setReplaceError(null)
 
     try {
-      const { cocktail: newCocktail, isFallback, fallbackReason } = await replaceEventCocktail({
+      const { cocktail: newCocktail } = await replaceEventCocktail({
         event, menu, index, replaceInstruction, form,
       })
-
-      if (isFallback) {
-        setReplaceError(fallbackReason || 'AI was unavailable. Please try again in a moment.')
-        return
-      }
 
       const updatedCocktails = menu.cocktails.map((c, i) => i === index ? newCocktail : c)
       const saved = await apiPost(`/api/events/${event.id}/cocktail-menu`, {
@@ -899,15 +884,6 @@ export default function EventBriefMenuGenerator({
         {/* Menu cards */}
         {menu && !generating && (
           <>
-            {menu._fallback && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-800/30 bg-amber-950/15 px-3 py-2">
-                <span className="text-amber-400 text-[10px] mt-0.5">⚠</span>
-                <span className="text-[10px] text-amber-400/80 leading-relaxed">
-                  AI was unavailable — this is a placeholder draft. Review each cocktail and regenerate when the service recovers.
-                </span>
-              </div>
-            )}
-
             {menu.menu_name && (
               <div className="text-center pb-1">
                 <p
@@ -991,10 +967,6 @@ export default function EventBriefMenuGenerator({
                 </p>
                 <ProductionPanel production={production} eventType={event?.event_type || 'other'} />
               </>
-            ) : menu?._fallback || menu?.cocktails?.some(c => c._fallback) ? (
-              <p className="text-center text-xs text-amber-500/80 py-2">
-                Regenerate the menu before approving — this is a placeholder draft.
-              </p>
             ) : (
               <button
                 type="button"
