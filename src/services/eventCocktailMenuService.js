@@ -358,6 +358,13 @@ function classifyGenerationError(error) {
     e.cause = error
     return e
   }
+  if (status === 429) {
+    const e = new Error('AI provider is rate-limited right now. No menu was created. Wait a moment and try again.')
+    e.kind = EVENT_MENU_ERROR_KIND.PROVIDER
+    e.status = status
+    e.cause = error
+    return e
+  }
   const e = new Error(error?.message || 'AI generation failed. No menu was created.')
   e.kind = EVENT_MENU_ERROR_KIND.PROVIDER
   if (status) e.status = status
@@ -365,9 +372,21 @@ function classifyGenerationError(error) {
   return e
 }
 
+// Message-text matching alone misses status-coded provider failures whose body
+// text doesn't happen to contain "rate limit"/"quota" (e.g. a 429 with a bare
+// provider error string). apiPost (services/api/client.js) attaches err.status
+// on every HTTP failure, so checking it catches these regardless of wording.
+// 401/403/429 must never be retried: auth failures won't succeed on retry, and
+// retrying a 429 only worsens the rate limit.
+function isNonRetryableGenerationError(err) {
+  const status = err?.status
+  if (status === 401 || status === 403 || status === 429) return true
+  return /request failed|rate.limit|quota/i.test(err?.message || '')
+}
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 
-function validateMenuResponse(parsed, expectedCount) {
+function validateMenuResponse(parsed, expectedCount, isLastAttempt) {
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('AI returned an unexpected format. Please try again.')
   }
@@ -378,17 +397,22 @@ function validateMenuResponse(parsed, expectedCount) {
     if (!c.name) throw new Error('AI returned a cocktail with no name. Please try again.')
   }
   if (expectedCount != null && parsed.cocktails.length !== expectedCount) {
-    throw new Error(`AI returned ${parsed.cocktails.length} cocktail${parsed.cocktails.length !== 1 ? 's' : ''} but ${expectedCount} were requested. Retrying.`)
+    const countText = `AI returned ${parsed.cocktails.length} cocktail${parsed.cocktails.length !== 1 ? 's' : ''} but ${expectedCount} were requested.`
+    // Only promise a retry when one will actually happen — the caller passes
+    // isLastAttempt so the final, surfaced error never says "Retrying." dishonestly.
+    throw new Error(isLastAttempt
+      ? `${countText} No menu was created. Please try again.`
+      : `${countText} Retrying.`)
   }
 }
 
 // ─── Exported service functions ───────────────────────────────────────────────
 
-async function attemptMenuGeneration(prompt, expectedCount) {
+async function attemptMenuGeneration(prompt, expectedCount, isLastAttempt) {
   const data = await apiPost('/api/ai/cocktail-proposal', { prompt, json_mode: true })
   const rawText = getResponseText(data)
   const parsed = parseStrictJson(rawText)
-  validateMenuResponse(parsed, expectedCount)
+  validateMenuResponse(parsed, expectedCount, isLastAttempt)
   return parsed
 }
 
@@ -413,13 +437,12 @@ export async function generateEventMenu({ event, form, designContext, menuDNA })
   // Try up to 2 times. On exhausted retries or a network/provider failure, throw an
   // honest classified error — never fabricate a placeholder menu.
   for (let attempt = 1; attempt <= 2; attempt++) {
+    const isLastAttempt = attempt === 2
     try {
-      const parsed = await attemptMenuGeneration(prompt, form.cocktailCount)
+      const parsed = await attemptMenuGeneration(prompt, form.cocktailCount, isLastAttempt)
       return { menu: { ...parsed, cocktails: enrichCocktailsWithCost(parsed.cocktails) } }
     } catch (err) {
-      const isLastAttempt = attempt === 2
-      const isNetworkError = /request failed|rate.limit|quota/i.test(err.message || '')
-      if (isLastAttempt || isNetworkError) throw classifyGenerationError(err)
+      if (isLastAttempt || isNonRetryableGenerationError(err)) throw classifyGenerationError(err)
       // Wait briefly before retrying a parse failure
       await new Promise(r => setTimeout(r, 800))
     }
@@ -455,8 +478,7 @@ export async function replaceEventCocktail({ event, menu, index, replaceInstruct
       return { cocktail: { ...parsed, number: index + 1, _cost: computeEventCocktailCost(parsed) } }
     } catch (err) {
       const isLastAttempt = attempt === 2
-      const isNetworkError = /request failed|rate.limit|quota/i.test(err.message || '')
-      if (isLastAttempt || isNetworkError) throw classifyGenerationError(err)
+      if (isLastAttempt || isNonRetryableGenerationError(err)) throw classifyGenerationError(err)
       await new Promise(r => setTimeout(r, 800))
     }
   }

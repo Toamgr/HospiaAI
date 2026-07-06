@@ -100,6 +100,40 @@ describe('generateEventMenu — failures never fabricate a menu', () => {
     expect(caught.menu).toBeUndefined()
     expect(caught._fallback).toBeUndefined()
   })
+
+  it('does not say "Retrying" in the final error when the cocktail count is wrong twice', async () => {
+    // Message text alone (no "rate limit"/"quota"/"request failed") and no status —
+    // this only stops retrying because attempt 2 is the last attempt.
+    apiPost.mockResolvedValue(goodMenuResponse(1)) // FORM asks for 2, AI always returns 1
+
+    const p = generateEventMenu({ event: EVENT, form: FORM })
+    await expect(p).rejects.toThrow(/wrong number of cocktails|but 2 were requested/i)
+    let caught = null
+    try { await p } catch (e) { caught = e }
+    expect(caught.message).not.toMatch(/retrying/i)
+    expect(caught.menu).toBeUndefined()
+    expect(apiPost).toHaveBeenCalledTimes(2)
+  })
+
+  it('classifies a status-429 failure as provider/rate-limit even when the message has no rate-limit keywords', async () => {
+    const err = new Error('Upstream error.'); err.status = 429 // no "rate limit"/"quota"/"request failed" text
+    apiPost.mockRejectedValue(err)
+
+    const p = generateEventMenu({ event: EVENT, form: FORM })
+    await expect(p).rejects.toMatchObject({ kind: EVENT_MENU_ERROR_KIND.PROVIDER, status: 429 })
+    await expect(p).rejects.toThrow(/rate-limited|unavailable/i)
+    // A 429 must not be retried, even on the first attempt.
+    expect(apiPost).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry a 403 that has no authorization-related message text', async () => {
+    const err = new Error('Something went wrong.'); err.status = 403
+    apiPost.mockRejectedValue(err)
+
+    const p = generateEventMenu({ event: EVENT, form: FORM })
+    await expect(p).rejects.toMatchObject({ kind: EVENT_MENU_ERROR_KIND.AUTHORIZATION, status: 403 })
+    expect(apiPost).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('replaceEventCocktail — success', () => {
@@ -136,5 +170,15 @@ describe('replaceEventCocktail — failures never fabricate a replacement', () =
     } catch (e) { caught = e }
     expect(caught).toMatchObject({ kind: EVENT_MENU_ERROR_KIND.PROVIDER })
     expect(result).toBeNull()
+  })
+
+  it('does not retry a status-429 replacement failure even without rate-limit message text', async () => {
+    const err = new Error('Upstream error.'); err.status = 429
+    apiPost.mockRejectedValue(err)
+    const menu = { cocktails: [{ name: 'Old Cocktail', base_spirit: 'Vodka', ingredients: [] }] }
+
+    const p = replaceEventCocktail({ event: EVENT, menu, index: 0, replaceInstruction: 'more herbal', form: FORM })
+    await expect(p).rejects.toMatchObject({ kind: EVENT_MENU_ERROR_KIND.PROVIDER, status: 429 })
+    expect(apiPost).toHaveBeenCalledTimes(1)
   })
 })
