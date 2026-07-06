@@ -61,8 +61,8 @@ export const NAV_GROUPS = {
   // owner nav tab. See the 2026-06-21 roadmap + audit referenced above.
   barManagement: {
     roles: ['bar_manager', 'fb_director', 'admin'],
-    // beverageBriefInbox is page-gated to fb_director/admin via PAGE_META.roles — bar_manager
-    // shares this nav group but never sees or reaches the inbox.
+    // beverageBriefInbox is page-gated to fb_director ONLY via PAGE_META.roles — bar_manager
+    // and admin share this nav group but never see or reach the inbox.
     pages: ['beverageBriefInbox', 'cocktailLab', 'foodCostTables', 'approvedCocktailsBar', 'cocktailLibrary', 'inventoryOverview', 'barReports', 'bottlePrices']
   },
   ownerIntelligence: {
@@ -344,10 +344,10 @@ export const PAGE_META = {
 
   // ── Bar Management ─────────────────────────────────────────────────────────
   // Beverage Slice 1A — F&B Director's inbox for submitted owner beverage briefs.
-  // fb_director + admin ONLY (bar_manager shares the nav group but is page-gated out).
+  // fb_director ONLY (bar_manager and admin share the nav group but are page-gated out).
   beverageBriefInbox: {
     area: 'barManagement',
-    roles: ['fb_director', 'admin'],
+    roles: ['fb_director'],
     code: 'BI',
     section: 'Beverage Program',
     description: 'Review submitted owner beverage direction briefs'

@@ -125,8 +125,8 @@ ok(!/\/api\/(?!owner-beverage-briefs|fnb-beverage-brief-inbox|fnb-brief-reviews)
 // ── Registration ─────────────────────────────────────────────────────────────
 ok(/beverageBrief:\s*\{[^}]*roles:\s*\[\s*['"]owner['"]\s*,\s*['"]admin['"]\s*\]/s.test(navConfig),
   '[nav] beverageBrief page is owner/admin')
-ok(/beverageBriefInbox:\s*\{[^}]*roles:\s*\[\s*['"]fb_director['"]\s*,\s*['"]admin['"]\s*\]/s.test(navConfig),
-  '[nav] beverageBriefInbox page is fb_director/admin ONLY (bar_manager page-gated out)')
+ok(/beverageBriefInbox:\s*\{[^}]*roles:\s*\[\s*['"]fb_director['"]\s*\]/s.test(navConfig),
+  '[nav] beverageBriefInbox page is fb_director ONLY (bar_manager and admin page-gated out)')
 ok(/beverageBrief:\s*<OwnerBeverageBrief/.test(pageRenderer), '[render] owner page registered')
 ok(/beverageBriefInbox:\s*<BeverageBriefInbox/.test(pageRenderer), '[render] inbox page registered')
 
