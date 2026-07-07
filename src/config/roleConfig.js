@@ -59,13 +59,21 @@ export function canAccessEvents(userOrRole) {
   return EVENT_PAGES.some(page => canAccessPage(userOrRole, page))
 }
 
+// Pages the platform-admin global bypass must NOT reach, even though admin otherwise passes
+// every page gate. Keep this tiny and page-specific — it is a deny list, not a new access
+// model. Currently: beverageBriefInbox (product decision — admin must never see or access the
+// F&B Beverage Brief Inbox) and beverageBrief (product decision — the Owner Beverage Direction
+// Brief is owner-only; admin must not see or access it either, matching the component's own
+// owner-only render gate).
+const ADMIN_DENIED_PAGES = new Set(['beverageBriefInbox', 'beverageBrief'])
+
 export function canAccessPage(userOrRole, page) {
   const meta = PAGE_META[page]
   const role = getRole(userOrRole)
   if (!meta || !role) return false
   if (meta.requiresCocktailManager) return userCanManageCocktails(userOrRole)
   if (meta.requiresBottlePricesAccess) return canAccessBottlePrices(userOrRole)
-  if (role === 'admin') return true
+  if (role === 'admin') return !ADMIN_DENIED_PAGES.has(page)
   if (!meta.roles.includes(role)) return false
   return true
 }

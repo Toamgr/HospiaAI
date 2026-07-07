@@ -9,6 +9,7 @@ export const NAV_GROUPS = {
     pages: [
       'ownerHome',
       'operationalPulse',
+      'beverageBrief',
       'settings'
     ]
   },
@@ -60,7 +61,9 @@ export const NAV_GROUPS = {
   // owner nav tab. See the 2026-06-21 roadmap + audit referenced above.
   barManagement: {
     roles: ['bar_manager', 'fb_director', 'admin'],
-    pages: ['cocktailLab', 'foodCostTables', 'approvedCocktailsBar', 'cocktailLibrary', 'inventoryOverview', 'barReports', 'bottlePrices']
+    // beverageBriefInbox is page-gated to fb_director ONLY via PAGE_META.roles — bar_manager
+    // and admin share this nav group but never see or reach the inbox.
+    pages: ['beverageBriefInbox', 'cocktailLab', 'foodCostTables', 'approvedCocktailsBar', 'cocktailLibrary', 'inventoryOverview', 'barReports', 'bottlePrices']
   },
   ownerIntelligence: {
     roles: ['owner', 'admin'],
@@ -340,6 +343,15 @@ export const PAGE_META = {
   },
 
   // ── Bar Management ─────────────────────────────────────────────────────────
+  // Beverage Slice 1A — F&B Director's inbox for submitted owner beverage briefs.
+  // fb_director ONLY (bar_manager and admin share the nav group but are page-gated out).
+  beverageBriefInbox: {
+    area: 'barManagement',
+    roles: ['fb_director'],
+    code: 'BI',
+    section: 'Beverage Program',
+    description: 'Review submitted owner beverage direction briefs'
+  },
   cocktailLab: {
     area: 'barManagement',
     roles: ['manager', 'bar_manager', 'fb_director', 'admin'],
@@ -416,6 +428,18 @@ export const PAGE_META = {
     code: 'AI',
     section: 'Intelligence',
     description: 'Calm AI-first owner home — read-only Venue DNA foundation (Build Mode shell)'
+  },
+  // Beverage Slice 1A — owner-authored beverage direction. OWNER ONLY (product decision: admin
+  // must not see or access this page at all, matching the component's own owner-only render
+  // gate). The 'command' nav group still lists admin (for ownerHome/operationalPulse/settings),
+  // but canAccessPage's ADMIN_DENIED_PAGES deny-list (roleConfig.js) excludes admin from this
+  // page specifically, so it is filtered out of admin's nav too.
+  beverageBrief: {
+    area: 'command',
+    roles: ['owner'],
+    code: 'BB',
+    section: 'Beverage',
+    description: 'State the beverage direction in your own words and submit it to the F&B Director'
   },
   budgetApprovals: {
     area: 'command',
