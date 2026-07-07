@@ -42,7 +42,28 @@ describe('Beverage Brief Inbox access — admin must not see or access it', () =
   it('does not globally break admin access to unrelated pages', () => {
     expect(canAccessPage('admin', 'cocktailLab')).toBe(true)
     expect(canAccessPage('admin', 'operationalPulse')).toBe(true)
-    expect(canAccessPage('admin', 'beverageBrief')).toBe(true)
+  })
+})
+
+describe('Owner Beverage Brief access — admin must not see or access it', () => {
+  it('allows owner to reach beverageBrief', () => {
+    expect(canAccessPage('owner', 'beverageBrief')).toBe(true)
+  })
+
+  it('does NOT allow admin to reach beverageBrief, despite the global admin bypass', () => {
+    expect(canAccessPage('admin', 'beverageBrief')).toBe(false)
+  })
+
+  it('does not allow unrelated roles (fb_director, bar_manager, employee) into beverageBrief', () => {
+    expect(canAccessPage('fb_director', 'beverageBrief')).toBe(false)
+    expect(canAccessPage('bar_manager', 'beverageBrief')).toBe(false)
+    expect(canAccessPage('employee', 'beverageBrief')).toBe(false)
+  })
+
+  it('does not globally break admin access to unrelated pages', () => {
+    expect(canAccessPage('admin', 'cocktailLab')).toBe(true)
+    expect(canAccessPage('admin', 'operationalPulse')).toBe(true)
+    expect(canAccessPage('admin', 'ownerHome')).toBe(true)
   })
 })
 

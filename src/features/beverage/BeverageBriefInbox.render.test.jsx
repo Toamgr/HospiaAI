@@ -1,12 +1,13 @@
 // Rendered DOM regression for BeverageBriefInbox (Beverage Slice 1A — F&B Director inbox).
 //
-// Exercises real behavior with React Testing Library + jsdom: the role render gate, the honest
-// empty state ("No beverage briefs waiting."), listing submitted briefs, opening a brief with
-// the owner's values shown verbatim, opening a review, and recording a decision through the
-// PATCH route. The API client is mocked so no network/server is touched.
+// Exercises real behavior with React Testing Library + jsdom, through the container (which owns
+// state/effects/API calls) rendering the pure presentational component: the role render gate,
+// the honest empty state ("No beverage briefs waiting."), listing submitted briefs, opening a
+// brief with the owner's values shown verbatim, opening a review, and recording a decision
+// through the PATCH route. The API client is mocked so no network/server is touched.
 
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import BeverageBriefInbox from './BeverageBriefInbox'
+import BeverageBriefInbox from './containers/BeverageBriefInboxContainer'
 
 const { apiGet, apiPost, apiPut, apiPatch, apiDelete } = vi.hoisted(() => ({
   apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn(), apiPatch: vi.fn(), apiDelete: vi.fn(),

@@ -65,8 +65,8 @@ import { CocktailIntelligenceDashboard } from './features/cocktail-intelligence/
 import VenueIntelligence from './features/venue-intelligence/VenueIntelligence'
 import VenueBridgeInspector from './features/venue-intelligence/VenueBridgeInspector'
 import CocktailsTab from './features/magazine/CocktailsTab' // COCKTAILS TAB
-import OwnerBeverageBrief from './features/beverage/OwnerBeverageBrief' // Beverage Slice 1A
-import BeverageBriefInbox from './features/beverage/BeverageBriefInbox' // Beverage Slice 1A
+import OwnerBeverageBriefContainer from './features/beverage/containers/OwnerBeverageBriefContainer' // Beverage Slice 1A
+import BeverageBriefInboxContainer from './features/beverage/containers/BeverageBriefInboxContainer' // Beverage Slice 1A
 
 export default function PageRenderer({ t, page, goToPage, pageContext, session, reports, operations, cocktails, academy, notifications, events, cocktailIntelligence, venueIntelligence }) { // CI MODULE ADDITION: added cocktailIntelligence
   const { currentUser, lang, role, users, onCreateUser, onUpdateUser, onDisableUser } = session
@@ -151,8 +151,8 @@ export default function PageRenderer({ t, page, goToPage, pageContext, session, 
     myShifts: <MyShifts />,
     constraintsForm: <ConstraintsForm />,
     foodMenuView: <FoodMenuView />,
-    beverageBrief: <OwnerBeverageBrief currentUser={currentUser} />, // Beverage Slice 1A
-    beverageBriefInbox: <BeverageBriefInbox currentUser={currentUser} />, // Beverage Slice 1A
+    beverageBrief: <OwnerBeverageBriefContainer currentUser={currentUser} />, // Beverage Slice 1A
+    beverageBriefInbox: <BeverageBriefInboxContainer currentUser={currentUser} />, // Beverage Slice 1A
   }
 
   return pages[page] || <MissingPage t={t} page={page} />

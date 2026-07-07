@@ -1,12 +1,13 @@
 // Rendered DOM regression for OwnerBeverageBrief (Beverage Slice 1A — owner form).
 //
-// Exercises real behavior with React Testing Library + jsdom: the owner-only render gate, the
-// empty-form honesty (no prefilled/sample content anywhere), save-draft and submit writes, the
-// read-only submitted state, and the honest error state. The API client is mocked so no
-// network/server is touched.
+// Exercises real behavior with React Testing Library + jsdom, through the container (which owns
+// state/effects/API calls) rendering the pure presentational component: the owner-only render
+// gate, the empty-form honesty (no prefilled/sample content anywhere), save-draft and submit
+// writes, the read-only submitted state, and the honest error state. The API client is mocked so
+// no network/server is touched.
 
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import OwnerBeverageBrief from './OwnerBeverageBrief'
+import OwnerBeverageBrief from './containers/OwnerBeverageBriefContainer'
 
 const { apiGet, apiPost, apiPut, apiPatch, apiDelete } = vi.hoisted(() => ({
   apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn(), apiPatch: vi.fn(), apiDelete: vi.fn(),

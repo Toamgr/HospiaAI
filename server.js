@@ -7322,12 +7322,16 @@ app.post('/api/owner-meaning-promotion-candidates/:candidateId/request-revision'
 //   • Zero AI, zero generation, zero Venue DNA contact. Honest empty states ([]), honest
 //     errors — no fallback content anywhere.
 
-// Map service error codes onto HTTP statuses (shared by all Slice 1A handlers).
+// Map service error codes onto HTTP statuses (shared by all Slice 1A handlers). Only errors the
+// services explicitly classify get a 4xx; anything else (a DB failure, a programming error) is
+// unexpected and must surface as 500 — misreporting it as 400 would blame the client for a
+// server-side failure.
 function beverageBriefErrorStatus(err) {
   if (err && err.code === 'NOT_FOUND') return 404;
   if (err && err.code === 'CONFLICT') return 409;
   if (err && err.code === 'FORBIDDEN') return 403;
-  return 400;
+  if (err && err.code === 'BAD_REQUEST') return 400;
+  return 500;
 }
 
 // POST create a DRAFT brief — OWNER-ONLY write (admin re-excluded before the sole writer).
@@ -7387,7 +7391,7 @@ app.get('/api/owner-beverage-briefs', requireAuth('owner'), (req, res) => {
   try {
     res.json({ ok: true, briefs: listOwnerBeverageBriefsForVenue(db, req.venueId) });
   } catch (err) {
-    res.status(400).json({ ok: false, error: err.message || 'Could not list beverage briefs.' });
+    res.status(beverageBriefErrorStatus(err)).json({ ok: false, error: err.message || 'Could not list beverage briefs.' });
   }
 });
 
@@ -7398,7 +7402,7 @@ app.get('/api/owner-beverage-briefs/:briefId', requireAuth('owner'), (req, res) 
     if (!brief) return res.status(404).json({ ok: false, error: 'No beverage brief found for this venue.' });
     res.json({ ok: true, brief, events: listBeverageBriefEvents(db, req.venueId, req.params.briefId) });
   } catch (err) {
-    res.status(400).json({ ok: false, error: err.message || 'Could not read the beverage brief.' });
+    res.status(beverageBriefErrorStatus(err)).json({ ok: false, error: err.message || 'Could not read the beverage brief.' });
   }
 });
 
@@ -7410,7 +7414,7 @@ app.get('/api/fnb-beverage-brief-inbox', requireAuth('fb_director'), (req, res) 
     }
     res.json({ ok: true, briefs: listFnbBriefInbox(db, req.venueId) });
   } catch (err) {
-    res.status(400).json({ ok: false, error: err.message || 'Could not read the beverage brief inbox.' });
+    res.status(beverageBriefErrorStatus(err)).json({ ok: false, error: err.message || 'Could not read the beverage brief inbox.' });
   }
 });
 
@@ -7432,7 +7436,7 @@ app.get('/api/fnb-beverage-brief-inbox/:briefId', requireAuth('fb_director'), (r
       events: listBeverageBriefEvents(db, req.venueId, req.params.briefId),
     });
   } catch (err) {
-    res.status(400).json({ ok: false, error: err.message || 'Could not read the beverage brief.' });
+    res.status(beverageBriefErrorStatus(err)).json({ ok: false, error: err.message || 'Could not read the beverage brief.' });
   }
 });
 

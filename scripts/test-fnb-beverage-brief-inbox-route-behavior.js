@@ -48,7 +48,8 @@ function beverageBriefErrorStatus(err) {
   if (err && err.code === 'NOT_FOUND') return 404
   if (err && err.code === 'CONFLICT') return 409
   if (err && err.code === 'FORBIDDEN') return 403
-  return 400
+  if (err && err.code === 'BAD_REQUEST') return 400
+  return 500
 }
 
 // Faithful model of server.js requireAuth: role from header, 401 if absent, admin bypasses the
@@ -65,6 +66,16 @@ function requireAuth(...allowedRoles) {
     next()
   }
 }
+
+// ── beverageBriefErrorStatus mapping — unknown/unclassified errors must be 500, not 400 ────
+ok(beverageBriefErrorStatus({ code: 'NOT_FOUND' }) === 404, '[error-status] NOT_FOUND -> 404')
+ok(beverageBriefErrorStatus({ code: 'CONFLICT' }) === 409, '[error-status] CONFLICT -> 409')
+ok(beverageBriefErrorStatus({ code: 'FORBIDDEN' }) === 403, '[error-status] FORBIDDEN -> 403')
+ok(beverageBriefErrorStatus({ code: 'BAD_REQUEST' }) === 400, '[error-status] BAD_REQUEST -> 400')
+ok(beverageBriefErrorStatus(new Error('unexpected DB failure')) === 500,
+  '[error-status] an unclassified Error (no .code) -> 500, not 400')
+ok(beverageBriefErrorStatus({ code: 'SOME_UNMAPPED_CODE' }) === 500,
+  '[error-status] an unrecognized .code -> 500, not 400')
 
 const app = express()
 app.use(express.json())
@@ -96,7 +107,7 @@ app.get('/api/fnb-beverage-brief-inbox', requireAuth('fb_director'), (req, res) 
       return res.status(403).json({ ok: false, error: 'The beverage brief inbox belongs to the F&B Director; admin cannot access it.' })
     }
     res.json({ ok: true, briefs: listFnbBriefInbox(db, req.venueId) })
-  } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
+  } catch (err) { res.status(beverageBriefErrorStatus(err)).json({ ok: false, error: err.message }) }
 })
 
 app.get('/api/fnb-beverage-brief-inbox/:briefId', requireAuth('fb_director'), (req, res) => {
@@ -107,7 +118,7 @@ app.get('/api/fnb-beverage-brief-inbox/:briefId', requireAuth('fb_director'), (r
     const brief = getOwnerBeverageBriefById(db, req.venueId, req.params.briefId)
     if (!brief || brief.status !== 'submitted') return res.status(404).json({ ok: false, error: 'No submitted beverage brief found for this venue.' })
     res.json({ ok: true, brief, review: getFnbBriefReviewForBrief(db, req.venueId, req.params.briefId) })
-  } catch (err) { res.status(400).json({ ok: false, error: err.message }) }
+  } catch (err) { res.status(beverageBriefErrorStatus(err)).json({ ok: false, error: err.message }) }
 })
 
 app.post('/api/fnb-brief-reviews', requireAuth('fb_director'), (req, res) => {
@@ -200,6 +211,16 @@ const server = app.listen(0, async () => {
     ok(adminOwnerCreate.status === 403, '[regression] admin still cannot create an owner beverage brief')
     const ownerCreate2 = await req(server, 'POST', '/api/owner-beverage-briefs', { role: 'owner', user: 'owner-2', body: { fields: {} } })
     ok(ownerCreate2.status === 201, '[regression] owner can still create a brief')
+
+    // ── an unclassified failure (DB gone) must surface as 500, never 400 ────────────
+    // Closing the DB mid-request makes the underlying better-sqlite3 call throw a plain error
+    // with no .code the service ever sets — exactly the "unexpected DB/server failure" case
+    // that must not be misreported as a 400 client error. Must run LAST (db is unusable after).
+    db.close()
+    const dbGoneList = await req(server, 'GET', '/api/fnb-beverage-brief-inbox', { role: 'fb_director' })
+    ok(dbGoneList.status === 500, '[unknown-error] GET inbox returns 500 (not 400) when the DB throws an unclassified error')
+    const dbGoneOne = await req(server, 'GET', `/api/fnb-beverage-brief-inbox/${briefId}`, { role: 'fb_director' })
+    ok(dbGoneOne.status === 500, '[unknown-error] GET one brief returns 500 (not 400) when the DB throws an unclassified error')
   } catch (e) {
     failed++; console.error('  [FAIL] unexpected error:', e && e.message)
   } finally {

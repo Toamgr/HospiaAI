@@ -1,5 +1,8 @@
 // BeverageBriefInbox — the F&B Director's "Beverage Brief Inbox" (Beverage Slice 1A).
 //
+// Pure presentational component: all state, effects, and API calls live in
+// containers/BeverageBriefInboxContainer.jsx, which passes data and handlers down as props.
+//
 // Lists SUBMITTED Owner Beverage Direction Briefs for the active venue and lets the F&B
 // Director open one, read the owner's values verbatim, add review notes and per-field
 // adjustments, and decide: approve / decline / request clarification.
@@ -9,18 +12,14 @@
 //     DIFF stored on the review — the owner value stays visible beside it, always.
 //   • Honest empty state: "No beverage briefs waiting." No sample briefs, no demo cards,
 //     no fake data, no fake success states.
-//   • Uses ONLY the Slice 1A F&B routes via beverageBriefApi. Zero AI, zero generation,
-//     zero Venue DNA contact.
-//   • F&B-DIRECTOR-ONLY surface: refuses to render for any role other than fb_director,
-//     including admin (backend enforces this too — requireAuth('fb_director') plus an explicit
-//     admin re-exclusion on every F&B route; admin must not see or access this page at all).
+//   • Uses ONLY the Slice 1A F&B routes via beverageBriefApi (in the container). Zero AI, zero
+//     generation, zero Venue DNA contact.
+//   • F&B-DIRECTOR-ONLY surface: refuses to render unless the container resolves `allowed`
+//     (role is fb_director), including admin (backend enforces this too — requireAuth('fb_director')
+//     plus an explicit admin re-exclusion on every F&B route; admin must not see or access this
+//     page at all).
 //
 // Palette A (Operational Dark). Primary action inside an open brief: the review decision.
-
-import { useCallback, useEffect, useState } from 'react'
-import {
-  listBriefInbox, getInboxBrief, createBriefReview, updateBriefReview,
-} from '../../services/api/beverageBriefApi'
 
 const C = {
   ground: '#0D0D0D',
@@ -69,10 +68,12 @@ function Eyebrow({ children }) {
   )
 }
 
+// rounded-full chip on an 8px-grid: h-6 (24px) fixed height + items-center replaces vertical
+// padding, px-2 (8px) horizontal — no half-grid px-2.5/py-0.5 values.
 function StatusChip({ status }) {
   const decided = status && status !== 'in_review'
   return (
-    <span className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em]"
+    <span className="inline-flex h-6 shrink-0 items-center rounded-full px-2 text-[10px] font-medium uppercase tracking-[0.1em]"
       style={{
         border: `1px solid ${C.borderEmp}`,
         color: status ? (decided ? C.gold : C.text2) : C.text3,
@@ -138,93 +139,12 @@ function BriefField({ def, ownerValue, adjustment, canAdjust, draft, onDraftChan
   )
 }
 
-export default function BeverageBriefInbox({ currentUser }) {
-  const role = currentUser?.role
-  const allowed = role === 'fb_director'
-
-  const [loadState, setLoadState] = useState('loading') // loading | ready | error
-  const [loadError, setLoadError] = useState(null)
-  const [briefs, setBriefs] = useState([])
-
-  const [openId, setOpenId] = useState(null)
-  const [detail, setDetail] = useState(null)            // { brief, review, events }
-  const [detailState, setDetailState] = useState('idle')// idle | loading | ready | error
-  const [detailError, setDetailError] = useState(null)
-
-  const [notesDraft, setNotesDraft] = useState('')
-  const [adjustmentDrafts, setAdjustmentDrafts] = useState({})
-  const [busy, setBusy] = useState(null)                // 'opening' | 'saving' | 'deciding' | null
-  const [actionError, setActionError] = useState(null)
-  const [savedNote, setSavedNote] = useState(null)
-
-  const load = useCallback(async () => {
-    setLoadState('loading'); setLoadError(null)
-    try {
-      const res = await listBriefInbox()
-      setBriefs(Array.isArray(res.briefs) ? res.briefs : [])
-      setLoadState('ready')
-    } catch (err) {
-      setLoadError(err.message || 'We couldn’t reach the brief inbox.')
-      setLoadState('error')
-    }
-  }, [])
-
-  useEffect(() => { if (allowed) load() }, [allowed, load])
-
-  const openBrief = async (briefId) => {
-    setOpenId(briefId); setDetailState('loading'); setDetailError(null)
-    setActionError(null); setSavedNote(null); setAdjustmentDrafts({})
-    try {
-      const res = await getInboxBrief(briefId)
-      setDetail(res)
-      setNotesDraft(res.review?.notes || '')
-      setDetailState('ready')
-    } catch (err) {
-      setDetailError(err.message || 'Could not open this brief.')
-      setDetailState('error')
-    }
-  }
-
-  const closeBrief = () => {
-    setOpenId(null); setDetail(null); setDetailState('idle')
-    setNotesDraft(''); setAdjustmentDrafts({}); setActionError(null); setSavedNote(null)
-    load()
-  }
-
-  const onOpenReview = async () => {
-    setBusy('opening'); setActionError(null); setSavedNote(null)
-    try {
-      const res = await createBriefReview(detail.brief.id)
-      setDetail(prev => ({ ...prev, review: res.review }))
-    } catch (err) {
-      setActionError(err.message || 'Could not open the review.')
-    } finally { setBusy(null) }
-  }
-
-  // Collect non-blank adjustment drafts into the PATCH payload shape.
-  const pendingAdjustments = () =>
-    Object.entries(adjustmentDrafts)
-      .filter(([, v]) => typeof v === 'string' && v.trim().length > 0)
-      .map(([field, adjusted_value]) => ({ field, adjusted_value }))
-
-  const patchReview = async (payload, busyKind, note) => {
-    setBusy(busyKind); setActionError(null); setSavedNote(null)
-    try {
-      const res = await updateBriefReview(detail.review.id, payload)
-      setDetail(prev => ({ ...prev, review: res.review }))
-      setAdjustmentDrafts({})
-      if (note) setSavedNote(note)
-    } catch (err) {
-      setActionError(err.message || 'Could not update the review.')
-    } finally { setBusy(null) }
-  }
-
-  const onSaveReviewWork = () =>
-    patchReview({ notes: notesDraft, adjustments: pendingAdjustments() }, 'saving', 'Review notes saved.')
-
-  const onDecide = (status) =>
-    patchReview({ notes: notesDraft, adjustments: pendingAdjustments(), status }, 'deciding')
-
+export default function BeverageBriefInbox({
+  allowed, loadState, loadError, onRetryLoad, briefs,
+  openId, onOpenBrief, onCloseBrief, detail, detailState, detailError,
+  notesDraft, onNotesChange, adjustmentDrafts, onDraftChange,
+  busy, actionError, savedNote, onOpenReview, onSaveReviewWork, onDecide,
+}) {
   if (!allowed) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16 text-center">
@@ -250,7 +170,7 @@ export default function BeverageBriefInbox({ currentUser }) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
         <p className="text-[13px]" style={{ color: C.error }} role="alert">{loadError}</p>
-        <button type="button" onClick={load}
+        <button type="button" onClick={onRetryLoad}
           className={`mt-4 rounded px-5 py-2 text-[12px] font-medium uppercase tracking-[0.1em] ${FOCUS_RING}`}
           style={{ border: `1px solid ${C.gold}`, color: C.gold, background: 'transparent' }}>
           Try again
@@ -266,7 +186,7 @@ export default function BeverageBriefInbox({ currentUser }) {
     const decided = review && review.status !== 'in_review'
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
-        <button type="button" onClick={closeBrief}
+        <button type="button" onClick={onCloseBrief}
           className={`text-[12px] ${FOCUS_RING}`} style={{ color: C.text2, background: 'transparent', border: 'none', cursor: 'pointer' }}>
           ← Back to the inbox
         </button>
@@ -302,10 +222,7 @@ export default function BeverageBriefInbox({ currentUser }) {
                   adjustment={review?.field_adjustments?.[def.key] || null}
                   canAdjust={Boolean(reviewOpen)}
                   draft={adjustmentDrafts[def.key]}
-                  onDraftChange={(field, value) => {
-                    setAdjustmentDrafts(prev => ({ ...prev, [field]: value }))
-                    setSavedNote(null)
-                  }} />
+                  onDraftChange={onDraftChange} />
               ))}
             </div>
 
@@ -333,7 +250,7 @@ export default function BeverageBriefInbox({ currentUser }) {
                     Review notes
                   </label>
                   <textarea id="review-notes" rows={4} value={notesDraft}
-                    onChange={e => { setNotesDraft(e.target.value); setSavedNote(null) }}
+                    onChange={e => onNotesChange(e.target.value)}
                     className={`mt-1 w-full rounded-md px-3.5 py-2.5 text-[13px] leading-relaxed ${FOCUS_RING}`}
                     style={{ background: C.ground, border: `1px solid ${C.borderSub}`, color: C.text }} />
 
@@ -411,7 +328,7 @@ export default function BeverageBriefInbox({ currentUser }) {
         <ul className="mt-6 space-y-3">
           {briefs.map(b => (
             <li key={b.id}>
-              <button type="button" onClick={() => openBrief(b.id)}
+              <button type="button" onClick={() => onOpenBrief(b.id)}
                 aria-label={`Open beverage brief ${shortId(b.id)}`}
                 className={`w-full rounded-lg px-4 py-3 text-left transition hover:border-[#C9A96E] ${FOCUS_RING}`}
                 style={{ background: C.card, border: `1px solid ${C.borderSub}` }}>

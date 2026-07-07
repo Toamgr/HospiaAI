@@ -429,11 +429,14 @@ export const PAGE_META = {
     section: 'Intelligence',
     description: 'Calm AI-first owner home — read-only Venue DNA foundation (Build Mode shell)'
   },
-  // Beverage Slice 1A — the owner writes beverage direction; write routes are owner-only
-  // (admin is nav-visible but the backend refuses admin writes).
+  // Beverage Slice 1A — owner-authored beverage direction. OWNER ONLY (product decision: admin
+  // must not see or access this page at all, matching the component's own owner-only render
+  // gate). The 'command' nav group still lists admin (for ownerHome/operationalPulse/settings),
+  // but canAccessPage's ADMIN_DENIED_PAGES deny-list (roleConfig.js) excludes admin from this
+  // page specifically, so it is filtered out of admin's nav too.
   beverageBrief: {
     area: 'command',
-    roles: ['owner', 'admin'],
+    roles: ['owner'],
     code: 'BB',
     section: 'Beverage',
     description: 'State the beverage direction in your own words and submit it to the F&B Director'
