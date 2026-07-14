@@ -69,7 +69,10 @@
     "test:fnb-brief-review-persistence": "node scripts/test-fnb-brief-review-persistence.js",
     "test:beverage-brief-route-audit": "node scripts/test-beverage-brief-route-audit.js",
     "test:fnb-beverage-brief-route-behavior": "node scripts/test-fnb-beverage-brief-inbox-route-behavior.js",
-    "test:beverage-brief-ui": "vitest run src/features/beverage/OwnerBeverageBrief.render.test.jsx src/features/beverage/BeverageBriefInbox.render.test.jsx"
+    "test:beverage-brief-ui": "vitest run src/features/beverage/OwnerBeverageBrief.render.test.jsx src/features/beverage/BeverageBriefInbox.render.test.jsx",
+    "test:beverage-interpretation-engine": "node scripts/test-beverage-interpretation-engine.js",
+    "test:beverage-interpretation-security": "vitest run src/services/beverage/beverageInterpretationContext.test.js src/services/beverage/beverageInterpretationContract.test.js src/services/beverage/beverageInterpretationEngine.test.js",
+    "demo:beverage-interpretation-engine": "node scripts/run-beverage-interpretation-demo.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.2.9",
